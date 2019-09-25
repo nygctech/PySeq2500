@@ -17,7 +17,10 @@ import time
 # YSTAGE object
 
 class Ystage():
-
+    
+    #
+    # Make Ystage object
+    #
     def __init__(self, com_port, baudrate):
 
         # Open Serial Port
@@ -33,7 +36,10 @@ class Ystage():
         self.suffix = '\r\n'
         self.on = False
         self.position = 0
-
+        
+    #
+    # Initialize Ystage
+    #
     def initialize(self):
 
         response = self.command('Z')                                    # Initialize Stage
@@ -59,15 +65,18 @@ class Ystage():
         print('ystage: ' + response)
         self.position = int(self.command('R(PA)')[1:])         
 
-    
-        
+    #
+    # Send generic command to Ystage and return response
+    #
     def command(self, text):
                         
         self.serial_port.write(self.prefix + text + self.suffix)        # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
         return self.serial_port.readline()                              # Return response
         
-        
+    # 
+    # Move Ystage to a position
+    #
     def move(self, position):
         if position <= self.max_y and position >= self.min_y:
             self.command('D' + str(position))                               # Set distance
@@ -75,7 +84,10 @@ class Ystage():
             return self.check_position()                                    # Check position
         else:
             print("YSTAGE can only between " + str(self.min_y) + ' and ' + str(self.max_y))
-
+            
+    #      
+    # Check if Ystage is in position
+    #
     def check_position(self):
         moving = 1
         while moving != 0:
