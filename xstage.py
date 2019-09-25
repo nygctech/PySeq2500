@@ -17,7 +17,9 @@ import time
 # XSTAGE object
 
 class Xstage():
-
+    #
+    # Make Xstage object
+    #
     def __init__(self, com_port, baudrate):
 
         # Open Serial Port
@@ -28,50 +30,48 @@ class Xstage():
                                             encoding = 'ascii',
                                             errors = 'ignore')                
         self.min_x = 0
-        self.max_x = 7500000
-        self.prefix = '1'
-        self.suffix = '\r\n'
-        self.on = False
-        self.position = int(self.command('R(PA)'))                      # Set position
-
-        response = self.command('Z')                                    # Initialize Stage
-        print('ystage: ' + response)
+        self.max_x = 60000
+        self.suffix = '\r'
+        self.position = 0
                         
-        response = self.command('GAINS(5,2,5,10,0)')                    # Set gains
-        print('ystage: ' + response)
                         
-        response = self.command('ON')                                   # Turn Motor ON
-        print('ystage: ' + response)
-        self.on = True
+    #
+    # Initialize Xstage 
+    #
+    def initialize(self):
+        response = self.command('\x03')                                 # Initialize Stage
+        print('xstage: ' + response) 
                         
-        response = self.command('GH')                                   # Home Stage
-        print('ystage: ' + response)                
-        response = self.check_postion()                                 
-        print('ystage: ' + response)
-        response = self.command(W(PA,0))
-        print('ystage: ' + response)
-        self.position = int(self.command('R(PA)'))                      
-
-    
-        
-    def command(self, text):
                         
-        self.serial_port.write(self.prefix + text + self.suffix)        # Write to serial port
+    #
+    # Send generic serial commands to Xstage and return response 
+    #
+    def command(self, text):                        
+        self.serial_port.write(text + self.suffix)                      # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
         return self.serial_port.readline()                              # Return response
-        
-        
+                        
+                        
+    #   
+    # Move Xstage to absolute position    
+    #
     def move(self, position):
-        self.command('D' + str(position)                                # Set distance
-        self.command('G')                                               # Go           
-        return self.check_position()                                    # Check position
-
-    def check_position(self):
+        if position <= self.max_y and position >= self.min_y:
+            self.command('MA' + str(position))                          # Move Absolute
+            return self.check_position()                                # Check position
+        else:
+            print("XSTAGE can only move between " + str(self.min_y) + ' and ' + str(self.max_y))
+                        
+                        
+    #                    
+    # Check if Xstage is at a position
+    #
+    def check_position(self, position):
         moving = 1
         while moving != 0:
-            moving = int(self.command(R(MV)))                           # Check if moving, 1 = yes, 0 = no
+            moving = self.command('PR(MV)')                             # Check if moving, 1 = yes, 0 = no
             time.sleep(2)
 
-        self.position = self.command('R(PA)')                           # Set position
-
-        return int(self.command('R(IP)'))                               # Check if in position, 1 = yes, 0 = no
+        self.position = self.command('R(P)')                            # Set position
+                        
+        return position == self.position                                # Return TRUE if in position or False if not
