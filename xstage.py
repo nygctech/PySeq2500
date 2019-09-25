@@ -56,7 +56,7 @@ class Xstage():
     # Move Xstage to absolute position    
     #
     def move(self, position):
-        if position <= self.max_y and position >= self.min_y:
+        if position <= self.max_x and position >= self.min_x:
             self.command('MA' + str(position))                          # Move Absolute
             return self.check_position()                                # Check position
         else:
