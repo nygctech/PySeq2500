@@ -14,9 +14,9 @@ import io
 import time
 
 
-# XSTAGE object
+# ZSTAGE object
 
-class Xstage():
+class Zstage():
     #
     # Make Zstage object
     #
