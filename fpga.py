@@ -27,7 +27,7 @@ class FPGA():
         s_response = serial.Serial(com_port_response, baudrate, timeout = 1)
 
         # Text wrapper around serial port                
-        self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s_command,s_response,),
+        self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s_response,s_command),
                                             encoding = 'ascii',
                                             errors = 'ignore')                
         self.suffix = '\n'
@@ -38,7 +38,7 @@ class FPGA():
     def initialize(self):
     
         response = self.command('RESET')                                # Initialize FPGA
-        print('ystage: ' + response)     
+        print(response)     
      
      
     #
