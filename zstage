@@ -24,7 +24,7 @@ class Zstage():
     
         self.serial_port = fpga              
         self.min_z = 0
-        self.max_z = 35000
+        self.max_z = 28000
         self.suffix = '\n'
         self.position = [0, 0, 0]
         self.motors = ['1','2','3']
@@ -34,13 +34,23 @@ class Zstage():
     # Initialize Zstage 
     #
     def initialize(self):
+
+        #Home Motors
         for i in range(1,3):
-            response = self.command('T' + self.motors[i] + 'HM')        # Home motors
-        
+            response = self.command('T' + self.motors[i] + 'HM')        
+
+        #Wait till they stop
         response = self.check_position()
-        
+
+        # Clear motor count registers
         for i in range(1,3):
-            response = self.command('T' + self.motors[i] + 'CR')        # Clear motor count registers
+            response = self.command('T' + self.motors[i] + 'CR')        
+
+        # Update position
+        for i in range(3):
+            self.position[i] = int(self.command('T' + self.motors[i] + 'RD')[5:])                          # Set position
+
+        
                         
                         
     #
@@ -58,7 +68,7 @@ class Zstage():
     def move(self, position):
         for i in range(3):
             if position[i] <= self.max_z and position[i] >= self.min_z:
-                self.command('T' + self.motors[i] + 'MOVETO' + str(position[i]))                        # Move Absolute
+                self.command('T' + self.motors[i] + 'MOVETO ' + str(position[i]))                        # Move Absolute
             else:
                 print("ZSTAGE can only move between " + str(self.min_z) + ' and ' + str(self.max_z))
                 
@@ -69,24 +79,35 @@ class Zstage():
     # Check if Zstage motors are stopped and return their position
     #
     def check_position(self):
+        # Get Current position
+        old_position = [0,0,0]
         for i in range(3):
-            old_position[i] = self.command('T' + self.motors[i] + 'RD')         # Get current position
-       
-        time.sleep(2)
+            successful = True
+            while successful:
+                try:
+                    old_position[i] = int(self.command('T' + self.motors[i] + 'RD')[5:])
+                    successful = False
+                except:
+                    time.sleep(2)
+
         
-       
+        all_stopped = 0
         while all_stopped != 3:
             all_stopped = 0
             for i in range(3):
-                new_position = self.command('T' + self.motors[i] + 'RD')        # Get current position
-                stopped = new_position == old_position[i]                       # Compare old position to new position
-                all_stopped = all_stopped + stopped                             # all_stopped will = 3 if all 3 motors are in position
-                old_position[i] = new_position                                  # Save new position
-                
-            time.sleep(2)
+                successful = True
+                while successful:
+                    try:
+                        new_position = int(self.command('T' + self.motors[i] + 'RD')[5:])       # Get current position
+                        stopped = new_position == old_position[i]                               # Compare old position to new position
+                        all_stopped = all_stopped + stopped                                     # all_stopped will = 3 if all 3 motors are in position
+                        old_position[i] = new_position                                          # Save new position
+                        successful = False
+                    except:
+                        time.sleep(2)
             
         for i in range(3):
-            self.position[i] = old_position[i]                                  # Set position
+            self.position[i] = old_position[i]                                      # Set position
                              
-        return self.position                                                    # Return position
+        return self.position                                                        # Return position
         
