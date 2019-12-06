@@ -20,7 +20,7 @@ class Xstage():
     #
     # Make Xstage object
     #
-    def __init__(self, com_port, baudrate):
+    def __init__(self, com_port, baudrate = 9600):
 
         # Open Serial Port
         s = serial.Serial(com_port, baudrate, timeout = 1)
@@ -31,6 +31,7 @@ class Xstage():
                                             errors = 'ignore')                
         self.min_x = 1000
         self.max_x = 50000
+        self.home = 30000
         self.suffix = '\r'
         self.position = 0
                         
@@ -106,7 +107,7 @@ class Xstage():
             self.command('MA ' + str(position))                         # Move Absolute
             return self.check_position(position)                        # Check position
         else:
-            print("XSTAGE can only move between " + str(self.min_y) + ' and ' + str(self.max_y))
+            print("XSTAGE can only move between " + str(self.min_x) + ' and ' + str(self.max_x))
                         
                         
     #                    
@@ -116,7 +117,7 @@ class Xstage():
         moving = 1
         while moving != 0:
             moving = int(self.command('PR MV'))                             # Check if moving, 1 = yes, 0 = no
-            time.sleep(2)
+            time.sleep(1)
 
         self.position = int(self.command('PR P'))                           # Set position
                         

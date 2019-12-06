@@ -11,6 +11,7 @@
 
 import serial
 import io
+import time
 
 
 # FPGA object
@@ -20,8 +21,9 @@ class FPGA():
     #
     # Make FPGA object
     #
-    def __init__(self, com_port_command, com_port_response, baudrate):
+    def __init__(self, com_port_command, com_port_response, baudrate = 115200):
 
+        
         # Open Serial Port
         s_command = serial.Serial(com_port_command, baudrate, timeout = 1)
         s_response = serial.Serial(com_port_response, baudrate, timeout = 1)
@@ -31,6 +33,7 @@ class FPGA():
                                             encoding = 'ascii',
                                             errors = 'ignore')                
         self.suffix = '\n'
+        self.y_offset = 7000000
 
     #
     # Initialize FPGA
@@ -38,7 +41,11 @@ class FPGA():
     def initialize(self):
     
         response = self.command('RESET')                                # Initialize FPGA
-        print(response)     
+        print(response)
+        self.command('EX1HM')                                           # Home excitation filter 
+        self.command('EX2HM')                                           # Home excitation filter 
+        self.command('EM2I')                                            # Move emission filter into light path 
+        self.command('SWLSERSHUT 0')                                    # Shutter lasers
      
      
     #
@@ -49,3 +56,35 @@ class FPGA():
         self.serial_port.write(text + self.suffix)                      # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
         return self.serial_port.readline()                              # Return response
+
+    #
+    # Read encoder position
+    #
+    def read_position(self):
+        tdi_pos = self.command('TDIYERD')
+        tdi_pos = tdi_pos.split(' ')[1]
+        tdi_pos = int(tdi_pos[0:-1]) - self.y_offset
+        return tdi_pos
+
+    #
+    # Write encoder position
+    #
+    def write_position(self, position):
+        position = position + self.y_offset
+        while abs(self.read_position() + self.y_offset - position) > 5:
+            self.command('TDIYEWR ' + str(position))
+            time.sleep(1)
+    #
+    # Set TDIYPOS
+    #
+    def TDIYPOS(self, y_pos):
+        self.command('TDIYPOS ' + str(y_pos+self.y_offset-80000))
+
+    #
+    # Arm stage
+    #
+    def TDIYARM3(self, n_triggers, y_pos):
+        self.command('TDIYARM3 ' + str(n_triggers) + ' ' +
+                  str(y_pos + self.y_offset-10000) + ' 1')
+
+            

@@ -21,7 +21,7 @@ class Ystage():
     #
     # Make Ystage object
     #
-    def __init__(self, com_port, baudrate):
+    def __init__(self, com_port, baudrate = 9600):
 
         # Open Serial Port
         s = serial.Serial(com_port, baudrate, timeout = 1)
@@ -36,6 +36,7 @@ class Ystage():
         self.suffix = '\r\n'
         self.on = False
         self.position = 0
+        self.home = 0
         
     #
     # Initialize Ystage
@@ -49,7 +50,7 @@ class Ystage():
         print('ystage: ' + response)
                         
         response = self.command('GAINS(5,10,7,1.5,0)')                  # Set gains
-        print('ystage: ' + response)
+        print('ystage: ' + response)                             
 
         response = self.command('MA')                                   # Set to absolute position mode
         print('ystage: ' + response)
@@ -59,11 +60,11 @@ class Ystage():
         self.on = True
                         
         response = self.command('GH')                                   # Home Stage
-        print('ystage: ' + response)                
-        response = self.check_position()                                 
-        response = self.command('W(PA,0)')
         print('ystage: ' + response)
-        self.position = int(self.command('R(PA)')[1:])         
+        # Takes forever to home, do other stuff while y stage homes
+        #while not self.check_position():
+        #    time.sleep(1)
+        #self.position = self.read_position()        
 
     #
     # Send generic command to Ystage and return response
@@ -80,20 +81,23 @@ class Ystage():
     def move(self, position):
         if position <= self.max_y and position >= self.min_y:
             self.command('D' + str(position))                               # Set distance
-            self.command('G')                                               # Go           
-            return self.check_position()                                    # Check position
+            self.command('G')                                               # Go
+            while not self.check_position():                                # Wait till y stage is in position
+                time.sleep(1)
+            self.read_position()                                            # Update stage position
+            return True                                                     # Return True that stage is in position
         else:
             print("YSTAGE can only between " + str(self.min_y) + ' and ' + str(self.max_y))
-            
-    #      
-    # Check if Ystage is in position
+
     #
+    # Check if Ystage is in position, 1 = yes, 0 = no
+
     def check_position(self):
-        moving = 1
-        while moving != 0:
-            moving = int(self.command('R(MV)')[1:])                    # Check if moving, 1 = yes, 0 = no
-            time.sleep(2)
+        return int(self.command('R(IP)')[1:])                          
+    #      
+    # Return position of Ystage
+    #
+    def read_position(self):
+        self.position = int(self.command('R(PA)')[1:])                  # Read and store position
 
-        self.position = int(self.command('R(PA)')[1:])                  # Set position
-
-        return int(self.command('R(IP)')[1:])                           # Check if in position, 1 = yes, 0 = no
+        return self.position        
