@@ -3,6 +3,7 @@ Control HiSeq2500 V2 with instruments as objects
 
 # Initializing HiSeq
 import pyseq
+
 hs = pyseq.HiSeq()                  
 hs.initializeCams()                
 hs.initializeInstruments()          # Initialize x,y,z & objective stages. Initialize lasers and optics (filters)
