@@ -11,7 +11,7 @@ hs.initializeInstruments()          # Initialize x,y,z & objective stages. Initi
 # Basic setup of HiSeq
 hs.l1.set_power(100)                #Set green laser power to 100 mW
 
-hs.12.set_power(100)                #Set red laser power to 100 mW
+hs.l2.set_power(100)                #Set red laser power to 100 mW
 
 hs.y.move(-180000)                  #Move stage to top right corner of Flow Cell A
 
