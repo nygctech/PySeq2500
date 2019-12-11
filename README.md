@@ -75,7 +75,7 @@ hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name)
  
  During hs.initializeInstruments both lasers are set to 10 mW
  
- ## Excitation Filters
+ ## Filters
  hs.optics.move_ex(N, filter) moves the excitation filter wheel in the N (1 or 2) light path to the filter.
  
  hs.optics.ex_dict stores the positions and names of the filters in a dictionary
