@@ -66,15 +66,20 @@ hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name)
  
  ## Lasers
  hs.l1.set_power(100) sets laser 1 (green) to 100 mW
+ 
  hs.l2.set_power(100) sets laser 2 (red) to 100 mW
+ 
  hs.l1.get_power() returns the power of laser 1 and stores it in hs.l1.power
+ 
  hs.l2.get_power() returns the power of laser 2 and stores it in hs.l2.power
  
  During hs.initializeInstruments both lasers are set to 10 mW
  
  ## Excitation Filters
  hs.optics.move_ex(N, filter) moves the excitation filter wheel in the N (1 or 2) light path to the filter.
- hs.optics. stores the positions and names of the filters in a dictionary
+ 
+ hs.optics.ex_dict stores the positions and names of the filters in a dictionary
+ 
  hs.optics.move_em_in(True/False) True moves the emission filter into the light path, False moves it out.
  
  During hs.initializeInstruments, the excitation filters are homed to the block position and the emission filter is moved into the light path. 
