@@ -1,5 +1,5 @@
 # PySeq2500V2
-Control HiSeq2500 V2 with instruments as objects
+Control HiSeq2500 with instruments as objects
 
 # Initializing HiSeq
 import pyseq
