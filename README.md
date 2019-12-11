@@ -48,7 +48,7 @@ hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name)
   The metafile contains info like time, stage position, laser power, filter settings. 
   
  # Positioning the stage
- Currently all of the stages move to absolute values that are defined in steps
+ Currently all of the stages move to absolute positions that are defined in steps
  
  hs.y.move(Y)         Y should be a number between -7000000 and 7500000
  
