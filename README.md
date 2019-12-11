@@ -34,4 +34,47 @@ hs.l2.get_power()                   #Get red laser power   (mW i think)
 hs.image_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\Images\\' (Set where you want to save the images)
 
 # Take an image
-hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name (optional otherwise it defaults to time stamp))
+hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name)
+  This takes a picture from each of the cameras, splits each image into 2, saves all 4 images, and writes a metafile. 
+  Images and metafile are saved in the directory set in hs.image_path.
+  Names of the images are hs.cam1.left_emission + image_name. The name of the metafile is just image_name.
+  The image_name argument is optional, if not used it defaults to a time stamp.
+  Currently all of the image prefixes (camN.L/R_emission) are set to the emission wavelength in hs.InitializeCams()
+  
+  The images are # frames x bundle height pixels long in the y dimension and 2048 pixels in the x dimension.
+  Changing the # frames is probably the best way to change the length of the scan.
+  Only certain values are acceptable for the bundle height, I've just been using 128 as Illumina does.
+  
+  The metafile contains info like time, stage position, laser power, filter settings. 
+  
+ # Positioning the stage
+ Currently all of the stages move to absolute values that are defined in steps
+ 
+ hs.y.move(Y)         Y should be a number between -7000000 and 7500000
+ 
+ hs.x.move(X)         X should be between 1000 and 50000
+ 
+ hs.z.move([Z, Z, Z]) Z should be between 0 and 25000
+ 
+ hs.obj.move(O)       O should be between 0 and 65000
+ 
+ The safest way to move the stage out to load slides onto it is hs.move_stage_out().
+ Also I would first move the stage in the y direction, into the hiseq before moving it in the x direction because there are some knobs at the front of the hiseq that the stage can run into.
+  
+ # Setting up optics
+ Before taking a picture, the laser power should be set, the excitation filters should be set, and the emission filter should be in the light path. 
+ 
+ ## Lasers
+ hs.l1.set_power(100) sets laser 1 (green) to 100 mW
+ hs.l2.set_power(100) sets laser 2 (red) to 100 mW
+ hs.l1.get_power() returns the power of laser 1 and stores it in hs.l1.power
+ hs.l2.get_power() returns the power of laser 2 and stores it in hs.l2.power
+ 
+ During hs.initializeInstruments both lasers are set to 10 mW
+ 
+ ## Excitation Filters
+ hs.optics.move_ex(N, filter) moves the excitation filter wheel in the N (1 or 2) light path to the filter.
+ hs.optics. stores the positions and names of the filters in a dictionary
+ hs.optics.move_em_in(True/False) True moves the emission filter into the light path, False moves it out.
+ 
+ During hs.initializeInstruments, the excitation filters are homed to the block position and the emission filter is moved into the light path. 
