@@ -60,6 +60,8 @@ hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name)
  
  The safest way to move the stage out to load slides onto it is hs.move_stage_out().
  Also I would first move the stage in the y direction, into the hiseq before moving it in the x direction because there are some knobs at the front of the hiseq that the stage can run into.
+ 
+ Durint hs.intializeInstruments(), the staged is homed to Y=0, X=30000, Z=0, and O=30000 (although there is no homing for the objective).
   
  # Setting up optics
  Before taking a picture, the laser power should be set, the excitation filters should be set, and the emission filter should be in the light path. 
@@ -73,7 +75,7 @@ hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name)
  
  hs.l2.get_power() returns the power of laser 2 and stores it in hs.l2.power
  
- During hs.initializeInstruments both lasers are set to 10 mW
+ During hs.initializeInstruments(), both lasers are set to 10 mW
  
  ## Filters
  hs.optics.move_ex(N, filter) moves the excitation filter wheel in the N (1 or 2) light path to the filter.
@@ -82,4 +84,4 @@ hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name)
  
  hs.optics.move_em_in(True/False) True moves the emission filter into the light path, False moves it out.
  
- During hs.initializeInstruments, the excitation filters are homed to the block position and the emission filter is moved into the light path. 
+ During hs.initializeInstruments(), the excitation filters are homed to the block position and the emission filter is moved into the light path. 
