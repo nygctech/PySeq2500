@@ -1,0 +1,30 @@
+#!/bin/bash
+# used with raspberry pi
+# to get address in python:
+#   import os
+#   pump_port = os.environ['pump_port'],
+
+pump_port=$(ls -l /dev/serial/by-id/* | grep Prolific | grep -o 'tty.*')
+pump_port="/dev/$pump_port"
+export pump_port
+#echo $pump_port 
+
+fc_in_port=$(ls -l /dev/serial/by-id/* | grep AK06K5LA | grep -o 'tty.*')
+fc_in_port="/dev/$fc_in_port"
+export fc_in_port 
+#echo $fc_in_port
+
+
+fc_out_port=$(ls -l /dev/serial/by-id/* | grep AK05YARZ | grep -o 'tty.*')
+fc_out_port="/dev/$fc_out_port"
+export fc_out_port
+#echo $fc_out_port
+
+
+valve24_port=$(ls -l /dev/serial/by-id/* | grep AC01VSTE | grep -o 'tty.*')
+valve24_port="/dev/$valve24_port"
+export valve24_port 
+#echo $valve24_port
+
+
+./bin/fluidics.py
