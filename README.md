@@ -13,9 +13,6 @@ hs.initializeInstruments()          # Initialize x,y,z & objective stages. Initi
 
 # Basic setup of HiSeq
 
-The following code takes a picture from each of the cameras, splits each image into 2, saves all 4 images, and writes a metafile. 
-Images and metafile are saved in the directory set in `hs.image_path`.
-
 ```python
 hs.l1.set_power(100)                #Set green laser power to 100 mW
 hs.l2.set_power(100)                #Set red laser power to 100 mW
@@ -33,6 +30,19 @@ hs.l1.get_power()                   #Get green laser power (mW i think)
 hs.l2.get_power()                   #Get red laser power   (mW i think)
 ```
 
+# Image acquisition
+
+The following code takes a picture from each of the cameras, splits each image into 2, saves all 4 images, and writes a metafile. 
+Images and metafile are saved in the directory set in `hs.image_path`.
+
+```python
+# Image destination path
+hs.image_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\Images\\'
+
+# Take an image
+hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name)
+```
+
 Names of the images are `hs.cam1.left_emission + image_name`. The name of the metafile is just `image_name`. The `image_name` 
 argument is optional, if not used it defaults to a time stamp.
 
@@ -44,13 +54,9 @@ Only certain values are acceptable for the bundle height, I've just been using 1
 
 The metafile contains info like time, stage position, laser power, filter settings. 
 
+# Moving the stage
+
 ```python
-# Image destination path
-hs.image_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\Images\\'
-
-# Take an image
-hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name)
-
 # Positioning the stage
 # Currently all of the stages move to absolute positions that are defined in steps
 hs.y.move(Y)         # Y should be a number between -7000000 and 7500000
@@ -60,7 +66,7 @@ hs.z.move([Z, Z, Z]) # Z should be between 0 and 25000
 hs.obj.move(O)       # O should be between 0 and 65000
 ```
  
-The safest way to move the stage out to load slides onto it is `hs.move_stage_out()`.
+The safest way to move the stage out to load slides onto it is `hs.move_stage_out()`. 
 
 Also I would first move the stage in the y direction, into the hiseq before moving it in the x direction because there are some knobs at the front of the hiseq that the stage can run into.
  
