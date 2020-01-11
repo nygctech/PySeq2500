@@ -11,6 +11,12 @@ hs.initializeCams()
 hs.initializeInstruments()          # Initialize x,y,z & objective stages. Initialize lasers and optics (filters)
 ```
 
+Note that the `pyseq.HiSeq()` constructor accepts serial ports assignments in case your setup is different, i.e:
+
+```python
+hs = pyseq.HiSeq(xCOM='COM67', yCOM='COM68', fpgaCOM=['COM10', 'COM11'], laser1COM='COM12', laser2COM='COM13')
+```
+
 # Basic setup of HiSeq
 
 ```python
