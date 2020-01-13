@@ -49,8 +49,7 @@ class Pump():
     #
     def initialize(self):
         response = self.command('W4R')                                  # Initialize Stage
-        if self.logger is not None:
-            self.log_flag = True
+
     #
     # Send generic serial commands to pump and return response 
     #
