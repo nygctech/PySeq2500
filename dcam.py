@@ -201,7 +201,7 @@ class HamamatsuCamera():
     #
     # @param camera_id The id of the camera (an integer).
     #
-    def __init__(self, camera_id):
+    def __init__(self, camera_id, logger = None):
 
         self.buffer_index = 0
         self.camera_id = camera_id
@@ -217,7 +217,8 @@ class HamamatsuCamera():
         self.left_emission = None
         self.right_emission = None
         self.status = None
-
+        self.logger = None
+        
         # Open the camera.
         self.camera_handle = ctypes.c_void_p(0)
         self.checkStatus(dcam.dcam_open(ctypes.byref(self.camera_handle),

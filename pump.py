@@ -19,25 +19,29 @@ class Pump():
     #
     # Make pump object
     #
-    def __init__(self, com_port, baudrate = 9600):
+    def __init__(self, com_port, name=None, logger=None):
+        
+        baudrate = 9600
 
         # Open Serial Port
-        s = serial.open(serial.Serial(com_port, baudrate, timeout = 1)
+        s = serial.Serial(com_port, baudrate, timeout = 1)
 
         # Text wrapper around serial port                
         self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
                                             encoding = 'ascii',
                                             errors = 'ignore')                
         self.n_barrels = 8
-        self.barrel_volume = 250 # uL
-        self.steps = 48000
+        self.barrel_volume = 250.0 # uL
+        self.steps = 48000.0
         self.max_volume = self.n_barrels*self.barrel_volume #uL
         self.min_volume = self.max_volume/self.steps #uL
-        self.min_speed = 40 # steps per second (sps)
-        self.max_speed = 8000 # steps per second (sps)
+        self.min_speed = int(self.min_volume*40*60) # uL per min (upm)
+        self.max_speed = int(self.min_volume*8000*60) # uL per min (upm)
         self.dispense_speed = 7000 # speed to dispense (sps)
         self.prefix = '/1'
         self.suffix = '\r'
+        self.logger = logger
+        self.name = name
 
 
     #
@@ -45,26 +49,38 @@ class Pump():
     #
     def initialize(self):
         response = self.command('W4R')                                  # Initialize Stage
-                    
-
-
+        if self.logger is not None:
+            self.log_flag = True
     #
     # Send generic serial commands to pump and return response 
     #
-    def command(self, text):                        
-        self.serial_port.write(self.prefix + text + self.suffix)        # Write to serial port
+    def command(self, text):
+        text = self.prefix + text + self.suffix                         # Format text
+        self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
-        return self.serial_port.readline()                              # Return response
+        response = self.serial_port.readline()                          # Get the response
+        if self.logger is not None:
+            self.logger.info('FPGA::txmt::'+text)
+            self.logger.info('FPGA::rcvd::'+response)
+        
+        return  response                    
+
 
     #
     # Pump desired volume at desired speed then waste
     #
-    def pump(self, volume, speed):
-        position = self.vol_to_position(volume)                         # Convert volume (uL) to position (steps)
+    def pump(self, volume, speed = 0):
+        if speed == 0:
+            speed = self.min_speed                                      # Default to min speed
+            
+        position = self.vol_to_pos(volume)                              # Convert volume (uL) to position (steps)
+        sps = self.uLperMin_to_sps(speed)                               # Convert flowrate(uLperMin) to steps per second
 
+        self.check_pump()                                               # Make sure pump is ready
+        
         #Aspirate                
         while position != self.check_position():
-            self.command('IV' + str(speed) + 'A' + str(position) + 'R') # Pull syringe down to position
+            self.command('IV' + str(sps) + 'A' + str(position) + 'R')   # Pull syringe down to position
             self.check_pump()                               
         self.command('OR')                                              # Switch valve to waste
 
@@ -82,28 +98,37 @@ class Pump():
     def check_pump(self):
         busy = '@'
         ready = '`'
-        status_code = busy
+        status_code = ''
         
-        while status_code[0] != ready :
-            status_code = self.command('')                              # Ping pump for status
-            status_code = str(status_code.split('0')[1]) 
+        while status_code != ready :
+        
+            while not status_code:
+                status_code = self.command('')                              # Ping pump for status
             
-            if status_code[0] == busy :
+                if status_code.find(busy) > -1:
+                    status_code = ''
                     time.sleep(2)
-            elif status_code[0] == ready:
-                    check_pos(hardware,command_pos,f)
-            elif status_code[0] != ready :
-                    print('pump error')
-                    sys.exit()
+                elif status_code.find(ready) > -1:
+                    status_code = ready
+                    return True
+                else:
+                    self.write_log('pump error')
+                    return False
                         
 
     #
-    # Pump desired volume at desired speed then waste
+    # Query and return pump position
     #
-    def check_position(self, position):
+    def check_position(self):
         pump_position = self.command('?')
-        pump_position = pump_position.split('`')[1]
-        pump_position = int(pump_position.split('\x03')[0])
+        while not isinstance(pump_position, int):
+            pump_position = self.command('?')
+            try:
+                pump_position = pump_position.split('`')[1]
+                pump_position = int(pump_position.split('\x03')[0])
+            except:
+                self.write_log('error: could not parse position')
+                pump_position = None 
 
         return pump_position
 
@@ -113,7 +138,18 @@ class Pump():
     #
     def vol_to_pos(self, volume):
         position = round(volume / self.max_volume * self.steps)
-        return position
+        return int(position)
+
+    #
+    # Convert flowrate in uL per min to steps per second
+    #
+    def uLperMin_to_sps(self, speed):
+        sps = round(speed / self.min_volume / 60)
+        return int(sps)
+
+    def write_log(self, text):
+        if self.logger is not None:
+            self.logger.info(self.name + ' ' + text)
         
         
 

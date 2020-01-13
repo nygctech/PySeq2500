@@ -6,10 +6,15 @@ import zstage
 import laser
 import objstage
 import optics
+import pump
+import valve
 
 import time
 import threading
 import numpy as np
+import imageio
+from scipy.optimize import curve_fit
+from math import ceil
 
 
 
@@ -18,31 +23,51 @@ class HiSeq():
     #
     # Make HiSeq Object
     #
-    def __init__(self, yCOM = 'COM10',
+    def __init__(self, Logger = None,
+                       yCOM = 'COM10',
                        xCOM = 'COM9',
-                       objCOM = None,
-                       pumpACOM = None,
-                       pumpBCOM = None,
+                       pumpACOM = 'COM20',
+                       pumpBCOM = 'COM21',
+                       valveA24COM = 'COM22',
+                       valveB24COM = 'COM23',
+                       valveA10COM = 'COM18',
+                       valveB10COM = 'COM19',
                        fpgaCOM = ['COM12','COM15'],
                        laser1COM = 'COM13',
                        laser2COM = 'COM14'):
     
-        self.y = ystage.Ystage(yCOM)
-        self.f = fpga.FPGA(fpgaCOM[0], fpgaCOM[1])
-        self.x = xstage.Xstage(xCOM)
-        self.l1 = laser.Laser(laser1COM)
-        self.l2 = laser.Laser(laser2COM)
-        self.z = zstage.Zstage(self.f.serial_port)
-        self.obj = objstage.OBJstage(self.f.serial_port)
-        self.optics = optics.Optics(self.f.serial_port)
+        self.y = ystage.Ystage(yCOM, logger = Logger)
+        self.f = fpga.FPGA(fpgaCOM[0], fpgaCOM[1], logger = Logger)
+        self.x = xstage.Xstage(xCOM, logger = Logger)
+        self.l1 = laser.Laser(laser1COM, color = 'green', logger = Logger)
+        self.l2 = laser.Laser(laser2COM, color = 'red', logger = Logger)
+        self.z = zstage.Zstage(self.f.serial_port, logger = Logger)
+        self.obj = objstage.OBJstage(self.f.serial_port, logger = Logger)
+        self.optics = optics.Optics(self.f.serial_port, logger = Logger)
         self.cam1 = None
         self.cam2 = None
+        self.p = {'A': pump.Pump(pumpACOM, 'pumpA', logger = Logger),
+                  'B': pump.Pump(pumpBCOM, 'pumpB', logger = Logger)
+                  }
+        self.v10 = {'A': valve.Valve(valveA10COM, 'valveA10', logger = Logger),
+                    'B': valve.Valve(valveB10COM, 'valveB10', logger = Logger)
+                    }
+        self.v24 = {'A': valve.Valve(valveA24COM, 'valveA24', logger = Logger),
+                    'B': valve.Valve(valveB24COM, 'valveB24', logger = Logger)
+                    }
         self.image_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\Images\\'
-    
+        self.distance = None
+        self.distance_offset = 0
+        self.fc_height = 1200   # height of flow cell in microns
+        self.max_distance = self.z.max_z/self.z.spum + self.obj.max_z/self.obj.spum - self.fc_height
+        self.fc_origin = {'A':[17571,-180000],
+                          'B':[0,-180000]}
+        self.scan_width = 0.769 #mm
+        self.resolution = 0.375 # um/px
+        self.bundle_height = 128.0
+        self.nyquist_obj = 235 # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
                        
-                    
-
-
+    
     def initializeCams(self):
 
         import dcam
@@ -97,6 +122,12 @@ class HiSeq():
         self.y.initialize()
         self.l1.initialize()
         self.l2.initialize()
+        self.p['A'].initialize()
+        self.p['B'].initialize()
+        self.v10['A'].initialize()
+        self.v10['B'].initialize()
+        self.v24['A'].initialize()
+        self.v24['B'].initialize()
         self.f.initialize()
 
         # Initialize Z, objective stage, and optics after FPGA
@@ -109,6 +140,8 @@ class HiSeq():
             time.sleep(1)
         self.y.position = self.y.read_position()
         self.f.write_position(0)
+
+        self.distance = self.get_distance()
 
     # Write metadata file    
     def write_metadata(self, n_frames, bundle, image_name):
@@ -442,45 +475,274 @@ class HiSeq():
                     self.reset_stage()
                     self.y.move(y_pos)
                     
-    def scan(self, x_start, x_stop, obj_start, obj_stop, obj_step, n_frames, y_pos):
-        exp_date = time.strftime('%Y%m%d_%H%M%S')
+    def scan(self, x_pos, y_pos, obj_start, obj_stop, obj_step, n_scans, n_frames, image_name=None):
 
-        for x_pos in range(x_start, x_stop+1, 315):
+        if image_name is None:
+            image_name = time.strftime('%Y%m%d_%H%M%S')
+
+        start = time.time()    
+        self.y.move(y_pos)
+        for n in range(n_scans):
+            self.x.move(x_pos)
             for obj_pos in range(obj_start, obj_stop+1, obj_step):
-                image_name = exp_date + '_x' + str(x_pos) + '_o' + str(obj_pos)
+                image_name = image_name + '_x' + str(x_pos) + '_o' + str(obj_pos)
                 image_complete = False
-                self.y.move(y_pos)
                 while not image_complete:
                     image_complete = self.take_picture(n_frames, 128, image_name)
                     if not image_complete:
                         print('Image not taken')
                         self.reset_stage()
                         self.y.move(y_pos)
-            
-            
-            
+                self.y.move(y_pos)
+                x_pos = self.x.position + 315
+        stop = time.time()
+        
+        return stop - start
+                          
+##    def autofocus(self):
+##        # move stage to initial distance
+##        z_pos = 20600
+##        obj_pos = 30000
+##        self.z.move([z_pos, z_pos, z_pos])
+##        self.obj.move(obj_pos)
+##
+##        #Initialize parameters
+##        DC = []                                                             # list of distance [0] and contrast [1]
+##        n_moves = 0                                                          # of focus movements
+##        dD = 100                                                            # delta distance
+##        y_pos = self.y.position
+##
+##        #Initial image
+##        D = self.get_distance()                                             # Calculate distance
+##        image_name = 'AF_'+str(n_moves)
+##        image_complete = False
+##        while not image_complete:
+##            image_complete = self.take_picture(32, 128, image_name)         # take picture
+##        self.y.move(y_pos)                                                  # reset stage
+##        C = self.contrast(image_name)                                       # calculate contrast   
+##        DC.append([D,C])
+##
+##        # Move stage for next step
+##        z_pos = int(z_pos + dD*4)
+##        self.z.move([z_pos, z_pos, z_pos])
+##        
+##        
+##        # Take image, and move stage according to change in contrast to dial in focus
+##        while abs(dD) > 1 and n_moves < 30:
+##             
+##            n_moves = n_moves + 1                                           # increase move counter
+##            print('Auto Focus step ' + str(n_moves))
+##
+##            image_name = 'AF_'+str(n_moves)
+##            image_complete = False
+##            while not image_complete:
+##                image_complete = self.take_picture(32, 128, image_name)     # take picture
+##            self.y.move(y_pos)                                              # reset stage
+##            C = self.contrast(image_name)                                   # Calculate contrast
+##            D = self.get_distance()                                         # Calculate distance
+##            DC.append([D,C])
+##            dC = DC[-1][1] - DC[-2][1]                                      # change in contrast
+##            print('Change in contrast is ' + str(dC))
+##            if dC < 0:                                                      # update delta distance
+##                dD = -(DC[-1][0] - DC[-2][0])*0.6
+##
+##            if abs(dD) > 25:                                                # move z-stage
+##                z_pos = int(sum(self.z.position)/len(self.z.position) - dD*4)
+##                self.z.move([z_pos, z_pos, z_pos])
+##            else:                                                           # move objective
+##                obj_pos = int(self.obj.position - dD*262) 
+##                self.obj.move(obj_pos)
+##
+##            D = self.get_distance()                                         # Calculate distance
+##            print('Changed distance by ' + str(D) + ' microns')
+##
+##        if n_move >= 30:
+##            print('Did not find optimal focal plane')
+##            return False, DC
+##        else:
+##            return True, DC
 
+    # Get distance between object and stage in microns
+    def get_distance(self):
+        z_distance = (sum(self.z.position)/len(self.z.position))/self.z.spum
+        obj_distance = self.obj.position/self.obj.spum
+        self.distance = self.max_distance - obj_distance - z_distance + self.distance_offset
+ 
+        return self.distance
+
+    
     def twoscan(hs, n):
         for i in range(n):
             hs.take_picture(50, 128, y_pos = 6500000, x_pos = 11900, obj_pos = 45000)
             hs.take_picture(50, 128, y_pos = 6250000, x_pos = 11500, obj_pos = 45000)
 
-    def rough_focus(self):
-        self.obj.move(30000)
-        y_pos = self.y.position
+##    def rough_focus(self):
+##        self.obj.move(30000)
+##        y_pos = self.y.position
+##
+##        exp_date = time.strftime('%Y%m%d_%H%M%S')
+##        
+##        for z_pos in range(18000, 22000, 200):
+##            self.z.move([z_pos, z_pos, z_pos])
+##            image_name = exp_date + '_' + str(z_pos)
+##            image_complete = False
+##            self.y.move(y_pos)
+##            while not image_complete:
+##                image_complete = self.take_picture(32, 128, image_name)
+##                if not image_complete:
+##                    print('Image not taken... Restarting FPGA')
+##                    # Reset stage and FPGA
+##                    self.reset_state()
+##                    self.y.move(y_pos)
 
-        exp_date = time.strftime('%Y%m%d_%H%M%S')
+    def contrast(self, filename):
+        image_prefix=[self.cam1.left_emission,
+                      self.cam1.right_emission,
+                      self.cam2.left_emission,
+                      self.cam2.right_emission]
+        C = 0
+        for image in image_prefix:
+            im = imageio.imread(self.image_path+str(image)+'_'+filename+'.tiff')    #read picture
+            im = im[64:,:]                                                          #Remove bright band artifact
+            max_px = np.amax(im)                                                    #Find max pixel value
+
+            # weight max pixels if they are saturated
+            if max_px == 4096:
+                n_max_px = np.sum(im == max_px)                                     #count number of pixels with max value
+            else:
+                n_max_px = 1
+                
+            C = C + (max_px*n_max_px - np.amin(im))                                 #Calculate contrast
+
+        return C
+
+    def rough_focus(self, z_start = 20000, z_interval = 400, n_images = 7):
+
+        # move stage to initial distance
+        y_pos = self.y.position
+        obj_pos = 27500
+        self.obj.move(obj_pos)
+        z_pos = z_start
+        self.z.move([z_pos, z_pos, z_pos])
         
-        for z_pos in range(18000, 22000, 200):
-            self.z.move([z_pos, z_pos, z_pos])
-            image_name = exp_date + '_' + str(z_pos)
+        Z = []                                                             # list of distance [0] and contrast [1]
+        C = []                                                              # list of contrasts
+        for i in range(n_images):
+            image_name = 'AF_rough_'+str(i)
             image_complete = False
-            self.y.move(y_pos)
             while not image_complete:
-                image_complete = self.take_picture(32, 128, image_name)
-                if not image_complete:
-                    print('Image not take... Restarting FPGA')
-                    # Reset stage and FPGA
-                    self.reset_state()
-                    self.y.move(y_pos)
-                    
+                image_complete = self.take_picture(32, 128, image_name)         # take picture
+
+            self.y.move(y_pos)                                                  # reset stage
+        
+            C.append(self.contrast(image_name))                                 # calculate contrast   
+            Z.append(z_pos)
+
+            # Move stage for next step
+            z_pos = int(z_pos + z_interval)
+            self.z.move([z_pos, z_pos, z_pos])
+
+        # find best z stage position
+        z_opt = find_focus(Z, C)
+        # move z stage to optimal contrast position
+        self.z.move([z_opt, z_opt, z_opt])
+
+        return Z,C
+
+    def fine_focus(self, obj_start = 5000, obj_interval = 7850, n_images = 7):
+        
+        #Initialize
+        y_pos = self.y.position
+        obj_pos = obj_start
+        self.obj.move(obj_pos)
+
+        # Sweep across objective positions
+        Z = []                                                              # list of distance
+        C = []                                                              # list of contrasts
+        for i in range(n_images):
+            image_name = 'AF_fine_'+str(i)
+            image_complete = False
+            while not image_complete:
+                image_complete = self.take_picture(32, 128, image_name)         # take picture
+
+            self.y.move(y_pos)                                                  # reset stage
+        
+            C.append(self.contrast(image_name))                                      # calculate contrast   
+            Z.append(self.obj.position)
+
+            # Move stage for next step
+            obj_pos = int(obj_pos + obj_interval)
+            self.obj.move(obj_pos)
+
+        # find best obj stage position
+        obj_pos = find_focus(Z, C)
+
+        # Home in on objective position for optimal contrast
+        while abs(obj_pos-self.obj.position) >= self.obj.spum/2:
+            print('Moving objective by ', (obj_pos-self.obj.position)/self.obj.spum, ' microns')
+            self.obj.move(obj_pos)                                                # move objective
+            i = i + 1
+            image_name = 'AF_fine_'+str(i)
+            image_complete = False
+            while not image_complete:
+                image_complete = self.take_picture(32, 128, image_name)           # take picture
+
+            self.y.move(y_pos)                                                    # reset stage
+        
+            C.append(self.contrast(image_name))                                   # calculate contrast   
+            Z.append(self.obj.position)
+            obj_pos = find_focus(Z, C)                                              #find best obj stage position
+
+        return Z, C
+
+    def position(self, AorB, box):
+        LLx = box[0]; LLy = box[1]; URx = box[2]; URy = box[3]
+
+        # Number of scans
+        n_scans = ceil((LLx - URx)/self.scan_width)
+
+        # X center of scan
+        x_center = self.fc_origin[AorB][0]
+        x_center = x_center - LLx*1000*self.x.spum
+        x_center = x_center + (LLx-URx)*1000/2*self.x.spum
+        x_center = int(x_center)
+
+        # initial X of scan
+        x_initial = x_center - n_scans*self.scan_width*1000*self.x.spum/2
+        x_initial = int(x_initial)
+
+        # initial Y of scan
+        y_initial = self.fc_origin[AorB][1] + LLy*1000*self.y.spum
+
+        # Y center of scan
+        y_length = (LLy - URy)*1000
+        y_center = y_initial - y_length/2*self.y.spum
+        y_center = int(y_center)
+
+        # Number of frames
+        n_frames = y_length/self.bundle_height/self.resolution
+        n_frames = ceil(n_frames + 10)
+
+        
+        return [x_center, y_center, x_initial, y_initial, n_scans, n_frames]
+
+        
+# Fit Contrast(Z) to gaussian curve and find Z that maximizes C
+# C = Y
+# Z = X
+def find_focus(X, Y):
+
+    amp = max(Y)
+    cen = sum(X)/len(X)
+    sigma = np.std(np.array(Y))
+    
+    def _1gaussian(x, amp1,cen1,sigma1):
+        return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
+
+    # Optimizie amplitude, center, std
+    popt_gauss, pcov_gauss = curve_fit(_1gaussian, X, Y, p0=[amp, cen, sigma])
+    # Calculate error
+    #perr_gauss = np.sqrt(np.diag(pcov_gauss))
+
+    # Return center and error
+    return int(popt_gauss[1])

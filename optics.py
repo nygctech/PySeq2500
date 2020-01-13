@@ -16,9 +16,10 @@ class Optics():
     #
     # Make Zstage object
     #
-    def __init__(self, fpga):
+    def __init__(self, fpga, logger = None):
     
-        self.serial_port = fpga              
+        self.serial_port = fpga
+        self.logger = None
         self.ex = [None, None]
         self.em_in = None
         self.suffix = '\n'
@@ -55,11 +56,17 @@ class Optics():
     #
     # Send generic serial commands to Optics and return response 
     #
-    def command(self, text):                        
-        self.serial_port.write(text + self.suffix)                      # Write to serial port
+    def command(self, text):
+        text = text + self.suffix
+        self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
-        return self.serial_port.readline()                              # Return response
-                        
+        response = self.serial_port.readline()
+        if self.logger is not None:
+            self.logger.info('optics::txmt::'+text)
+            self.logger.info('optics::rcvd::'+response)
+        
+        return  response                    
+        
                         
     #   
     # Move/Home Excitation Filter    

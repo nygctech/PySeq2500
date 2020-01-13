@@ -20,7 +20,7 @@ class Xstage():
     #
     # Make Xstage object
     #
-    def __init__(self, com_port, baudrate = 9600):
+    def __init__(self, com_port, baudrate = 9600, logger = None):
 
         # Open Serial Port
         s = serial.Serial(com_port, baudrate, timeout = 1)
@@ -32,8 +32,10 @@ class Xstage():
         self.min_x = 1000
         self.max_x = 50000
         self.home = 30000
+        self.spum = 100/244     #steps per um
         self.suffix = '\r'
         self.position = 0
+        self.logger = logger
                         
                         
     #
@@ -93,10 +95,17 @@ class Xstage():
     #
     # Send generic serial commands to Xstage and return response 
     #
-    def command(self, text):                        
-        self.serial_port.write(text + self.suffix)                      # Write to serial port
+    def command(self, text):
+        text = text + self.suffix
+        self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
-        return self.serial_port.readline()                              # Return response
+        response = self.serial_port.readline()
+        if self.logger is not None:
+            self.logger.info('Xstage::txmt::'+text)
+            self.logger.info('Xstage::rcvd::'+response)
+        
+        return  response                    
+
                         
                         
     #   

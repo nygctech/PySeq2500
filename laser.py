@@ -18,7 +18,7 @@ class Laser():
     #
     # Make laser object
     #
-    def __init__(self, com_port, baudrate = 9600):
+    def __init__(self, com_port, baudrate = 9600, color = None, logger = None):
 
         # Open Serial Port
         s = serial.Serial(com_port, baudrate, timeout = 1)
@@ -32,7 +32,10 @@ class Laser():
         self.max_power = 500
         self.min_power = 0
         self.suffix = '\r'
+        self.logger = logger
+        self.color = color
         self.version = self.command('VERSION?')[0:-1]
+        
 
 
     #
@@ -45,13 +48,17 @@ class Laser():
 
     #
     # Send generic serial commands to laser and return response 
-    #return
-    def command(self, text):                        
-        self.serial_port.write(text + self.suffix)                      # Write to serial port
+    #
+    def command(self, text):
+        text = text + self.suffix
+        self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
-        return self.serial_port.readline()                              # Return response
-
-
+        response = self.serial_port.readline()
+        if self.logger is not None:
+            self.logger.info(self.color+'Laser::txmt::'+text)
+            self.logger.info(self.color+'Laser::rcvd::'+response)
+        
+        return  response  
 
     #
     # Turn laser on/off

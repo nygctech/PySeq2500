@@ -21,7 +21,7 @@ class FPGA():
     #
     # Make FPGA object
     #
-    def __init__(self, com_port_command, com_port_response, baudrate = 115200):
+    def __init__(self, com_port_command, com_port_response, baudrate = 115200, logger = None):
 
         
         # Open Serial Port
@@ -34,6 +34,7 @@ class FPGA():
                                             errors = 'ignore')                
         self.suffix = '\n'
         self.y_offset = 7000000
+        self.logger = logger
 
     #
     # Initialize FPGA
@@ -41,7 +42,6 @@ class FPGA():
     def initialize(self):
     
         response = self.command('RESET')                                # Initialize FPGA
-        print(response)
         self.command('EX1HM')                                           # Home excitation filter 
         self.command('EX2HM')                                           # Home excitation filter 
         self.command('EM2I')                                            # Move emission filter into light path 
@@ -52,10 +52,15 @@ class FPGA():
     # Send commands to FPGA and return response
     #
     def command(self, text):
-    
-        self.serial_port.write(text + self.suffix)                      # Write to serial port
+        text = text + self.suffix
+        self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
-        return self.serial_port.readline()                              # Return response
+        response = self.serial_port.readline()
+        if self.logger is not None:
+            self.logger.info('FPGA::txmt::'+text)
+            self.logger.info('FPGA::rcvd::'+response)
+        
+        return  response                    
 
     #
     # Read encoder position

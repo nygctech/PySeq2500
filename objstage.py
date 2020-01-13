@@ -17,16 +17,18 @@ class OBJstage():
     #
     # Make OBJstage object
     #
-    def __init__(self, fpga):
+    def __init__(self, fpga, logger = None):
     
         self.serial_port = fpga              
         self.min_z = 0
         self.max_z = 65535
+        self.spum = 262         #steps per um
         self.max_v = 5 #mm/s
         self.min_v = 0 #mm/s
         self.v = None
         self.suffix = '\n'
         self.position = None
+        self.logger = logger
 
 
     #
@@ -41,12 +43,16 @@ class OBJstage():
     #
     # Send generic serial commands to OBJstage and return response 
     #
-    def command(self, text):                        
-        self.serial_port.write(text + self.suffix)                      # Write to serial port
+    def command(self, text):
+        text = text + self.suffix
+        self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
-        return self.serial_port.readline()                              # Return response
-
-
+        response = self.serial_port.readline()
+        if self.logger is not None:
+            self.logger.info('OBJstage::txmt::'+text)
+            self.logger.info('OBJstage::rcvd::'+response)
+        
+        return  response  
     #   
     # Move OBJstage to absolute position   
     #

@@ -17,14 +17,16 @@ class Zstage():
     #
     # Make Zstage object
     #
-    def __init__(self, fpga):
+    def __init__(self, fpga, logger = None):
     
         self.serial_port = fpga              
         self.min_z = 0
         self.max_z = 25000
+        self.spum = 0.656           #steps per um
         self.suffix = '\n'
         self.position = [0, 0, 0]
         self.motors = ['1','2','3']
+        self.logger = logger
                         
                         
     #
@@ -53,11 +55,17 @@ class Zstage():
     #
     # Send generic serial commands to Zstage and return response 
     #
-    def command(self, text):                        
-        self.serial_port.write(text + self.suffix)                      # Write to serial port
+    def command(self, text):
+        text = text + self.suffix
+        self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
-        return self.serial_port.readline()                              # Return response
-                        
+        response = self.serial_port.readline()
+        if self.logger is not None:
+            self.logger.info('Zstage::txmt::'+text)
+            self.logger.info('Zstage::rcvd::'+response)
+        
+        return  response                    
+        
                         
     #   
     # Move Zstage to absolute position (position is a 3 element array)    

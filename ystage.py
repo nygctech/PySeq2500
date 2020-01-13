@@ -21,7 +21,7 @@ class Ystage():
     #
     # Make Ystage object
     #
-    def __init__(self, com_port, baudrate = 9600):
+    def __init__(self, com_port, baudrate = 9600, logger = None):
 
         # Open Serial Port
         s = serial.Serial(com_port, baudrate, timeout = 1)
@@ -32,11 +32,13 @@ class Ystage():
                                             errors = 'ignore')                
         self.min_y = -7000000
         self.max_y = 7500000
+        self.spum = 100     # steps per um
         self.prefix = '1'
         self.suffix = '\r\n'
         self.on = False
         self.position = 0
         self.home = 0
+        self.logger = None
         
     #
     # Initialize Ystage
@@ -70,10 +72,15 @@ class Ystage():
     # Send generic command to Ystage and return response
     #
     def command(self, text):
-                        
-        self.serial_port.write(self.prefix + text + self.suffix)        # Write to serial port
+        text = self.prefix + text + self.suffix
+        self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
-        return self.serial_port.readline()                              # Return response
+        response = self.serial_port.readline()
+        if self.logger is not None:
+            self.logger.info('Ystage::txmt::'+text)
+            self.logger.info('Ystage::rcvd::'+response)
+        
+        return  response                    
         
     # 
     # Move Ystage to a position
