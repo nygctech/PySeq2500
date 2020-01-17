@@ -46,23 +46,13 @@ class Ystage():
     def initialize(self):
 
         response = self.command('Z')                                    # Initialize Stage
-        print('ystage: ' + response)
-
-        response = self.command('W(EX,0)')                              # Turn off echo
-        print('ystage: ' + response)
-                        
+        response = self.command('W(EX,0)')                              # Turn off echo            
         response = self.command('GAINS(5,10,7,1.5,0)')                  # Set gains
-        print('ystage: ' + response)                             
-
-        response = self.command('MA')                                   # Set to absolute position mode
-        print('ystage: ' + response)
-                        
+        response = self.command('MA')                                   # Set to absolute position mode               
         response = self.command('ON')                                   # Turn Motor ON
-        print('ystage: ' + response)
-        self.on = True
-                        
+        self.on = True           
         response = self.command('GH')                                   # Home Stage
-        print('ystage: ' + response)
+        
         # Takes forever to home, do other stuff while y stage homes
         #while not self.check_position():
         #    time.sleep(1)
