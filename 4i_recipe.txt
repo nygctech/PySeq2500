@@ -1,0 +1,34 @@
+PORT:	water		#Move valve to water wash (port 10)
+PUMP:	10		#Pump 10 chamber volumes
+PORT:	elution    	#Move valve to elution (port 1)
+PUMP:	6		#Pump 6 chamber volumes
+HOLD:	10		#Hold for 10 min
+PUMP:	6		#Pump 6 chamber volumes
+HOLD:	10		#Hold for 10 min
+PUMP:	6		#Pump 6 chamber volumes
+HOLD:	10		#Hold for 10 min
+PUMP:	6		#Pump 6 chamber volumes
+HOLD:	10		#Hold for 10 min
+PUMP:	6		#Pump 6 chamber volumes
+HOLD:	10		#Hold for 10 min
+PUMP:	6		#Pump 6 chamber volumes
+HOLD:	10		#Hold for 10 min
+PORT:	blocking	#Move valve to blocking buffer (port 3) 
+PUMP:	6		#Pump 6 chamber volumes
+HOLD:	60		#Hold for 1 hr
+PORT:	PBS		#Move valve to PBS wash (port 9)
+PUMP:	10		#Pump 12 chamber volumes
+PORT:	1stAb		#Move valve to primary antibody (port 5)
+PUMP:	6		#Pump 6 chamber volumes
+HOLD:	120		#Hold for 2 hr
+PORT:	PBS		#Move valve to PBS wash (port 9)
+PUMP:	10		#Pump 12 chamber volumes
+PORT:	2ndAb		#Move valve to secondary antibody (port 7)
+PUMP:	6		#Pump 6 chamber volumes 
+HOLD:	120		#Hold for 2 hr
+PORT:	PBS		#Move valve to PBS wash (port 9)
+PUMP:	12		#Pump 12 chamber volumes
+WAIT:	water		#Wait till other flowcell is washing with water
+PORT:	imaging		#Move valve to imaging buffer
+PUMP:	12		#Pump 12 chamber volumes
+IMAG:	1		#image 1 z section
