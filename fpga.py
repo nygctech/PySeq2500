@@ -45,7 +45,7 @@ class FPGA():
         self.command('EX1HM')                                           # Home excitation filter 
         self.command('EX2HM')                                           # Home excitation filter 
         self.command('EM2I')                                            # Move emission filter into light path 
-        self.command('SWLSERSHUT 0')                                    # Shutter lasers
+        self.command('SWLSRSHUT 0')                                     # Shutter lasers
      
      
     #

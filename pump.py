@@ -59,8 +59,8 @@ class Pump():
         self.serial_port.flush()                                        # Flush serial port
         response = self.serial_port.readline()                          # Get the response
         if self.logger is not None:
-            self.logger.info('FPGA::txmt::'+text)
-            self.logger.info('FPGA::rcvd::'+response)
+            self.logger.info(self.name+'::txmt::'+text)
+            self.logger.info(self.name+'::rcvd::'+response)
         
         return  response                    
 
@@ -136,6 +136,13 @@ class Pump():
     # Convert volume in uL to pump position
     #
     def vol_to_pos(self, volume):
+        if volume > self.max_volume:
+            write_log('Volume is too large, only pumping ' + str(self.max_volume))
+            volume = self.max_volume
+        elif volume < self.min_volume:
+            write_log('Volume is too small, pumping ' + str(self.min_volume))
+            volume = self.min_volume
+            
         position = round(volume / self.max_volume * self.steps)
         return int(position)
 

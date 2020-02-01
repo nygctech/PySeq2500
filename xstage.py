@@ -43,11 +43,9 @@ class Xstage():
     #
     def initialize(self):
         response = self.command('\x03')                                 # Initialize Stage
-        print('xstage: ' + response)
         
         #Change echo mode to respond only to print and list commands 
         response = self.command('EM=2')
-        print(response)
 
         #Enable Encoder
         response = self.command('EE=1')

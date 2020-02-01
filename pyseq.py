@@ -116,32 +116,39 @@ class HiSeq():
         ########################################
 
         #Initialize X Stage before Y Stage!
+        print('Initializing X & Y stages')
         self.x.initialize()
         #TODO, make sure x stage is in correct place. 
         self.x.initialize() # Do it twice to make sure its centered!
         self.y.initialize()
+        print('Initializing lasers')
         self.l1.initialize()
         self.l2.initialize()
+        print('Initializing pumps and valves')
         self.p['A'].initialize()
         self.p['B'].initialize()
         self.v10['A'].initialize()
         self.v10['B'].initialize()
         self.v24['A'].initialize()
         self.v24['B'].initialize()
+        print('Initializing FPGA')
         self.f.initialize()
 
         # Initialize Z, objective stage, and optics after FPGA
+        print('Initializing optics and Z stages')
         self.z.initialize()
         self.obj.initialize()
         self.optics.initialize()
 
         #Sync TDI encoder with YStage
+        print('Syncing Y stage')
         while not self.y.check_position():
             time.sleep(1)
         self.y.position = self.y.read_position()
         self.f.write_position(0)
 
         self.distance = self.get_distance()
+        print('HiSeq initialized!')
 
     # Write metadata file    
     def write_metadata(self, n_frames, bundle, image_name):
@@ -485,10 +492,10 @@ class HiSeq():
         for n in range(n_scans):
             self.x.move(x_pos)
             for obj_pos in range(obj_start, obj_stop+1, obj_step):
-                image_name = image_name + '_x' + str(x_pos) + '_o' + str(obj_pos)
+                f_img_name = image_name + '_x' + str(x_pos) + '_o' + str(obj_pos)
                 image_complete = False
                 while not image_complete:
-                    image_complete = self.take_picture(n_frames, 128, image_name)
+                    image_complete = self.take_picture(n_frames, 128, f_img_name)
                     if not image_complete:
                         print('Image not taken')
                         self.reset_stage()
