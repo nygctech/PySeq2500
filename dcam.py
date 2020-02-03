@@ -230,6 +230,17 @@ class HamamatsuCamera():
         # Get camera max width, height.
         self.max_width = self.getPropertyValue("image_width")[0]
         self.max_height = self.getPropertyValue("image_height")[0]
+    
+    ## messages
+    #
+    # Log communication with camera or print to console
+    #
+    def message(self, text):
+        text = 'Cam' + str(self.id) + '::' + text
+        if self.logger is not None:
+            logger.log(21, text)
+        else:
+            print(text)
 
     ## captureSetup
     #
@@ -422,7 +433,7 @@ class HamamatsuCamera():
         imageio.imwrite(image_path+str(self.left_emission)+'_'+image_name+'.tiff', left_image)
         imageio.imwrite(image_path+str(self.right_emission)+'_'+image_name+'.tiff', right_image)
 
-        print(str(self.frame_bytes*f) + 'bytes saved from camera ' + str(self.camera_id))
+        self.message(str(self.frame_bytes*f) + 'bytes saved from camera ' + str(self.camera_id))
 
     
         
@@ -755,14 +766,14 @@ class HamamatsuCamera():
                                               ctypes.c_int32(prop_id),
                                               ctypes.byref(p_value))
     
-        print(error)
+       self.message(error)
 
         prop_id = self.properties["subarray_vsize"]
 
         error = dcam.dcam_setgetpropertyvalue(self.camera_handle,
                                               ctypes.c_int32(prop_id),
                                               ctypes.byref(p_value))
-        print(error)
+        self.message(error)
         
 
     ## setSubArrayMode
@@ -798,7 +809,7 @@ class HamamatsuCamera():
         self.number_image_buffers = int(n_frames)
         error = dcam.dcam_allocframe(self.camera_handle,
                                      ctypes.c_int32(self.number_image_buffers))
-        print(error)
+        self.message(error)
 
    
     ## startAcquisition
@@ -819,7 +830,7 @@ class HamamatsuCamera():
 
         # Start acquisition.
         error = dcam.dcam_capture(self.camera_handle) #KP 9/19
-        print(error)
+        self.message(error)
 
     ## stopAcquisition
     #
@@ -846,7 +857,7 @@ class HamamatsuCamera():
     def freeFrames(self):
         self.number_image_buffers = 0
         error = dcam.dcam_freeframe(self.camera_handle)#KP 9/19
-        print(error)
+        self.message(error)
 
         
 
@@ -894,7 +905,7 @@ class HamamatsuCamera():
         error = dcam.dcam_getstatus(self.camera_handle, ctypes.byref(pStatus))
         self.status = pStatus.value
 
-        print("camera status is : " + status_dict[self.status])
+        self.message("camera status is : " + status_dict[self.status])
 
         return self.status
         
@@ -941,7 +952,7 @@ class HamamatsuCamera():
                                               ctypes.c_int32(prop_id),
                                               ctypes.byref(p_value),
                                               ctypes.c_int32(DCAM_DEFAULT_ARG))
-        print(error)
+        self.message(error)
 
 
     ## Wait
@@ -988,7 +999,7 @@ class HamamatsuCamera():
                             c_buf,
                             ctypes.c_int(c_buf_len))
 
-        print(c_buf.value)
+        self.message(c_buf.value)
         
                                          
 
