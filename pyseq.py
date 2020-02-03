@@ -791,11 +791,8 @@ def find_focus(X, Y):
     amp = max(Y)
     cen = sum(X)/len(X)
     sigma = np.std(np.array(Y))
-    
-    def _1gaussian(x, amp1,cen1,sigma1):
-        return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
 
-    # Optimizie amplitude, center, std
+    # Optimize amplitude, center, std
     popt_gauss, pcov_gauss = curve_fit(_1gaussian, X, Y, p0=[amp, cen, sigma])
     # Calculate error
     #perr_gauss = np.sqrt(np.diag(pcov_gauss))
@@ -803,6 +800,8 @@ def find_focus(X, Y):
     # Return center and error
     return int(popt_gauss[1])
 
+
+# Find mean intensity of signal and % of pixels saturated 
 def signal_and_saturation(img, nbins = 256):
     
     # Histogram of image
@@ -828,3 +827,7 @@ def signal_and_saturation(img, nbins = 256):
     psignal, pcov = curve_fit(_1gaussian, x_range[0:-1], masked_hist[0:-1], p0=[amp1, cen1, sigma1])
 
     return psignal[1], hist[-1]
+
+# Gaussian function for curve fitting
+def _1gaussian(x, amp1,cen1,sigma1):
+    return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
