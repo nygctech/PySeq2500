@@ -61,12 +61,12 @@ class HiSeq():
         self.fc_height = 1200   # height of flow cell in microns
         self.max_distance = self.z.max_z/self.z.spum + self.obj.max_z/self.obj.spum - self.fc_height
         self.fc_origin = {'A':[17571,-180000],
-                          'B':[0,-180000]}
+                          'B':[43310,-180000]}
         self.scan_width = 0.769 #mm
         self.resolution = 0.375 # um/px
         self.bundle_height = 128.0
         self.nyquist_obj = 235 # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
-                       
+    
     
     def initializeCams(self):
 

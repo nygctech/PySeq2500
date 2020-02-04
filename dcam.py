@@ -236,7 +236,7 @@ class HamamatsuCamera():
     # Log communication with camera or print to console
     #
     def message(self, text):
-        text = 'Cam' + str(self.id) + '::' + text
+        text = 'Cam' + str(self.camera_id) + '::' + str(text)
         if self.logger is not None:
             logger.log(21, text)
         else:
@@ -766,7 +766,7 @@ class HamamatsuCamera():
                                               ctypes.c_int32(prop_id),
                                               ctypes.byref(p_value))
     
-       self.message(error)
+        self.message(error)
 
         prop_id = self.properties["subarray_vsize"]
 
