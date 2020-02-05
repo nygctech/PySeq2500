@@ -733,7 +733,7 @@ class HiSeq():
         
         return [x_center, y_center, x_initial, y_initial, n_scans, n_frames]
     
-    def optimize_filter(self, nbins = 265, sat_threshold = 0.0005):
+    def optimize_filter(self, nbins = 256, sat_threshold = 0.0005):
         # Save y position
         y_pos = self.y.position
         
@@ -742,7 +742,7 @@ class HiSeq():
                       self.cam2.left_emission,                                      # 610
                       self.cam2.right_emission]                                     # 740
         
-        f_order = [[4.0, 2.0, 1.5, 1.4, 0.6, 0.2],[4.5, 3.0, 2.0, 1.0, 0.9, 0.2]]   # Order of filters to loop through
+        f_order = [[4.0, 2.0, 1.6, 1.4, 0.6, 0.2],[4.5, 3.0, 2.0, 1.0, 0.9, 0.2]]   # Order of filters to loop through
         opt_filter = [None, None]                                                   # Empty list of optimal filters
         lasers = [1,2]                                                              # list of lasers, Green = 1, Red = 2
         
@@ -752,29 +752,32 @@ class HiSeq():
             self.optics.move_ex(2, 'home')                               
             new_f_score = 0        
             while opt_filter[li-1] is None:
-                self.optics.move_ex(li,f_order[laser][fi])                          # Move excitation filter
-                image_name = 'L'+str(li)+'_filter'+str(f_order[laser][fi])         
+                self.optics.move_ex(li,f_order[li-1][fi])                           # Move excitation filter
+                image_name = 'L'+str(li)+'_filter'+str(f_order[li-1][fi])         
                 image_complete = False
                 while not image_complete:
                     image_complete = self.take_picture(32, 128, image_name)         # Take Picture
-                    self.y.move(y_center)
+                    self.y.move(y_pos)
             
                 signal = np.array([])
                 saturation = np.array([])
                 for image in image_prefix:
-                    im = imageio.imread(self.image_path+str(image)+'_'+filename+'.tiff')    #read picture
+                    im = imageio.imread(self.image_path+str(image)+'_'+image_name+'.tiff')  #read picture
                     im = im[64:,:]                                                          #Remove bright band artifact 
                     score = signal_and_saturation(im, nbins)                                #Calculate mean intensity of signal and %saturatio
-                    signal = np.array(signal,score[0])
-                    saturation = np.array(saturation,score[1])
+                    if score[0] > 0:
+                        signal = np.append(signal,score[0])
+                    else:
+                        signal = np.append(signal, 0)
+                    saturation = np.append(saturation,score[1])
                     
-                old_f_score = new_f1_score
+                old_f_score = new_f_score
                 if any(saturation > sat_threshold):                                         # make sure image is not too saturated
                     new_f_score = 0
                 elif li == 1: 
-                    new_f_score = signal[1] + signal[2] - signal[0] - signal[4]             # Green laser, 558+610-687-740 emissions
+                    new_f_score = signal[1] + signal[2] - signal[0] - signal[3]             # Green laser, 558+610-687-740 emissions
                 elif li == 2:
-                    new_f_score = signal[0] + signal[4] - signal[1] - signal[2]             # Red laser, 687+740-558-610- emissions
+                    new_f_score = signal[0] + signal[3] - signal[1] - signal[2]             # Red laser, 687+740-558-610- emissions
         
                 if old_f_score > new_f_score:                                               # Too much crosstalk / saturation
                     opt_filter[li-1] = f_order[li-1][fi-1]                                  
@@ -782,6 +785,8 @@ class HiSeq():
                     opt_filter[li-1] = f_order[li-1][fi]
                 else:                                                                       # Move to next filter
                     fi += 1
+
+        return opt_filter
                    
 # Fit Contrast(Z) to gaussian curve and find Z that maximizes C
 # C = Y
@@ -817,16 +822,20 @@ def signal_and_saturation(img, nbins = 256):
     # Mask background
     masked_img = img[img > pback[1] + 6*pback[2]]
 
-    # Histogram of image with background masked
-    masked_hist, bin_edges = np.histogram(masked_img, bins = nbins, range = (0,4095), density = True)
+    if len(masked_img):
+        # Histogram of image with background masked
+        masked_hist, bin_edges = np.histogram(masked_img, bins = nbins, range = (0,4095), density = True)
 
-    # Find signal intensity
-    amp1 = 0.1
-    cen1 = 2048
-    sigma1 = 20
-    psignal, pcov = curve_fit(_1gaussian, x_range[0:-1], masked_hist[0:-1], p0=[amp1, cen1, sigma1])
-
-    return psignal[1], hist[-1]
+        # Find signal intensity
+        amp1 = 0.1
+        cen1 = 2048
+        sigma1 = 20
+        psignal, pcov = curve_fit(_1gaussian, x_range[0:-1], masked_hist[0:-1], p0=[amp1, cen1, sigma1])
+        mean_intensity = psignal[1]
+    else:
+        mean_intensity = 0
+    
+    return mean_intensity, hist[-1]
 
 # Gaussian function for curve fitting
 def _1gaussian(x, amp1,cen1,sigma1):
