@@ -10,6 +10,7 @@ import pump
 import valve
 
 import time
+from os.path import getsize
 import threading
 import numpy as np
 import imageio
@@ -56,6 +57,7 @@ class HiSeq():
                     'B': valve.Valve(valveB24COM, 'valveB24', logger = Logger)
                     }
         self.image_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\Images\\'
+        self.bg_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\PySeq2500V2\\calibration\\'
         self.distance = None
         self.distance_offset = 0
         self.fc_height = 1200   # height of flow cell in microns
@@ -66,14 +68,14 @@ class HiSeq():
         self.resolution = 0.375 # um/px
         self.bundle_height = 128.0
         self.nyquist_obj = 235 # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
+        self.logger = Logger
     
-    
-    def initializeCams(self):
+    def initializeCams(self, Logger=None):
 
         import dcam
 
-        self.cam1 = dcam.HamamatsuCamera(0)
-        self.cam2 = dcam.HamamatsuCamera(1)
+        self.cam1 = dcam.HamamatsuCamera(0, logger = Logger)
+        self.cam2 = dcam.HamamatsuCamera(1, logger = Logger)
 
         #Set emission labels, wavelengths in  nm
         self.cam1.left_emission = 687
@@ -188,15 +190,13 @@ class HiSeq():
             image_name = time.strftime('%Y%m%d_%H%M%S')
 
         
-
-
         #Make sure TDI is synced with Ystage
         y_pos = y.position
         if abs(y_pos - f.read_position()) > 10:
-            print('Attempting to sync TDI and stage')
+            self.message('Attempting to sync TDI and stage')
             f.write_position(y.position)  
         else:
-            print('TDI and stage are synced')
+            self.message('TDI and stage are synced')
 
         #TO DO, double check gains and velocity are set
         #Set gains and velocity of image scanning for ystage
@@ -231,7 +231,7 @@ class HiSeq():
         end_y_pos = y_pos - n_triggers*75
         f.TDIYPOS(y_pos)
         f.TDIYARM3(n_triggers, y_pos)
-        print('Trigger armed, Imaging starting')
+        #print('Trigger armed, Imaging starting')
 
 
         
@@ -277,9 +277,7 @@ class HiSeq():
         # Print out info pulses = triggers, not sure with CLINES is
         if image_complete:
             response = f.command('TDICLINES')
-            print(response)
             response = f.command('TDIPULSES')
-            print(response)
         # Free up frames/memory
         cam1.freeFrames()
         cam2.freeFrames()
@@ -492,16 +490,20 @@ class HiSeq():
         for n in range(n_scans):
             self.x.move(x_pos)
             for obj_pos in range(obj_start, obj_stop+1, obj_step):
+                self.obj.move(obj_pos)
                 f_img_name = image_name + '_x' + str(x_pos) + '_o' + str(obj_pos)
                 image_complete = False
+                
                 while not image_complete:
                     image_complete = self.take_picture(n_frames, 128, f_img_name)
+                    self.y.move(y_pos)
                     if not image_complete:
                         print('Image not taken')
                         self.reset_stage()
                         self.y.move(y_pos)
-                self.y.move(y_pos)
-                x_pos = self.x.position + 315
+                        
+            x_pos = self.x.position + 315
+            
         stop = time.time()
         
         return stop - start
@@ -601,7 +603,22 @@ class HiSeq():
 ##                    # Reset stage and FPGA
 ##                    self.reset_state()
 ##                    self.y.move(y_pos)
+    def jpeg(self, filename):
+        image_prefix=[self.cam1.left_emission,
+                      self.cam1.right_emission,
+                      self.cam2.left_emission,
+                      self.cam2.right_emission]
 
+        C = 0
+        for image in image_prefix:
+            im = imageio.imread(self.image_path+str(image)+'_'+filename+'.tiff')    #read picture
+            im = im[64:,:]                                                          #Remove bright band artifact
+            imageio.imwrite(self.image_path+str(image)+'_'+filename+'.jpeg', im)
+            C += getsize(self.image_path+str(image)+'_'+filename+'.jpeg')
+
+        return C
+            
+            
     def contrast(self, filename):
         image_prefix=[self.cam1.left_emission,
                       self.cam1.right_emission,
@@ -611,11 +628,14 @@ class HiSeq():
         for image in image_prefix:
             im = imageio.imread(self.image_path+str(image)+'_'+filename+'.tiff')    #read picture
             im = im[64:,:]                                                          #Remove bright band artifact
+            bg = np.loadtxt(self.bg_path+str(image)+'background.txt')               #Open background file for sensor
+            im = im - bg                                                            #Subtract background
+            im[im <0] = 0                                                           #Make negative values 0
             max_px = np.amax(im)                                                    #Find max pixel value
 
             # weight max pixels if they are saturated
-            if max_px == 4096:
-                n_max_px = np.sum(im == max_px)                                     #count number of pixels with max value
+            if max_px >= 4096 - np.max(bg):
+                n_max_px = np.sum(im >= max_px)                                     #count number of pixels with max value
             else:
                 n_max_px = 1
                 
@@ -623,11 +643,12 @@ class HiSeq():
 
         return C
 
-    def rough_focus(self, z_start = 20000, z_interval = 400, n_images = 7):
+
+    def rough_focus(self, z_start = 21200, z_interval = 200, n_images = 6):
 
         # move stage to initial distance
         y_pos = self.y.position
-        obj_pos = 27500
+        obj_pos = 17500
         self.obj.move(obj_pos)
         z_pos = z_start
         self.z.move([z_pos, z_pos, z_pos])
@@ -642,7 +663,7 @@ class HiSeq():
                 self.y.move(y_pos)                                              # reset stage
             
         
-            C.append(self.contrast(image_name))                                 # calculate contrast   
+            C.append(self.jpeg(image_name))                                 # calculate compression   
             Z.append(z_pos)
 
             # Move stage for next step
@@ -650,13 +671,19 @@ class HiSeq():
             self.z.move([z_pos, z_pos, z_pos])
 
         # find best z stage position
+        self.message('Compressions: ' + str(C))
+        self.message('Z pos: ' + str(Z))
         z_opt = find_focus(Z, C)
+        self.message('Optimal Z pos = ' + str(z_opt))
+        if z_opt is None:
+            self.message('Could not find rough focus')
+            z_opt = 21500
         # move z stage to optimal contrast position
         self.z.move([z_opt, z_opt, z_opt])
 
         return Z,C
 
-    def fine_focus(self, obj_start = 5000, obj_interval = 7850, n_images = 7):
+    def fine_focus(self, obj_start = 10000, obj_interval = 5000, n_images = 7):
         
         #Initialize
         y_pos = self.y.position
@@ -674,7 +701,7 @@ class HiSeq():
                 self.y.move(y_pos)                                              # reset stage
             
         
-            C.append(self.contrast(image_name))                                      # calculate contrast   
+            C.append(self.jpeg(image_name))                                      # calculate compression 
             Z.append(self.obj.position)
 
             # Move stage for next step
@@ -683,10 +710,27 @@ class HiSeq():
 
         # find best obj stage position
         obj_pos = find_focus(Z, C)
+        self.message('Compressions: ' + str(C))
+        self.message('OBJ pos: ' + str(Z))
+        self.message('Optimal OBJ pos = ' + str(obj_pos))
+        
+        if obj_pos is None:
+            self.message('Could not find fine focus')
+            i = np.argmax(C)
+            obj_pos = Z[i]
+            if i != 0 and i != len(C)-1:
+                if C[i-1] > C[i+1]:
+                    obj_pos -= int(obj_interval/2)
+                else:
+                    obj_pos += int(obj_interval/2)
+            elif i == 0:
+                obj_pos += int(obj_interval/2)
+            elif i == len(C)-1:
+                obj_pos -= int(obj_interval/2)
 
         # Home in on objective position for optimal contrast
         while abs(obj_pos-self.obj.position) >= self.obj.spum/2:
-            print('Moving objective by ', (obj_pos-self.obj.position)/self.obj.spum, ' microns')
+            self.message('Moving objective by ' + str((obj_pos-self.obj.position)/self.obj.spum) +  ' microns')
             self.obj.move(obj_pos)                                                # move objective
             i = i + 1
             image_name = 'AF_fine_'+str(i)
@@ -696,9 +740,22 @@ class HiSeq():
 
             self.y.move(y_pos)                                                    # reset stage
         
-            C.append(self.contrast(image_name))                                   # calculate contrast   
+            C.append(self.jpeg(image_name))                                   # calculate contrast   
             Z.append(self.obj.position)
+            
             obj_pos = find_focus(Z, C)                                              #find best obj stage position
+            self.message('Contrasts: ' + str(C))
+            self.message('OBJ pos: ' + str(Z))
+            self.message('Optimal OBJ pos = ' + str(obj_pos))
+                                                          
+
+            if obj_pos is None:
+                self.message('Could not find fine focus')
+                obj_pos = Z[np.argmax(C)]
+                
+        self.message('Contrasts: ' + str(C))
+        self.message('OBJ pos: ' + str(Z))
+        self.message('Optimal OBJ pos = ' + str(obj_pos))
 
         return Z, C
 
@@ -710,8 +767,8 @@ class HiSeq():
 
         # X center of scan
         x_center = self.fc_origin[AorB][0]
-        x_center = x_center - LLx*1000*self.x.spum
-        x_center = x_center + (LLx-URx)*1000/2*self.x.spum
+        x_center -= LLx*1000*self.x.spum
+        x_center += (LLx-URx)*1000/2*self.x.spum
         x_center = int(x_center)
 
         # initial X of scan
@@ -719,7 +776,7 @@ class HiSeq():
         x_initial = int(x_initial)
 
         # initial Y of scan
-        y_initial = self.fc_origin[AorB][1] + LLy*1000*self.y.spum
+        y_initial = int(self.fc_origin[AorB][1] + LLy*1000*self.y.spum)
 
         # Y center of scan
         y_length = (LLy - URy)*1000
@@ -730,10 +787,14 @@ class HiSeq():
         n_frames = y_length/self.bundle_height/self.resolution
         n_frames = ceil(n_frames + 10)
 
+        # Adjust x and y center so focus will image (32 frames, 128 bundle) in center of section
+        x_center -= int(self.scan_width*1000*self.x.spum/2)
+        y_center += int(32*128/2*self.resolution*self.y.spum)
+
         
         return [x_center, y_center, x_initial, y_initial, n_scans, n_frames]
     
-    def optimize_filter(self, nbins = 256, sat_threshold = 0.0005):
+    def optimize_filter(self, nframes, nbins = 256, sat_threshold = 0.0005, signal_threshold = 20):
         # Save y position
         y_pos = self.y.position
         
@@ -749,61 +810,85 @@ class HiSeq():
         for li in lasers: 
             fi = 0                                                                  # Loop through filters until optimized
             self.optics.move_ex(1, 'home')                                          # Home and block lasers
-            self.optics.move_ex(2, 'home')                               
+            self.optics.move_ex(2, 'home')
+            self.optics.move_em_in(True)
             new_f_score = 0        
             while opt_filter[li-1] is None:
                 self.optics.move_ex(li,f_order[li-1][fi])                           # Move excitation filter
                 image_name = 'L'+str(li)+'_filter'+str(f_order[li-1][fi])         
                 image_complete = False
                 while not image_complete:
-                    image_complete = self.take_picture(32, 128, image_name)         # Take Picture
+                    image_complete = self.take_picture(nframes, 128, image_name)         # Take Picture
                     self.y.move(y_pos)
             
-                signal = np.array([])
+                contrast = np.array([])
                 saturation = np.array([])
                 for image in image_prefix:
-                    im = imageio.imread(self.image_path+str(image)+'_'+image_name+'.tiff')  #read picture
-                    im = im[64:,:]                                                          #Remove bright band artifact 
-                    score = signal_and_saturation(im, nbins)                                #Calculate mean intensity of signal and %saturatio
-                    if score[0] > 0:
-                        signal = np.append(signal,score[0])
-                    else:
-                        signal = np.append(signal, 0)
-                    saturation = np.append(saturation,score[1])
+                    im_name = self.image_path+str(image)+'_'+image_name+'.tiff'    #read picture
+
+                    C, S = contrast2(im_name, image, self.bg_path, nbins)            #Calculate background subtracted contrast and %saturatio
+                    
+                    contrast = np.append(contrast,C)
+                    saturation = np.append(saturation,S)
                     
                 old_f_score = new_f_score
                 if any(saturation > sat_threshold):                                         # make sure image is not too saturated
                     new_f_score = 0
-                elif li == 1: 
-                    new_f_score = signal[1] + signal[2] - signal[0] - signal[3]             # Green laser, 558+610-687-740 emissions
+                elif li == 1:
+                    signal = contrast[1] + contrast[2]
+                    new_f_score = contrast[1] + contrast[2] - contrast[0] - contrast[3]             # Green laser, 558+610-687-740 emissions
                 elif li == 2:
-                    new_f_score = signal[0] + signal[3] - signal[1] - signal[2]             # Red laser, 687+740-558-610- emissions
+                    signal = contrast[0] + contrast[3]
+                    new_f_score = contrast[0] + contrast[3] - contrast[1] - contrast[2]             # Red laser, 687+740-558-610- emissions
         
-                if old_f_score > new_f_score:                                               # Too much crosstalk / saturation
-                    opt_filter[li-1] = f_order[li-1][fi-1]                                  
+                if signal > signal_threshold:                                                       # Increase laser until you at least see some signal
+                    if old_f_score >= new_f_score and fi > 0:                                       # Too much crosstalk / saturation
+                        opt_filter[li-1] = f_order[li-1][fi-1]                                  
+                    else:
+                        fi += 1
                 elif fi == 5:                                                               # Last filter
                     opt_filter[li-1] = f_order[li-1][fi]
                 else:                                                                       # Move to next filter
                     fi += 1
+                self.message('Laser : ' + str(li))
+                self.message('Filter: ' + str(f_order[li-1][fi]))
+                self.message('Contrast: ' + str(contrast))
+                self.message('Saturation: ' + str(saturation))
+                self.message('Filter Score ' + str(new_f_score))
 
         return opt_filter
+
+    def message(self, text):
+        if self.logger is None:
+            print(str(text))
+        else:
+            self.logger.info(str(text))
                    
 # Fit Contrast(Z) to gaussian curve and find Z that maximizes C
 # C = Y
 # Z = X
 def find_focus(X, Y):
-
-    amp = max(Y)
-    cen = sum(X)/len(X)
-    sigma = np.std(np.array(Y))
+    Ynorm = Y - np.min(Y)
+    Ynorm = Ynorm/np.max(Y)
+    
+    amp = 1
+    cen = X[np.argmax(Y)]
+    sigma = 1
 
     # Optimize amplitude, center, std
-    popt_gauss, pcov_gauss = curve_fit(_1gaussian, X, Y, p0=[amp, cen, sigma])
+    
     # Calculate error
-    #perr_gauss = np.sqrt(np.diag(pcov_gauss))
+    try:
+        popt_gauss, pcov_gauss = curve_fit(_1gaussian, X, Ynorm, p0 = [amp, cen, sigma])
+        #perr_gauss = np.sqrt(np.diag(pcov_gauss))
+        center  = int(popt_guass[1])
+        #error  = perr_gauss[1]
+    except:
+        center = None
+        #perr_gauss = None
 
     # Return center and error
-    return int(popt_gauss[1])
+    return center
 
 
 # Find mean intensity of signal and % of pixels saturated 
@@ -836,6 +921,23 @@ def signal_and_saturation(img, nbins = 256):
         mean_intensity = 0
     
     return mean_intensity, hist[-1]
+
+def contrast2(filename, channel, path, nbins=256):
+    
+    im = imageio.imread(filename)    #read picture
+    im = im[64:,:]                                                          #Remove bright band artifact
+    bg = np.loadtxt(path + str(channel) + 'background.txt')                 #Load background for sensor
+    im = im - bg                                                            #Remove background                    
+    im[im<0] = 0                                                            #Convert negative px values to 0
+    
+    contrast = np.max(im) - np.min(im)                                      #Calculate image contrast
+    
+    # Histogram of image
+    xrange = np.array(range(4096))
+    hist, bin_edges = np.histogram(im, bins = 256, range=(0,4095-np.min(bg)), density= True)
+    saturation = hist[-1]    
+
+    return contrast, saturation
 
 # Gaussian function for curve fitting
 def _1gaussian(x, amp1,cen1,sigma1):

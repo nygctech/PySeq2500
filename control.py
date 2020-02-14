@@ -124,7 +124,7 @@ def setup_flowcells(first_line):
                 flowcells[AorB].sections[sect_name] = []
                 flowcells[AorB].stage[sect_name] = {}
                 for pos in sect_position:
-                    flowcells[AorB].sections[sect_name].append(int(pos))
+                    flowcells[AorB].sections[sect_name].append(float(pos))
         else:
             print(sect_name + ' does not have a position, check config file')
             sys.exit()
@@ -208,13 +208,17 @@ def setup_logger():
 ## Setup HiSeq ###########################################
 ##########################################################
 def initialize_hs():
-    
+
     hs = pyseq.HiSeq(logger)
-    #hs.initializeCams()
-    #hs.initializeInstruments()
-
+    hs.initializeCams(logger)
+    hs.initializeInstruments()
+    
     experiment = config['experiment']
-
+    method = config[experiment['method']]
+    
+    hs.l1.set_power(int(method.get('laser power', fallback = 100)))
+    hs.l2.set_power(int(method.get('laser power', fallback = 100)))
+    
     save_path = experiment['save path']
     experiment_name = experiment['experiment name']
     save_path = save_path + '\\' + experiment_name
@@ -238,6 +242,13 @@ def check_instructions():
     method = config[method]
     
     first_port = method.get('first port', fallback = None)              # Get first reagent to use in recipe
+    try:
+        first_port = int(first_port)
+        first_line = first_port
+        first_port = None
+    except:
+        first_line = 0
+        
     variable_ports = method.get('variable reagents', fallback  = None)
     
     
@@ -256,7 +267,6 @@ def check_instructions():
     f = open(method['recipe'])
     line_num = 1
     error = 0
-    first_line = 0
 
     
     def message(text, error):
@@ -404,7 +414,7 @@ def check_ports():
 def do_flush():
     
     ## Flush lines
-    flush_YorN = input("Flush lines? Y/N = ")
+    flush_YorN = input("Prime lines? Y/N = ")
     hs.z.move([0,0,0])
     hs.move_stage_out()
     if flush_YorN == 'Y':
@@ -413,11 +423,13 @@ def do_flush():
         input("Press enter to continue...")
         #Flush all lines
         for fc in flowcells.keys():
-            volume = fc.dead_volume*fc.flush_volume
-            speed = fc.speed['flush']
+            volume = flowcells[fc].flush_volume
+            speed = flowcells[fc].pump_speed['flush']
             for port in hs.v24[fc].port_dict.keys():
-                hs.v24[fc].move(port)
-                hs.p[fc].pump(volume, speed)
+                if isinstance(port_dict[port], int):
+                    print('Priming ' + str(port))
+                    hs.v24[fc].move(port)
+                    hs.p[fc].pump(volume, speed)
                 
         print("Replace temporary flowcell with experiment flowcell and lock on to stage")
         print("Place all valve input lines in correct reagent")
@@ -428,6 +440,11 @@ def do_flush():
 
     for fc in flowcells.values():
         fc.restart_recipe()
+
+#######
+def do_nothing():
+    pass
+
 
 ##########################################################
 ## iterate over lines, send to pump, and print response ##
@@ -471,6 +488,9 @@ def do_recipe(fc):
             if fc.waits_for is not None:
                 log_message = 'Flowcell waiting for ' + command
                 fc.thread = threading.Thread(target = WAIT, args = (AorB, command,))
+            else:
+                log_message = 'Skipping waiting for ' + command
+                fc.thread = threading.Thread(target = do_nothing)
         # Image the flowcell
         elif instrument == 'IMAG':
             log_message = 'Imaging flowcell'
@@ -510,33 +530,58 @@ def IMAG(fc, n_Zplanes):
     cycle = str(fc.cycle)
     fc.imaging = True
     start = time.time()
+
+    
     for section in fc.sections:
+        x_center = fc.stage[section]['x center']
+        y_center = fc.stage[section]['y center']
+        x_pos = fc.stage[section]['x initial']
+        y_pos = fc.stage[section]['y initial']
+        n_scans = fc.stage[section]['n scans']
+        n_frames = fc.stage[section]['n frames']
+        
         # Find/Move to focal z stage position
         if fc.stage[section]['z pos'] is None:
             logger.log(21, AorB+'::Finding rough focus of ' + str(section))
                    
-            hs.y.move(fc.stage[section]['y center'])
-            hs.x.move(fc.stage[section]['x center'])
+            hs.y.move(y_center)
+            hs.x.move(x_center)
+            hs.optics.move_ex(1, 0.6)
+            hs.optics.move_ex(2, 0.9)
+            hs.optics.move_em_in(True)
             Z,C = hs.rough_focus()
-            fc.stage[section]['z pos'] = hs.z.position
+            fc.stage[section]['z pos'] = hs.z.position[:]
         else:
             hs.z.move(fc.stage[section]['z pos'])
 
-        # Find/Move to focal obj stage position    
-        if fc.stage[section]['obj pos'] is None:
+        # Find/Move to focal obj stage position,
+        # Edited to find focus every cycle change -1 to None if only want initial cycle
+        if fc.stage[section]['obj pos'] is not -1:
             logger.log(21, AorB+'::Finding fine focus of ' + str(section))
                 
-            hs.y.move(fc.stage[section]['y center'])
-            hs.x.move(fc.stage[section]['x center'])
+            hs.y.move(y_center)
+            hs.x.move(x_center)
+            hs.optics.move_ex(1, 0.6)
+            hs.optics.move_ex(2, 0.9)
+            hs.optics.move_em_in(True)
             Z,C = hs.fine_focus()
             fc.stage[section]['obj pos'] = hs.obj.position
         else:
             hs.obj.move(fc.stage[section]['obj pos'])
 
-        x_pos = fc.stage[section]['x initial']
-        y_pos = fc.stage[section]['y initial']
-        n_scans = fc.stage[section]['n scans']
-        n_frames = fc.stage[section]['n frames']
+        # Optimize filter
+        logger.log(21, AorB+'::Finding optimal filter')
+        hs.y.move(y_pos)
+        hs.x.move(x_center)
+        opt_filter = hs.optimize_filter(32)                                         #Find optimal filter set on 32 frames on image
+        hs.optics.move_ex(1, opt_filter[0])
+        hs.optics.move_ex(2, opt_filter[1])
+        hs.optics.move_em_in(True)
+        fc.ex_filter1 = opt_filter[0]
+        fc.ex_filter2 = opt_filter[1]
+
+
+        
         if n_Zplanes > 1:
             obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes/2)
             obj_step = hs.nyquist_obj
@@ -594,12 +639,14 @@ def do_shutdown():
         print("Lock temporary flowcell on  stage")
         print("Place all valve input lines in PBS/water")
         input("Press enter to continue...")
-        volume = fc.dead_volume*fc.flush_volume
-        speed = fc.speed['flush']
+
         for fc in flowcells.keys():
+            volume = flowcells[fc].flush_volume
+            speed = flowcells[fc].pump_speed['flush']
             for port in hs.v24[fc].port_dict.keys():
-                hs.v24[fc].move(port)
-                hs.p[fc].pump(volume, speed)
+                if isinstance(port_dict[port], int):
+                    hs.v24[fc].move(port)
+                    hs.p[fc].pump(volume, speed)
             ##Return pump to top and NO port##
             hs.p[fc].command('OA0R')
             hs.p[fc].command('IR')

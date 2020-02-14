@@ -217,7 +217,7 @@ class HamamatsuCamera():
         self.left_emission = None
         self.right_emission = None
         self.status = None
-        self.logger = None
+        self.logger = logger
         
         # Open the camera.
         self.camera_handle = ctypes.c_void_p(0)
@@ -238,7 +238,7 @@ class HamamatsuCamera():
     def message(self, text):
         text = 'Cam' + str(self.camera_id) + '::' + str(text)
         if self.logger is not None:
-            logger.log(21, text)
+            self.logger.info(text)
         else:
             print(text)
 
@@ -433,7 +433,7 @@ class HamamatsuCamera():
         imageio.imwrite(image_path+str(self.left_emission)+'_'+image_name+'.tiff', left_image)
         imageio.imwrite(image_path+str(self.right_emission)+'_'+image_name+'.tiff', right_image)
 
-        self.message(str(self.frame_bytes*f) + 'bytes saved from camera ' + str(self.camera_id))
+        self.message(str(self.frame_bytes*f) + ' bytes saved from camera ' + str(self.camera_id))
 
     
         
@@ -662,7 +662,7 @@ class HamamatsuCamera():
         # Check that we have not acquired more frames than we can store in our buffer.
         # Keep track of the maximum backlog.
         cur_frame_number = f_count.value
-        print('current frame number = ', cur_frame_number)
+        self.message('current frame number = ' + str(cur_frame_number))
         backlog = cur_frame_number - self.last_frame_number
         if (backlog > self.number_image_buffers):
             print("warning: hamamatsu camera frame buffer overrun detected!")
@@ -731,7 +731,7 @@ class HamamatsuCamera():
                                                        ctypes.c_int32(DCAM_DEFAULT_ARG)),
                          "dcam_setgetpropertyvalue")
 
-        print(property_name + " set to ", p_value.value)
+        self.message(property_name + " set to " + str(p_value.value))
         return p_value.value
 
     ## setTriggerMode
@@ -801,7 +801,7 @@ class HamamatsuCamera():
     #
     def allocFrame(self, n_frames):
         self.captureSetup()
-        print(self.frame_bytes)
+        self.message('each frame is ' + str(self.frame_bytes) + ' bytes')
         #
         # Allocate Hamamatsu image buffers.
         # We allocate enough for n_frames

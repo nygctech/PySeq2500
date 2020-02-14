@@ -19,16 +19,16 @@ class Optics():
     def __init__(self, fpga, logger = None):
     
         self.serial_port = fpga
-        self.logger = None
+        self.logger = logger
         self.ex = [None, None]
         self.em_in = None
         self.suffix = '\n'
         self.ex_dict = [
                         # EX1    
                         {'home' : 0,
-                         1.4 : -36,
+                         0.2 : -36,
                          0.6 : -71,
-                         0.2 : -107,
+                         1.4 : -107,
                          'open'  : 143,
                          1.6 : 107,
                          2.0 : 71,
