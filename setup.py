@@ -18,8 +18,11 @@ setup(
     keywords='sequencing, HiSeq, automation, biology',
     package_dir={'':: 'src'},
     python_requires='>=3.5',
-    install_requires=['pyserial'],
-    #package_data={ MAY WA?NT TO INCLUDE PSFS
+    install_requires=['serial', 'numpy', 'scipy', 'imageio'],
+    #package_data={ }, Add data files inside of package
+    #package_data={  # Optional
+    #    'sample': ['package_data.dat'], ## add data files inside of package
+    #},
     #entry_points ???
     #project_urls={ ADD HACKTERIA},
 )
