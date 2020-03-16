@@ -1,5 +1,5 @@
 # PySeq2500
-Control an Illumina HiSeq 2500
+Control an Illumina HiSeq 2500 System
 
 # Initializing HiSeq
 
