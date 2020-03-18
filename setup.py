@@ -12,7 +12,7 @@ setup(
     version='0.1',
     description='Control an Illumina HiSeq 2500 System',
     long_description=long_description,
-    long_description_content_type='text/x-rst',
+    long_description_content_type='text/markdown',
     url='https://github.com/nygctech/PySeq2500',
     author='Kunal Pandit',
     license='MIT',
