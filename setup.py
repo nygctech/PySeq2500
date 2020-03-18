@@ -14,11 +14,16 @@ setup(
         'Development Status :: 3 - Alpha',
         #'License ::' ADD LICENSE
         'Programming Language :: Python :: 3'
+        #platforms
+        #Operating System :: Microsoft :: Windows
         ],
     keywords='sequencing, HiSeq, automation, biology',
     package_dir={'':: 'src'},
     python_requires='>=3.5',
-    install_requires=['serial', 'numpy', 'scipy', 'imageio'],
+    install_requires=['pyserial>=3', #add version numbers
+                      'numpy',
+                      'scipy',
+                      'imageio'],
     #package_data={ }, Add data files inside of package
     #package_data={  # Optional
     #    'sample': ['package_data.dat'], ## add data files inside of package
