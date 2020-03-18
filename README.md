@@ -1,5 +1,5 @@
-# PySeq2500V2
-Control HiSeq2500 with instruments as objects
+# PySeq2500
+Control an Illumina HiSeq 2500 System
 
 # Initializing HiSeq
 
