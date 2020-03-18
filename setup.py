@@ -19,12 +19,7 @@ setup(
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3'
-<<<<<<< HEAD
-        #platforms
-        #Operating System :: Microsoft :: Windows
-=======
         'Operating System :: Microsoft :: Windows',
->>>>>>> 45aa632e38647bf62628dae21abc82c1a554e461
         ],
     keywords='sequencing, HiSeq, automation, biology',
     packages=['pyseq'],
