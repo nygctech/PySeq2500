@@ -33,7 +33,11 @@ setup(
     #package_data={  # Optional
     #    'sample': ['package_data.dat'], ## add data files inside of package
     #},
-    #entry_points ???
+    entry_points={
+        'console_scripts': [
+            'pyseq = pyseq.__main__:main',
+            ],
+        },
     project_urls={
         'Bug Reports': 'https://github.com/nygctech/PySeq2500/issues',
         'Support':'https://www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking#Control_Software',

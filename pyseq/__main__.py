@@ -6,22 +6,10 @@ import logging
 import os
 import sys
 import configparser
+import argparse
 import threading
 
-import pyseq
-
-##########################################################
-## Default Values for Configuration File #################
-##########################################################
-config = configparser.ConfigParser()
-# Defaults that can be overided
-config.read_dict({'experiment' : {'save path': 'C:\\Users\\Public\\Documents\\',
-                                 'log path': 'logs',
-                                 'image path': 'images'}
-                 })
-                 
-                                 
-     
+import pyseq     
 
 ##########################################################
 ## Flowcell Class ########################################
@@ -92,7 +80,7 @@ class flowcell():
 ## Setup Flowcells #######################################
 ##########################################################
         
-def setup_flowcells(first_line):
+def setup_flowcells(config, first_line):
     experiment = config['experiment']
     method = experiment['method']
     method = config[method]
@@ -163,7 +151,7 @@ def parse_line(line):
 ##########################################################
 ## Setup Logging #########################################
 ##########################################################
-def setup_logger():
+def setup_logger(config):
     
     # Get experiment info from config file
     experiment = config['experiment']
@@ -207,7 +195,7 @@ def setup_logger():
 ##########################################################
 ## Setup HiSeq ###########################################
 ##########################################################
-def initialize_hs():
+def initialize_hs(config):
 
     hs = pyseq.HiSeq(logger)
     hs.initializeCams(logger)
@@ -237,7 +225,7 @@ def initialize_hs():
 ##########################################################
 ## Check Instructions ####################################
 ##########################################################
-def check_instructions():
+def check_instructions(config):
     method = config.get('experiment', 'method')
     method = config[method]
     
@@ -332,7 +320,7 @@ def check_instructions():
 ##########################################################
 ## Check Ports ###########################################
 ##########################################################
-def check_ports():
+def check_ports(config):
     method = config.get('experiment', 'method')
     method = config[method]
     total_cycles = int(config.get('experiment', 'cycles'))
@@ -654,10 +642,6 @@ def do_shutdown():
         print('Retrieve experiment flowcells')
         input('Press any key to finish shutting down')
 
-    # Write flowcell histories to file
-    experiment_name = config.get('experiment','experiment name')
-    save_path = config.get('experiment','save path') + experiment_name
-    log_path = save_path + '\\' + config.get('experiment','log path')
     for fc in flowcells.values():
         AorB = fc.position
         with open(log_path+'\\Flowcell'+AorB+'.log', 'w') as fc_file:
@@ -674,7 +658,7 @@ def do_shutdown():
 ##########################################################
 ## Free Flowcells ########################################
 ##########################################################
-def free_fc():
+def free_fc(config):
 
         # Get which flowcell is to be first
         experiment = config['experiment']
@@ -695,7 +679,7 @@ def free_fc():
 ##########################################################
 ## Initialize Flowcells ##################################
 ##########################################################
-def integrate_fc_and_hs(port_dict):
+def integrate_fc_and_hs(config, port_dict):
     
     method = config.get('experiment', 'method')         # Read method specific info
     method = config[method]
@@ -725,44 +709,99 @@ def integrate_fc_and_hs(port_dict):
             fc.stage[section]['z pos'] = z_pos.get(section,fallback=None)
             fc.stage[section]['obj pos'] = obj_pos.get(section,fallback=None)
 
+
+##########################################################
+## Get Command Line Arguments ############################
+##########################################################
+def get_arguments():
+    # Create argument parser
+    parser = argparse.ArgumentParser(prog='pyseq')     
+    # Optional Configuration Path
+    parser.add_argument('-config',
+                        help='path to config file',
+                        metavar = 'PATH',
+                        default = os.path.join(os.getcwd(),'config.cfg'),
+                        )
+    # Optional Experiment Name
+    parser.add_argument('-name',
+                        help='experiment name',
+                        default= time.strftime('%Y%m%d_%H%M%S'),
+                        )
+    # Optional Output Path
+    parser.add_argument('-output',
+                        help='directory to save data',
+                        metavar = 'PATH',
+                        default = os.getcwd()
+                        )
     
+    args = parser.parse_args()
+    
+    return vars(args)
+
+##########################################################
+## Get Config ############################################
+##########################################################
+def get_config(args):
+    # Create config parser
+    config = configparser.ConfigParser()                
+
+    # Defaults that can be overided
+    config.read_dict({'experiment' : {'log path': 'logs',
+                                      'image path': 'images'}
+                      })
+    # Open config file
+    if os.path.isfile(args['config']):
+         config.read(args['config'])                    
+    else:
+        print('Configuration file does not exist')
+        sys.exit()
+    # Default output path
+    config['experiment']['save path'] = args['output']
+    # Default experiment name           
+    config['experiment']['experiment name'] = args['name']
+
+    return config
+     
 ###################################
 ## Run System #####################
 ###################################
-config.read('config.cfg')                           # Open config file               
-logger = setup_logger()                             # Create logfiles
-port_dict = check_ports()                           # Check ports in configuration file
-first_line = check_instructions()                   # Checks instruction file is correct and makes sense                  
-flowcells = setup_flowcells(first_line)             # Create flowcells
-hs = initialize_hs()                                # Initialize HiSeq, takes a few minutes 
-integrate_fc_and_hs(port_dict)                      # Integrate flowcell info with hs 
-                               
-do_flush()                                          # Flush out lines
+def main():
 
-cycles_complete = False
+    args = get_arguments()                              # Get config path, experiment name, & output path
+    config = get_config(args)                           # Get config file             
+    logger = setup_logger(config)                       # Create logfiles
+    port_dict = check_ports(config)                     # Check ports in configuration file
+    first_line = check_instructions(config)             # Checks instruction file is correct and makes sense                  
+    flowcells = setup_flowcells(config, first_line)     # Create flowcells
+    hs = initialize_hs(config)                          # Initialize HiSeq, takes a few minutes 
+    integrate_fc_and_hs(config, port_dict)              # Integrate flowcell info with hs 
+                                   
+    do_flush()                                          # Flush out lines
 
-while not cycles_complete:
-    stuck = 0
-    complete = 0
-    
-    for fc in flowcells.values():                       
-        if not fc.thread.is_alive():                # flowcell not busy, do next step in recipe 
-            do_recipe(fc)                                               
+    cycles_complete = False
+
+    while not cycles_complete:
+        stuck = 0
+        complete = 0
         
-        if fc.signal_event:                         # check if flowcells are waiting on each other                             
-            stuck += 1
-        
-        if fc.cycle > fc.total_cycles:              # check if all cycles are complete on flowcell
-            complete += 1
-                                             
-    if stuck == len(flowcells):                     # Start the first flowcell if they are waiting on each other
-        free_fc()
+        for fc in flowcells.values():                       
+            if not fc.thread.is_alive():                # flowcell not busy, do next step in recipe 
+                do_recipe(fc)                                               
             
-    if complete == len(flowcells):                  # Exit while loop
-        cycles_complete = True
+            if fc.signal_event:                         # check if flowcells are waiting on each other                             
+                stuck += 1
+            
+            if fc.cycle > fc.total_cycles:              # check if all cycles are complete on flowcell
+                complete += 1
+                                                 
+        if stuck == len(flowcells):                     # Start the first flowcell if they are waiting on each other
+            free_fc(config)
+                
+        if complete == len(flowcells):                  # Exit while loop
+            cycles_complete = True
 
-    
-do_shutdown()                                       # Shutdown  HiSeq
+        
+    do_shutdown()                                       # Shutdown  HiSeq
 
                  
 
