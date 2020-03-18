@@ -26,6 +26,7 @@ import ctypes
 import ctypes.util
 import numpy as np
 import imageio
+import warnings
 
 print('hellooooooooooooooooooooooooooooooooooooooooo')
 
@@ -123,11 +124,15 @@ class DCAMException(Exception):
 #
 # Initialization
 #
-dcam = ctypes.windll.dcamapi
-temp = ctypes.c_int32(0)
-if (dcam.dcam_init(None, ctypes.byref(temp), None) != DCAMERR_NOERROR):
-    raise DCAMException("DCAM initialization failed.")
-n_cameras = temp.value
+try:
+    dcam = ctypes.windll.dcamapi
+    temp = ctypes.c_int32(0)
+    if (dcam.dcam_init(None, ctypes.byref(temp), None) != DCAMERR_NOERROR):
+        raise DCAMException("DCAM initialization failed.")
+    n_cameras = temp.value
+except:
+    warnings.warn('DCAM is not installed')
+    
 
 
 
