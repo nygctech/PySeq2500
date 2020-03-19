@@ -10,7 +10,6 @@
 ##import valve
 
 #import instruments
-from . import dcam
 from . import fpga
 from . import laser
 from . import objstage
@@ -86,7 +85,7 @@ class HiSeq():
 
     def initializeCams(self, Logger=None):
 
-        import dcam
+        from . import dcam
 
         self.cam1 = dcam.HamamatsuCamera(0, logger = Logger)
         self.cam2 = dcam.HamamatsuCamera(1, logger = Logger)
