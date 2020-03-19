@@ -1,0 +1,6 @@
+PORT:	water		#Move valve to water wash (port 2)
+PUMP:	100		#Pump 100 uL
+PORT:	elution		#Move valve to elution (port 3)
+PUMP:	100		#Pump 100 uL
+WAIT:	water		#Hold until other flowcell reaches water
+HOLD:	1		#Hold for 1 min

@@ -10,7 +10,7 @@ import argparse
 import threading
 
 import pyseq
-import methods
+from . import methods
 
 ##########################################################
 ## Flowcell Class ########################################
@@ -745,6 +745,7 @@ def get_arguments():
     parser.add_argument('-list',
                         help='list installed methods',
                         metavar = '',
+                        nargs = '?',
                         default = 1
                         )
     # Flag to print out installed methods
@@ -754,13 +755,17 @@ def get_arguments():
                         )
 
     args = parser.parse_args()
+    args = vars(args)
 
-    if args['list'] is False:
+    if args['list'] is None:
         methods.list_methods()
         sys.exit()
 
+    if args['method'] in methods.get_methods():
+        methods.print_method(args['method'])
+        sys.exit()
 
-    return vars(args)
+    return args
 
 ##########################################################
 ## Get Config ############################################
@@ -804,7 +809,7 @@ def get_config(args):
         recipe_path = os.path.abspath(join(recipe_path,recipe_name))
     elif os.path.isfile(recipe_name):
         recipe_path = recipe_name
-    else
+    else:
         print('Error reading recipe')
         sys.exit()
     config['experiment']['recipe path'] = recipe_path

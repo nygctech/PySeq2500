@@ -1,15 +1,22 @@
-import os
 import configparser
+
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Try backported to PY<37 `importlib_resources`.
+    import importlib_resources as pkg_resources
+
+from . import recipes
+
+
 
 # Get installed methods
 def get_methods():
-    os.path.join('..',recipes)
-    files = os.listdir()
+    contents = pkg_resources.contents(recipes)
     methods = []
-    for f in files:
-        if '.cfg' in files:
-            methods.append(f[0:-4])
-
+    for i in contents:
+        if '.cfg' in i:
+            methods.append(i[0:-4])
     return methods
 
 # List installed methods
@@ -23,16 +30,22 @@ def print_method(method):
     methods = get_methods()
     if method in methods:
         # Print out method configuration
-        print(method + ' configuration')
-        methods_path = os.path.join('..',recipes)
-        method = method + '.cfg'
-        f = open(os.path.join(methods_path,method))
+        print()
+        print(method + ' configuration:')
+        print()
+        f = pkg_resources.open_text(recipes, method+'.cfg')
         for line in f:
-            print(line)
+            print(line[0:-1])
 
         # Print out method recipe
+        print()
+        print(method + ' recipe:')
+        print()
         config = configparser.ConfigParser()
-        config.read(os.path.join(methods_path,method))
-        f = open(os.path.join(methods_path,config['recipe']))
+        with pkg_resources.path(recipes, method+'.cfg') as config_path:
+            config.read(config_path)
+            recipe = config[method]['recipe']
+        with pkg_resources.path(recipes, recipe) as recipe_path:
+            f = open(recipe_path)
         for line in f:
-            print(line)
+            print(line[0:-1])
