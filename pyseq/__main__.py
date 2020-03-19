@@ -199,7 +199,7 @@ def setup_logger(config):
 ##########################################################
 def initialize_hs(config):
     import pyseq
-    
+
     hs = pyseq.HiSeq(logger)
     hs.initializeCams(logger)
     hs.initializeInstruments()
@@ -744,20 +744,20 @@ def get_arguments():
     # Flag to print out installed methods
     parser.add_argument('-list',
                         help='list installed methods',
-                        metavar = '',
-                        nargs = '?',
-                        default = 1
+                        action = 'store_true'
+                        #nargs = 0,
                         )
     # Flag to print out installed methods
     parser.add_argument('-method',
                         help='print method details',
-                        choices = methods.get_methods()
+                        choices = methods.get_methods(),
+                        metavar = 'METHOD'
                         )
 
     args = parser.parse_args()
     args = vars(args)
 
-    if args['list'] is None:
+    if args['list'] is True:
         methods.list_methods()
         sys.exit()
 
