@@ -23,6 +23,7 @@ from . import zstage
 
 import time
 from os.path import getsize
+from os.path import join
 import threading
 import numpy as np
 import imageio
@@ -48,7 +49,7 @@ class HiSeq():
                        fpgaCOM = ['COM12','COM15'],
                        laser1COM = 'COM13',
                        laser2COM = 'COM14'):
-    
+
         self.y = ystage.Ystage(yCOM, logger = Logger)
         self.f = fpga.FPGA(fpgaCOM[0], fpgaCOM[1], logger = Logger)
         self.x = xstage.Xstage(xCOM, logger = Logger)
@@ -68,7 +69,8 @@ class HiSeq():
         self.v24 = {'A': valve.Valve(valveA24COM, 'valveA24', logger = Logger),
                     'B': valve.Valve(valveB24COM, 'valveB24', logger = Logger)
                     }
-        self.image_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\Images\\'
+        self.image_path = None
+        self.log_path = None
         self.bg_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\PySeq2500V2\\calibration\\'
         self.distance = None
         self.distance_offset = 0
@@ -81,7 +83,7 @@ class HiSeq():
         self.bundle_height = 128.0
         self.nyquist_obj = 235 # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
-    
+
     def initializeCams(self, Logger=None):
 
         import dcam
@@ -94,7 +96,7 @@ class HiSeq():
         self.cam1.right_emission = 558
         self.cam2.left_emission = 610
         self.cam2.right_emission = 740
-        
+
         # Initialize camera 1
         print('Initializing camera 1...')
         self.cam1.setPropertyValue("exposure_time", 40.0)
@@ -120,7 +122,7 @@ class HiSeq():
         self.cam2.setPropertyValue("trigger_connector", 1) #Interface
         self.cam2.setPropertyValue("trigger_source", 2) #1 = internal, 2=external
         self.cam2.setPropertyValue("contrast_gain", 0)
-        
+
         self.cam2.captureSetup()
         self.cam2.get_status()
 
@@ -132,7 +134,7 @@ class HiSeq():
         #Initialize X Stage before Y Stage!
         print('Initializing X & Y stages')
         self.x.initialize()
-        #TODO, make sure x stage is in correct place. 
+        #TODO, make sure x stage is in correct place.
         self.x.initialize() # Do it twice to make sure its centered!
         self.y.initialize()
         print('Initializing lasers')
@@ -164,26 +166,27 @@ class HiSeq():
         self.distance = self.get_distance()
         print('HiSeq initialized!')
 
-    # Write metadata file    
+    # Write metadata file
     def write_metadata(self, n_frames, bundle, image_name):
-                
+
         date = time.strftime('%Y%m%d_%H%M%S')
-        meta_f = open(self.image_path + 'meta_' + image_name + '.txt', 'w+')
+        meta_path = join(self.image_path, 'meta_'+image_name+'.txt')
+        meta_f = open(image_path, 'w+')
         meta_f.write('time ' + date + '\n' +
-                     'y ' + str(self.y.position) + '\n' + 
+                     'y ' + str(self.y.position) + '\n' +
                      'x ' + str(self.x.position) + '\n' +
                      'z ' + str(self.z.position) + '\n' +
-                     'obj ' + str(self.obj.position) + '\n' + 
+                     'obj ' + str(self.obj.position) + '\n' +
                      'frames ' + str(n_frames) + '\n' +
                      'bundle ' + str(bundle) + '\n' +
-                     'TDIY ' + str(self.f.read_position()) +  '\n' + 
+                     'TDIY ' + str(self.f.read_position()) +  '\n' +
                      'laser1 ' + str(self.l1.get_power()) + '\n' +
                      'laser2 ' + str(self.l2.get_power()) + '\n' +
                      'ex filters ' + str(self.optics.ex) + '\n' +
                      'em filter in ' + str(self.optics.em_in)
                      )
                      #TODO write number of frames actually take
-        
+
         return meta_f
 
     def take_picture(self, n_frames, bundle, image_name = None):
@@ -201,12 +204,12 @@ class HiSeq():
         if image_name is None:
             image_name = time.strftime('%Y%m%d_%H%M%S')
 
-        
+
         #Make sure TDI is synced with Ystage
         y_pos = y.position
         if abs(y_pos - f.read_position()) > 10:
             self.message('Attempting to sync TDI and stage')
-            f.write_position(y.position)  
+            f.write_position(y.position)
         else:
             self.message('TDI and stage are synced')
 
@@ -215,7 +218,7 @@ class HiSeq():
         response = y.command('GAINS(5,10,5,2,0)')
         response = y.command('V0.15400')
 
-        #    
+        #
         # Setup Cameras
         #
         # Make sure cameras are ready (status = 3)
@@ -225,15 +228,15 @@ class HiSeq():
         while cam2.get_status() != 3:
             cam2.stopAcquisition()
             cam2.freeFrames()
-        # Set bundle height    
+        # Set bundle height
         cam1.setPropertyValue("sensor_mode_line_bundle_height", bundle)
         cam2.setPropertyValue("sensor_mode_line_bundle_height", bundle)
         cam1.captureSetup()
         cam2.captureSetup()
-        # Allocate memory for image data    
+        # Allocate memory for image data
         cam1.allocFrame(n_frames)
         cam2.allocFrame(n_frames)
-        
+
 
         #
         #Arm stage triggers
@@ -246,9 +249,9 @@ class HiSeq():
         #print('Trigger armed, Imaging starting')
 
 
-        
+
         meta_f = self.write_metadata(n_frames, bundle, image_name)
-        
+
         ################################
         ### Start Imaging ##############
         ################################
@@ -271,7 +274,7 @@ class HiSeq():
         cam1.stopAcquisition()
         cam2.stopAcquisition()
         # Close laser shutter
-        f.command('SWLSRSHUT 0')        
+        f.command('SWLSRSHUT 0')
         # Check if all frames were taken from camera 1 then save images
         if cam1.getFrameCount() != n_frames:
             print('Cam1 image not taken')
@@ -315,13 +318,13 @@ class HiSeq():
         f = self.f
         l1 = self.l1
         l2 = self.l2
-        
+
         if y_pos == None:
             y_pos = y.position
 
-        
+
         n_triggers = n_frames * n_exposures
-        
+
         y.move(y_pos)
         response = f.command('TDIYERD')
         print(response)
@@ -345,14 +348,14 @@ class HiSeq():
         l2.command('ON')
         l1.command('POWER=10')
         l2.command('POWER=10')
-        
+
         # Start Imaging on TDIscan
         print('In TDIscan set sensor mode to TDI')
         print('In TDIscan set repeat to bundle number')
         print('In TDIscan set frames to frame number')
         print('Get ready to hit enter quickly on command line...')
         print('After hitting Sequential in TDIscan to start imaging')
-        # Set frames to number of frames 
+        # Set frames to number of frames
         input('Press enter to start cameras')
         # Move emission filter out of path
         f.command('EM2O')
@@ -366,7 +369,7 @@ class HiSeq():
         ### Read Out ###################
         ################################
 
-        
+
         response = f.command('TDICLINES')
         print(response)
         response = f.command('TDIPULSES')
@@ -397,14 +400,14 @@ class HiSeq():
 ##        ##########################
 ##        ## Setup Cameras #########
 ##        ##########################
-##        
+##
 ##        #Switch Camera to Area mode
 ##        cam1.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
 ##        cam2.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
 ##        #Set line bundle height to 8
 ##        cam1.setPropertyValue("sensor_mode_line_bundle_height", 8)
 ##        cam2.setPropertyValue("sensor_mode_line_bundle_height", 8)
-##        
+##
 ##        cam1.captureSetup()
 ##        cam2.captureSetup()
 ##
@@ -422,9 +425,9 @@ class HiSeq():
 ##        start_position = 60292
 ##        obj.move(start_position)
 ##
-##            
+##
 ##        f.command('SWYZ_POS 1')
-##        
+##
 ##
 ##        # Set up objective to move and trigger
 ##        obj.set_velocity(0.42) #mm/s
@@ -448,16 +451,16 @@ class HiSeq():
 ##        # Save Images and reset
 ##        cam1.stopAcquisition()
 ##        date = time.strftime('%m-%d-%Y')
-##        cam1.saveImage('Z_AF'+'cam1_8exp_' + 
+##        cam1.saveImage('Z_AF'+'cam1_8exp_' +
 ##                                              str(n_frames) + 'f_' +
 ##                                              date)
-##        
+##
 ##
 ##        cam2.stopAcquisition()
-##        cam2.saveImage('Z_AF'+'cam2_8exp_' + 
+##        cam2.saveImage('Z_AF'+'cam2_8exp_' +
 ##                                              str(n_frames) + 'f_' +
 ##                                              date)
-##        
+##
 ##        cam1.freeFrames()
 ##        cam2.freeFrames()
 ##
@@ -476,10 +479,10 @@ class HiSeq():
     def move_stage_out(self):
         self.x.move(self.x.home)
         self.y.move(self.y.min_y)
-        
+
     def zstack(self, obj_start, obj_stop, obj_step, n_frames, y_pos):
         exp_date = time.strftime('%Y%m%d_%H%M%S')
-        
+
         for obj_pos in range(obj_start, obj_stop+1, obj_step):
             image_name = exp_date + '_' + str(obj_pos)
             image_complete = False
@@ -491,13 +494,13 @@ class HiSeq():
                     # Reset stage and FPGA
                     self.reset_stage()
                     self.y.move(y_pos)
-                    
+
     def scan(self, x_pos, y_pos, obj_start, obj_stop, obj_step, n_scans, n_frames, image_name=None):
 
         if image_name is None:
             image_name = time.strftime('%Y%m%d_%H%M%S')
 
-        start = time.time()    
+        start = time.time()
         self.y.move(y_pos)
         for n in range(n_scans):
             self.x.move(x_pos)
@@ -505,7 +508,7 @@ class HiSeq():
                 self.obj.move(obj_pos)
                 f_img_name = image_name + '_x' + str(x_pos) + '_o' + str(obj_pos)
                 image_complete = False
-                
+
                 while not image_complete:
                     image_complete = self.take_picture(n_frames, 128, f_img_name)
                     self.y.move(y_pos)
@@ -513,13 +516,13 @@ class HiSeq():
                         print('Image not taken')
                         self.reset_stage()
                         self.y.move(y_pos)
-                        
+
             x_pos = self.x.position + 315
-            
+
         stop = time.time()
-        
+
         return stop - start
-                          
+
 ##    def autofocus(self):
 ##        # move stage to initial distance
 ##        z_pos = 20600
@@ -540,17 +543,17 @@ class HiSeq():
 ##        while not image_complete:
 ##            image_complete = self.take_picture(32, 128, image_name)         # take picture
 ##        self.y.move(y_pos)                                                  # reset stage
-##        C = self.contrast(image_name)                                       # calculate contrast   
+##        C = self.contrast(image_name)                                       # calculate contrast
 ##        DC.append([D,C])
 ##
 ##        # Move stage for next step
 ##        z_pos = int(z_pos + dD*4)
 ##        self.z.move([z_pos, z_pos, z_pos])
-##        
-##        
+##
+##
 ##        # Take image, and move stage according to change in contrast to dial in focus
 ##        while abs(dD) > 1 and n_moves < 30:
-##             
+##
 ##            n_moves = n_moves + 1                                           # increase move counter
 ##            print('Auto Focus step ' + str(n_moves))
 ##
@@ -571,7 +574,7 @@ class HiSeq():
 ##                z_pos = int(sum(self.z.position)/len(self.z.position) - dD*4)
 ##                self.z.move([z_pos, z_pos, z_pos])
 ##            else:                                                           # move objective
-##                obj_pos = int(self.obj.position - dD*262) 
+##                obj_pos = int(self.obj.position - dD*262)
 ##                self.obj.move(obj_pos)
 ##
 ##            D = self.get_distance()                                         # Calculate distance
@@ -588,10 +591,10 @@ class HiSeq():
         z_distance = (sum(self.z.position)/len(self.z.position))/self.z.spum
         obj_distance = self.obj.position/self.obj.spum
         self.distance = self.max_distance - obj_distance - z_distance + self.distance_offset
- 
+
         return self.distance
 
-    
+
     def twoscan(hs, n):
         for i in range(n):
             hs.take_picture(50, 128, y_pos = 6500000, x_pos = 11900, obj_pos = 45000)
@@ -602,7 +605,7 @@ class HiSeq():
 ##        y_pos = self.y.position
 ##
 ##        exp_date = time.strftime('%Y%m%d_%H%M%S')
-##        
+##
 ##        for z_pos in range(18000, 22000, 200):
 ##            self.z.move([z_pos, z_pos, z_pos])
 ##            image_name = exp_date + '_' + str(z_pos)
@@ -623,37 +626,39 @@ class HiSeq():
 
         C = 0
         for image in image_prefix:
-            im = imageio.imread(self.image_path+str(image)+'_'+filename+'.tiff')    #read picture
-            im = im[64:,:]                                                          #Remove bright band artifact
-            imageio.imwrite(self.image_path+str(image)+'_'+filename+'.jpeg', im)
-            C += getsize(self.image_path+str(image)+'_'+filename+'.jpeg')
+            im_path = join(self.image_path, str(image)+'_'+filename+'.tiff')
+            im = imageio.imread(image_path)                                     #read picture
+            im = im[64:,:]                                                      #Remove bright band artifact
+            im_path = join(self.image_path, str(image)+'_'+filename+'.jpeg')
+            imageio.imwrite(im_path, im)
+            C += getsize(image_path)
 
         return C
-            
-            
-    def contrast(self, filename):
-        image_prefix=[self.cam1.left_emission,
-                      self.cam1.right_emission,
-                      self.cam2.left_emission,
-                      self.cam2.right_emission]
-        C = 0
-        for image in image_prefix:
-            im = imageio.imread(self.image_path+str(image)+'_'+filename+'.tiff')    #read picture
-            im = im[64:,:]                                                          #Remove bright band artifact
-            bg = np.loadtxt(self.bg_path+str(image)+'background.txt')               #Open background file for sensor
-            im = im - bg                                                            #Subtract background
-            im[im <0] = 0                                                           #Make negative values 0
-            max_px = np.amax(im)                                                    #Find max pixel value
 
-            # weight max pixels if they are saturated
-            if max_px >= 4096 - np.max(bg):
-                n_max_px = np.sum(im >= max_px)                                     #count number of pixels with max value
-            else:
-                n_max_px = 1
-                
-            C = C + (max_px*n_max_px - np.amin(im))                                 #Calculate contrast
-
-        return C
+    # def contrast(self, filename):
+    #     image_prefix=[self.cam1.left_emission,
+    #                   self.cam1.right_emission,
+    #                   self.cam2.left_emission,
+    #                   self.cam2.right_emission]
+    #     C = 0
+    #     for image in image_prefix:
+    #         im_path = join(self.image_path, str(image)+'_'+filename+'.tiff')
+    #         im = imageio.imread(im_path)                                        #read picture
+    #         im = im[64:,:]                                                      #Remove bright band artifact
+    #         bg = np.loadtxt(self.bg_path+str(image)+'background.txt')           #Open background file for sensor
+    #         im = im - bg                                                        #Subtract background
+    #         im[im <0] = 0                                                       #Make negative values 0
+    #         max_px = np.amax(im)                                                #Find max pixel value
+    #
+    #         # weight max pixels if they are saturated
+    #         if max_px >= 4096 - np.max(bg):
+    #             n_max_px = np.sum(im >= max_px)                                     #count number of pixels with max value
+    #         else:
+    #             n_max_px = 1
+    #
+    #         C = C + (max_px*n_max_px - np.amin(im))                                 #Calculate contrast
+    #
+    #     return C
 
 
     def rough_focus(self, z_start = 21200, z_interval = 200, n_images = 6):
@@ -664,7 +669,7 @@ class HiSeq():
         self.obj.move(obj_pos)
         z_pos = z_start
         self.z.move([z_pos, z_pos, z_pos])
-        
+
         Z = []                                                             # list of distance [0] and contrast [1]
         C = []                                                              # list of contrasts
         for i in range(n_images):
@@ -673,9 +678,9 @@ class HiSeq():
             while not image_complete:
                 image_complete = self.take_picture(32, 128, image_name)         # take picture
                 self.y.move(y_pos)                                              # reset stage
-            
-        
-            C.append(self.jpeg(image_name))                                 # calculate compression   
+
+
+            C.append(self.jpeg(image_name))                                 # calculate compression
             Z.append(z_pos)
 
             # Move stage for next step
@@ -696,7 +701,7 @@ class HiSeq():
         return Z,C
 
     def fine_focus(self, obj_start = 10000, obj_interval = 5000, n_images = 7):
-        
+
         #Initialize
         y_pos = self.y.position
         obj_pos = obj_start
@@ -711,9 +716,9 @@ class HiSeq():
             while not image_complete:
                 image_complete = self.take_picture(32, 128, image_name)         # take picture
                 self.y.move(y_pos)                                              # reset stage
-            
-        
-            C.append(self.jpeg(image_name))                                      # calculate compression 
+
+
+            C.append(self.jpeg(image_name))                                      # calculate compression
             Z.append(self.obj.position)
 
             # Move stage for next step
@@ -725,7 +730,7 @@ class HiSeq():
         self.message('Compressions: ' + str(C))
         self.message('OBJ pos: ' + str(Z))
         self.message('Optimal OBJ pos = ' + str(obj_pos))
-        
+
         if obj_pos is None:
             self.message('Could not find fine focus')
             i = np.argmax(C)
@@ -751,20 +756,20 @@ class HiSeq():
                 image_complete = self.take_picture(32, 128, image_name)           # take picture
 
             self.y.move(y_pos)                                                    # reset stage
-        
-            C.append(self.jpeg(image_name))                                   # calculate contrast   
+
+            C.append(self.jpeg(image_name))                                   # calculate contrast
             Z.append(self.obj.position)
-            
+
             obj_pos = find_focus(Z, C)                                              #find best obj stage position
             self.message('Contrasts: ' + str(C))
             self.message('OBJ pos: ' + str(Z))
             self.message('Optimal OBJ pos = ' + str(obj_pos))
-                                                          
+
 
             if obj_pos is None:
                 self.message('Could not find fine focus')
                 obj_pos = Z[np.argmax(C)]
-                
+
         self.message('Contrasts: ' + str(C))
         self.message('OBJ pos: ' + str(Z))
         self.message('Optimal OBJ pos = ' + str(obj_pos))
@@ -803,46 +808,46 @@ class HiSeq():
         x_center -= int(self.scan_width*1000*self.x.spum/2)
         y_center += int(32*128/2*self.resolution*self.y.spum)
 
-        
+
         return [x_center, y_center, x_initial, y_initial, n_scans, n_frames]
-    
+
     def optimize_filter(self, nframes, nbins = 256, sat_threshold = 0.0005, signal_threshold = 20):
         # Save y position
         y_pos = self.y.position
-        
+
         image_prefix=[self.cam1.left_emission,                                      # 687
                       self.cam1.right_emission,                                     # 558
                       self.cam2.left_emission,                                      # 610
                       self.cam2.right_emission]                                     # 740
-        
+
         f_order = [[4.0, 2.0, 1.6, 1.4, 0.6, 0.2],[4.5, 3.0, 2.0, 1.0, 0.9, 0.2]]   # Order of filters to loop through
         opt_filter = [None, None]                                                   # Empty list of optimal filters
         lasers = [1,2]                                                              # list of lasers, Green = 1, Red = 2
-        
-        for li in lasers: 
+
+        for li in lasers:
             fi = 0                                                                  # Loop through filters until optimized
             self.optics.move_ex(1, 'home')                                          # Home and block lasers
             self.optics.move_ex(2, 'home')
             self.optics.move_em_in(True)
-            new_f_score = 0        
+            new_f_score = 0
             while opt_filter[li-1] is None:
                 self.optics.move_ex(li,f_order[li-1][fi])                           # Move excitation filter
-                image_name = 'L'+str(li)+'_filter'+str(f_order[li-1][fi])         
+                image_name = 'L'+str(li)+'_filter'+str(f_order[li-1][fi])
                 image_complete = False
                 while not image_complete:
                     image_complete = self.take_picture(nframes, 128, image_name)         # Take Picture
                     self.y.move(y_pos)
-            
+
                 contrast = np.array([])
                 saturation = np.array([])
                 for image in image_prefix:
                     im_name = self.image_path+str(image)+'_'+image_name+'.tiff'    #read picture
 
                     C, S = contrast2(im_name, image, self.bg_path, nbins)            #Calculate background subtracted contrast and %saturatio
-                    
+
                     contrast = np.append(contrast,C)
                     saturation = np.append(saturation,S)
-                    
+
                 old_f_score = new_f_score
                 if any(saturation > sat_threshold):                                         # make sure image is not too saturated
                     new_f_score = 0
@@ -852,10 +857,10 @@ class HiSeq():
                 elif li == 2:
                     signal = contrast[0] + contrast[3]
                     new_f_score = contrast[0] + contrast[3] - contrast[1] - contrast[2]             # Red laser, 687+740-558-610- emissions
-        
+
                 if signal > signal_threshold:                                                       # Increase laser until you at least see some signal
                     if old_f_score >= new_f_score and fi > 0:                                       # Too much crosstalk / saturation
-                        opt_filter[li-1] = f_order[li-1][fi-1]                                  
+                        opt_filter[li-1] = f_order[li-1][fi-1]
                     else:
                         fi += 1
                 elif fi == 5:                                                               # Last filter
@@ -875,20 +880,20 @@ class HiSeq():
             print(str(text))
         else:
             self.logger.info(str(text))
-                   
+
 # Fit Contrast(Z) to gaussian curve and find Z that maximizes C
 # C = Y
 # Z = X
 def find_focus(X, Y):
     Ynorm = Y - np.min(Y)
     Ynorm = Ynorm/np.max(Y)
-    
+
     amp = 1
     cen = X[np.argmax(Y)]
     sigma = 1
 
     # Optimize amplitude, center, std
-    
+
     # Calculate error
     try:
         popt_gauss, pcov_gauss = curve_fit(_1gaussian, X, Ynorm, p0 = [amp, cen, sigma])
@@ -903,9 +908,9 @@ def find_focus(X, Y):
     return center
 
 
-# Find mean intensity of signal and % of pixels saturated 
+# Find mean intensity of signal and % of pixels saturated
 def signal_and_saturation(img, nbins = 256):
-    
+
     # Histogram of image
     hist, bin_edges = np.histogram(img, bins = nbins, range = (0,4095), density = True)
 
@@ -931,23 +936,24 @@ def signal_and_saturation(img, nbins = 256):
         mean_intensity = psignal[1]
     else:
         mean_intensity = 0
-    
+
     return mean_intensity, hist[-1]
 
 def contrast2(filename, channel, path, nbins=256):
-    
+
     im = imageio.imread(filename)    #read picture
-    im = im[64:,:]                                                          #Remove bright band artifact
-    bg = np.loadtxt(path + str(channel) + 'background.txt')                 #Load background for sensor
-    im = im - bg                                                            #Remove background                    
-    im[im<0] = 0                                                            #Convert negative px values to 0
-    
-    contrast = np.max(im) - np.min(im)                                      #Calculate image contrast
-    
+    im = im[64:,:]                                                              #Remove bright band artifact
+    bg_path = join(path, str(channel) + 'background.txt')
+    bg = np.loadtxt(bg_path)                                                    #Load background for sensor
+    im = im - bg                                                                #Remove background
+    im[im<0] = 0                                                                #Convert negative px values to 0
+
+    contrast = np.max(im) - np.min(im)                                          #Calculate image contrast
+
     # Histogram of image
     xrange = np.array(range(4096))
     hist, bin_edges = np.histogram(im, bins = 256, range=(0,4095-np.min(bg)), density= True)
-    saturation = hist[-1]    
+    saturation = hist[-1]
 
     return contrast, saturation
 
