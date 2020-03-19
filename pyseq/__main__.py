@@ -92,7 +92,7 @@ def setup_flowcells(config, first_line):
         # Create flowcell if it doesn't exist
         if AorB not in flowcells.keys():
             flowcells[AorB] = flowcell(AorB)
-            flowcells[AorB].recipe_path = method['recipe']
+            flowcells[AorB].recipe_path = experiment['recipe path']
             flowcells[AorB].flush_volume = int(method.get('flush volume', fallback=2000))
             flowcells[AorB].pump_speed['flush'] = int(method.get('flush speed', fallback=700))
             flowcells[AorB].pump_speed['reagent'] = int(method.get('reagent speed', fallback=40))
@@ -259,7 +259,7 @@ def check_instructions(config):
     valid_wait.append('IMAG')
     valid_wait.append('STOP')
 
-    f = open(method['recipe'])
+    f = open(config['experiment']['recipe path'])
     line_num = 1
     error = 0
 
@@ -763,10 +763,36 @@ def get_config(args):
     else:
         print('Configuration file does not exist')
         sys.exit()
-    # Default output path
+    # Set output path
     config['experiment']['save path'] = args['output']
-    # Default experiment name
+    # Set experiment name
     config['experiment']['experiment name'] = args['name']
+
+    # Get method specific configuration
+
+    methods_path = join('..','recipes')
+    method = config['experiment']['method']
+    method = method + '.cfg'
+    if method in os.listdir(methods_path):
+        config.read(join(methods_path,method))
+    else:
+        try:
+            config.read(method)
+        except:
+            print('Error reading method configuration')
+            sys.exit()
+
+    # Get recipe path
+    recipe_name = config[method]['recipe']
+    recipe_path = join('..','recipes')
+    if recipe_name in os.listdir(recipe_path):
+        recipe_path = os.path.abspath(join(recipe_path,recipe_name))
+    elif os.path.isfile(recipe_name):
+        recipe_path = recipe_name
+    else
+        print('Error reading recipe')
+        sys.exit()
+    config['experiment']['recipe path'] = recipe_path
 
     return config
 
