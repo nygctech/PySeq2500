@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# TO DO: NEW LOG FILE
 
 import time
 import logging
@@ -11,6 +10,7 @@ import argparse
 import threading
 
 import pyseq
+import methods
 
 ##########################################################
 ## Flowcell Class ########################################
@@ -741,8 +741,24 @@ def get_arguments():
                         metavar = 'PATH',
                         default = os.getcwd()
                         )
+    # Flag to print out installed methods
+    parser.add_argument('-list',
+                        help='list installed methods',
+                        metavar = '',
+                        default = 1
+                        )
+    # Flag to print out installed methods
+    parser.add_argument('-method',
+                        help='print method details',
+                        choices = methods.get_methods()
+                        )
 
     args = parser.parse_args()
+
+    if args['list'] is False:
+        methods.list_methods()
+        sys.exit()
+
 
     return vars(args)
 
@@ -769,7 +785,6 @@ def get_config(args):
     config['experiment']['experiment name'] = args['name']
 
     # Get method specific configuration
-
     methods_path = join('..','recipes')
     method = config['experiment']['method']
     method = method + '.cfg'
