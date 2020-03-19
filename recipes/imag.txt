@@ -1,1 +1,0 @@
-IMAG:	1		#image 1 z sections

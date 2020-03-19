@@ -1,8 +1,0 @@
-[short dry test]
-recipe = short_dry_test_recipe.txt
-flush speed = 2000
-reagent speed = 2000
-barrels per lane = 8
-
-[valve24]
-# No need for ports in short dry test
