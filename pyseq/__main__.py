@@ -9,7 +9,6 @@ import configparser
 import argparse
 import threading
 
-import pyseq
 from . import methods
 
 ##########################################################
@@ -199,7 +198,8 @@ def setup_logger(config):
 ## Setup HiSeq ###########################################
 ##########################################################
 def initialize_hs(config):
-
+    import pyseq
+    
     hs = pyseq.HiSeq(logger)
     hs.initializeCams(logger)
     hs.initializeInstruments()
