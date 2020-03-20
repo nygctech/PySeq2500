@@ -88,7 +88,8 @@ def setup_flowcells(first_line):
 
     flowcells = {}
     for sect_name in config['sections']:
-        AorB = config['sections'][sect_name]
+        position = config['sections'][sect_name]
+        AorB, coord  = position.split(':')
         # Create flowcell if it doesn't exist
         if AorB not in flowcells.keys():
             flowcells[AorB] = flowcell(AorB)
@@ -100,23 +101,20 @@ def setup_flowcells(first_line):
             flowcells[AorB].total_cycles = int(config.get('experiment','cycles'))
 
         # Add section to flowcell
-        # Make sure section name : flowcell and section name: position match
-        if sect_name in config['section position']:
-            #  Add new section to flowcell
-            if sect_name in flowcells[AorB].sections:
-                print(sect_name + ' already on flowcell ' + AorB)
-                print('check config file for section name duplications')
-                sys.exit()
-            if sect_name:
-                sect_position = config['section position'][sect_name]
-                sect_position = sect_position.split(',')
-                flowcells[AorB].sections[sect_name] = []
-                flowcells[AorB].stage[sect_name] = {}
-                for pos in sect_position:
-                    flowcells[AorB].sections[sect_name].append(float(pos))
-        else:
-            print(sect_name + ' does not have a position, check config file')
+        if sect_name in flowcells[AorB].sections:
+            print(sect_name + ' already on flowcell ' + AorB)
+            print('check config file for section name duplications')
             sys.exit()
+        else:
+            coord = coord.split(',')
+            flowcells[AorB].sections[sect_name] = []                            # List to store coordinates of section on flowcell
+            flowcells[AorB].stage[sect_name] = {}                               # Dictionary to store stage position of section on flowcell
+            for i in range(4):
+                try:
+                    flowcells[AorB].sections[sect_name].append(float(coord[i]))
+                except:
+                    print(sect_name + ' does not have a position, check config file')
+                    sys.exit()
 
         # if runnning mulitiple flowcells...
         # Define first flowcell
