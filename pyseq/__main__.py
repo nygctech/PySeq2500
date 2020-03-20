@@ -8,6 +8,7 @@ import sys
 import configparser
 import argparse
 import threading
+import warnings
 
 from . import methods
 
@@ -307,7 +308,7 @@ def check_instructions(config):
 
             # Warn user that HiSeq will completely stop with this command
             elif instrument == 'STOP':
-                print('HiSeq will complete stop until user input at line ' + str(line_num) + '\n')
+                warnings.warn('HiSeq will complete stop until user input at line ' + str(line_num) + '\n')
 
             # Make sure the instrument name is valid
             else:
@@ -375,7 +376,7 @@ def check_ports(config):
                     print('Cycle reagent: ' + reagent + ' does not exist on valve')
                     error += 1
 
-            # Check number of reagents in variable reagents matches nunmber of total cycles
+            # Check number of reagents in variable reagents matches number of total cycles
             for variable in cycle_variables:
                 variable = variable.replace(' ','')
                 if len(port_dict[variable]) != total_cycles:
@@ -392,8 +393,7 @@ def check_ports(config):
                     sys.exit()
 
     else:
-        print('Dictionary of port number : reagent name does not exist under valve24 of configuration file')
-        error += 1
+        warnings.warn('No ports are specified')
 
     if error > 0:
         print(str(error) + ' errors in configuration file')
@@ -810,7 +810,7 @@ def get_config(args):
     else:
         print('Error reading recipe')
         sys.exit()
-        
+
     config['experiment']['recipe path'] = recipe_path
 
     return config
