@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 from os import path
 
 here = path.abspath(path.dirname(__file__))
@@ -9,7 +9,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='pyseq2500',
-    version='0.1',
+    version='0.2',
     description='Control an Illumina HiSeq 2500 System',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -29,7 +29,8 @@ setup(
                       'numpy',
                       'scipy',
                       'imageio'],
-    #package_data={ }, Add data files inside of package
+    package_data={
+        'pyseq': ['recipes/*'] },
     #package_data={  # Optional
     #    'sample': ['package_data.dat'], ## add data files inside of package
     #},
