@@ -790,11 +790,10 @@ def get_config(args):
     config['experiment']['experiment name'] = args['name']
 
     # Get method specific configuration
-    methods_path = join('..','recipes')
     method = config['experiment']['method']
-    method = method + '.cfg'
-    if method in os.listdir(methods_path):
-        config.read(join(methods_path,method))
+    if method in methods.get_methods():
+        config_path, recipe_path = methods.return_method(method)
+        config.read(config_path)
     else:
         try:
             config.read(method)
@@ -802,16 +801,16 @@ def get_config(args):
             print('Error reading method configuration')
             sys.exit()
 
-    # Get recipe path
+    # Get recipe
     recipe_name = config[method]['recipe']
-    recipe_path = join('..','recipes')
-    if recipe_name in os.listdir(recipe_path):
-        recipe_path = os.path.abspath(join(recipe_path,recipe_name))
+    if recipe_path is not None:
+        pass
     elif os.path.isfile(recipe_name):
         recipe_path = recipe_name
     else:
         print('Error reading recipe')
         sys.exit()
+        
     config['experiment']['recipe path'] = recipe_path
 
     return config
