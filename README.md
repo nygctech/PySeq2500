@@ -139,6 +139,7 @@ experiment details (required, unless noted)
 - cycle: number of cycles to run (integer)
 - first flowcell: which flowcell to start first if running 2, optional (A or B)
 ```
+[experiment]
 method = 4i            
 cycles = 2              
 first flowcell = A
@@ -152,6 +153,7 @@ position of sections on flowcell (required). `section name = F: LLx, LLy, URx, U
 - URx: upper right x coordinate of section, use slide ruler (float)
 - URy: upper right y coordinate of section, use slide ruler (float)
 ```
+[sections]
 section1 = A: 15.5, 45, 10.5, 35
 ```
 ### [valve24]
@@ -159,6 +161,7 @@ Specify additional ports (optional). `N = name`
 - N: port number (integer)
 - Name: name of reagent (string)
 ```
+[valve24]
 6 = GFAP
 7 = IBA1
 8 = AF547 + Cy5
@@ -169,6 +172,7 @@ Specify cycle specific reagents (optional). `variablereagent N = name`
 - N: cycle (integer)
 - name: reagent used for variablereagent at cycle N (string)
 ```
+[cycles]
 1stab 1 = GFAP
 1stab 2 = IBA1
 2ndab 1 = AF547 + Cy5
@@ -196,6 +200,8 @@ The other keys are optional.
 - **barrels per lane**: number of syringe barrels that are used per lane on flowcell (integer)
 - **laser power**: set power of laser in mW (integer)
 ```
+[4i]
+recipe = 4i_recipe.txt
 flush speed = 500
 flush volume = 1000
 reagent speed = 200
@@ -209,6 +215,7 @@ Specify method required ports (optional). `N = name`
 - N: port number (integer)
 - Name: name of reagent (string)
 ```
+[valve24]
 1 = PBS
 2 = water
 3 = elution
