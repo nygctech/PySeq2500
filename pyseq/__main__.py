@@ -81,7 +81,7 @@ class flowcell():
 ## Setup Flowcells #######################################
 ##########################################################
 
-def setup_flowcells(config, first_line):
+def setup_flowcells(first_line):
     experiment = config['experiment']
     method = experiment['method']
     method = config[method]
@@ -152,7 +152,7 @@ def parse_line(line):
 ##########################################################
 ## Setup Logging #########################################
 ##########################################################
-def setup_logger(config):
+def setup_logger():
 
     # Get experiment info from config file
     experiment = config['experiment']
@@ -198,7 +198,7 @@ def setup_logger(config):
 ##########################################################
 ## Setup HiSeq ###########################################
 ##########################################################
-def initialize_hs(config):
+def initialize_hs():
     import pyseq
 
     hs = pyseq.HiSeq(logger)
@@ -233,7 +233,7 @@ def initialize_hs(config):
 ##########################################################
 ## Check Instructions ####################################
 ##########################################################
-def check_instructions(config):
+def check_instructions():
     method = config.get('experiment', 'method')
     method = config[method]
 
@@ -328,7 +328,7 @@ def check_instructions(config):
 ##########################################################
 ## Check Ports ###########################################
 ##########################################################
-def check_ports(config):
+def check_ports():
     method = config.get('experiment', 'method')
     method = config[method]
     total_cycles = int(config.get('experiment', 'cycles'))
@@ -406,7 +406,7 @@ def check_ports(config):
 ##########################################################
 ## Flush Lines ###########################################
 ##########################################################
-def do_flush(hs,flowcells):
+def do_flush():
 
     ## Flush lines
     flush_YorN = input("Prime lines? Y/N = ")
@@ -444,7 +444,7 @@ def do_nothing():
 ##########################################################
 ## iterate over lines, send to pump, and print response ##
 ##########################################################
-def do_recipe(hs,fc):
+def do_recipe(fc):
 
     AorB = fc.position
     fc.thread = None
@@ -489,7 +489,7 @@ def do_recipe(hs,fc):
         # Image the flowcell
         elif instrument == 'IMAG':
             log_message = 'Imaging flowcell'
-            fc.thread = threading.Thread(target = IMAG, args = (fc,int( command),))
+            fc.thread = threading.Thread(target = IMAG, args = (fc,int(command),))
         # Block all further processes until user input
         elif instrument == 'STOP':
             logger.log(21,'Paused')
@@ -520,7 +520,7 @@ def do_recipe(hs,fc):
 ##########################################################
 ## Image flowcell ########################################
 ##########################################################
-def IMAG(hs, fc, n_Zplanes):
+def IMAG(fc, n_Zplanes):
     AorB = fc.position
     cycle = str(fc.cycle)
     fc.imaging = True
@@ -605,7 +605,7 @@ def IMAG(hs, fc, n_Zplanes):
     return stop-start
 
 # holds current flowcell until an event in the signal flowcell, returns time held
-def WAIT(flowcells, AorB, event):
+def WAIT(AorB, event):
     signaling_fc = flowcells[AorB].waits_for
     cycle = str(flowcells[AorB].cycle)
     start = time.time()
@@ -620,7 +620,7 @@ def WAIT(flowcells, AorB, event):
 ##########################################################
 ## Shut down system ######################################
 ##########################################################
-def do_shutdown(hs,flowcells):
+def do_shutdown():
 
     logger.log(21,'Shutting down...')
     for fc in flowcells.values():
@@ -666,7 +666,7 @@ def do_shutdown(hs,flowcells):
 ##########################################################
 ## Free Flowcells ########################################
 ##########################################################
-def free_fc(config, flowcells):
+def free_fc():
 
         # Get which flowcell is to be first
         experiment = config['experiment']
@@ -687,7 +687,7 @@ def free_fc(config, flowcells):
 ##########################################################
 ## Initialize Flowcells ##################################
 ##########################################################
-def integrate_fc_and_hs(hs, flowcells, config, port_dict):
+def integrate_fc_and_hs(port_dict):
 
     method = config.get('experiment', 'method')         # Read method specific info
     method = config[method]
@@ -818,18 +818,17 @@ def get_config(args):
 ###################################
 ## Run System #####################
 ###################################
-def main():
-
+if __name__ == 'pyseq.__main__':
     args = get_arguments()                                                      # Get config path, experiment name, & output path
     config = get_config(args)                                                   # Get config file
-    logger = setup_logger(config)                                               # Create logfiles
-    port_dict = check_ports(config)                                             # Check ports in configuration file
-    first_line = check_instructions(config)                                     # Checks instruction file is correct and makes sense
-    flowcells = setup_flowcells(config, first_line)                             # Create flowcells
-    hs = initialize_hs(config)                                                  # Initialize HiSeq, takes a few minutes
-    integrate_fc_and_hs(hs, flowcells, config, port_dict)                       # Integrate flowcell info with hs
+    logger = setup_logger()                                                     # Create logfiles
+    port_dict = check_ports()                                                   # Check ports in configuration file
+    first_line = check_instructions()                                           # Checks instruction file is correct and makes sense
+    flowcells = setup_flowcells(first_line)                                     # Create flowcells
+    hs = initialize_hs()                                                        # Initialize HiSeq, takes a few minutes
+    integrate_fc_and_hs(port_dict)                                              # Integrate flowcell info with hs
 
-    do_flush(hs, flowcells)                                                     # Flush out lines
+    do_flush()                                                                  # Flush out lines
 
     cycles_complete = False
 
@@ -839,7 +838,7 @@ def main():
 
         for fc in flowcells.values():
             if not fc.thread.is_alive():                                        # flowcell not busy, do next step in recipe
-                do_recipe(hs, fc)
+                do_recipe(fc)
 
             if fc.signal_event:                                                 # check if flowcells are waiting on each other
                 stuck += 1
@@ -848,10 +847,10 @@ def main():
                 complete += 1
 
         if stuck == len(flowcells):                                             # Start the first flowcell if they are waiting on each other
-            free_fc(config, flowcells)
+            free_fc()
 
         if complete == len(flowcells):                                          # Exit while loop
             cycles_complete = True
 
 
-    do_shutdown(hs, flowcells)                                                  # Shutdown  HiSeq
+    do_shutdown()                                                               # Shutdown  HiSeq
