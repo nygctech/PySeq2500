@@ -9,7 +9,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='pyseq2500',
-    version='0.2',
+    version='0.3',
     description='Control an Illumina HiSeq 2500 System',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -36,7 +36,7 @@ setup(
     #},
     entry_points={
         'console_scripts': [
-            'pyseq = pyseq.__main__',
+            'pyseq=pyseq.main',
             ],
         },
     project_urls={
