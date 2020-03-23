@@ -1,13 +1,5 @@
-#import instruments
-##import ystage
-##import xstage
-##import fpga
-##import zstage
-##import laser
-##import objstage
-##import optics
-##import pump
-##import valve
+# Control an Illumina HiSeq 2500 System
+
 
 #import instruments
 from . import fpga
@@ -959,3 +951,9 @@ def contrast2(filename, channel, path, nbins=256):
 # Gaussian function for curve fitting
 def _1gaussian(x, amp1,cen1,sigma1):
     return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
+
+if __name__ == '__main__':
+    main()
+
+def main():
+    from . import main
