@@ -14,12 +14,11 @@ import time
 # OBJSTAGE object
 
 class OBJstage():
-    #
+
     # Make OBJstage object
-    #
     def __init__(self, fpga, logger = None):
-    
-        self.serial_port = fpga              
+
+        self.serial_port = fpga
         self.min_z = 0
         self.max_z = 65535
         self.spum = 262         #steps per um
@@ -30,19 +29,13 @@ class OBJstage():
         self.position = None
         self.logger = logger
 
-
-    #
-    # Initialize OBJstage 
-    #
-    def initialize(self): 
+    # Initialize OBJstage
+    def initialize(self):
         self.position = self.check_position()                           # Update position
         self.set_velocity(5)                                            # Set velocity
 
 
-
-    #
-    # Send generic serial commands to OBJstage and return response 
-    #
+    # Send generic serial commands to OBJstage and return response
     def command(self, text):
         text = text + self.suffix
         self.serial_port.write(text)                                    # Write to serial port
@@ -51,26 +44,24 @@ class OBJstage():
         if self.logger is not None:
             self.logger.info('OBJstage::txmt::'+text)
             self.logger.info('OBJstage::rcvd::'+response)
-        
-        return  response  
-    #   
-    # Move OBJstage to absolute position   
-    #
+
+        return  response
+
+
+    # Move OBJstage to absolute position
     def move(self, position):
         if position >= self.min_z and position <= self.max_z:
             try:
                 while self.check_position() != position:
                     self.command('ZMV ' + str(position))                        # Move Objective
-                
+
             except:
                 print('Error moving objective stage')
         else:
             print('Objective position out of range')
 
-    
-    #   
-    # Check position of objective   
-    #
+
+    # Check position of objective
     def check_position(self):
         try:
             position = self.command('ZDACR')                                # Read position
@@ -81,10 +72,10 @@ class OBJstage():
         except:
             print('Error reading position of objective')
             return None
-            
-    #   
-    # Set velocity 
-    #
+
+
+    # Set velocity
+    # v = velocity in mm/s
     def set_velocity(self, v):
         if v > self.min_v and v <= self.max_v:
             self.v = v
@@ -93,10 +84,3 @@ class OBJstage():
             self.command('ZSTEP ' + str(v))                              # Set velocity
         else:
             print('Objective velocity out of range')
-    
-                        
-                        
-    
-        
-                        
-                        

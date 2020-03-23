@@ -17,18 +17,17 @@ import time
 # XSTAGE object
 
 class Xstage():
-    #
+
     # Make Xstage object
-    #
     def __init__(self, com_port, baudrate = 9600, logger = None):
 
         # Open Serial Port
         s = serial.Serial(com_port, baudrate, timeout = 1)
 
-        # Text wrapper around serial port                
+        # Text wrapper around serial port
         self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
                                             encoding = 'ascii',
-                                            errors = 'ignore')                
+                                            errors = 'ignore')
         self.min_x = 1000
         self.max_x = 50000
         self.home = 30000
@@ -36,15 +35,13 @@ class Xstage():
         self.suffix = '\r'
         self.position = 0
         self.logger = logger
-                        
-                        
-    #
-    # Initialize Xstage 
-    #
+
+
+    # Initialize Xstage
     def initialize(self):
         response = self.command('\x03')                                 # Initialize Stage
-        
-        #Change echo mode to respond only to print and list commands 
+
+        #Change echo mode to respond only to print and list commands
         response = self.command('EM=2')
 
         #Enable Encoder
@@ -89,10 +86,9 @@ class Xstage():
         self.serial_port.flush()
         self.position = 30000
         self.check_position(self.position)
-        
-    #
-    # Send generic serial commands to Xstage and return response 
-    #
+
+
+    # Send generic serial commands to Xstage and return response
     def command(self, text):
         text = text + self.suffix
         self.serial_port.write(text)                                    # Write to serial port
@@ -101,25 +97,21 @@ class Xstage():
         if self.logger is not None:
             self.logger.info('Xstage::txmt::'+text)
             self.logger.info('Xstage::rcvd::'+response)
-        
-        return  response                    
 
-                        
-                        
-    #   
-    # Move Xstage to absolute position    
-    #
+        return  response
+
+
+
+    # Move Xstage to absolute position
     def move(self, position):
         if position <= self.max_x and position >= self.min_x:
             self.command('MA ' + str(position))                         # Move Absolute
             return self.check_position(position)                        # Check position
         else:
             print("XSTAGE can only move between " + str(self.min_x) + ' and ' + str(self.max_x))
-                        
-                        
-    #                    
+
+                                          
     # Check if Xstage is at a position
-    #
     def check_position(self, position):
         moving = 1
         while moving != 0:
@@ -127,5 +119,5 @@ class Xstage():
             time.sleep(1)
 
         self.position = int(self.command('PR P'))                           # Set position
-                        
+
         return position == self.position                                # Return TRUE if in position or False if not

@@ -38,7 +38,7 @@ parser.add_argument('-method',
                     choices = methods.get_methods(),
                     metavar = 'METHOD'
                     )
-                    
+
 def get_arguments():
 
 
