@@ -9,7 +9,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='pyseq2500',
-    version='0.3',
+    version='0.4',
     description='Control an Illumina HiSeq 2500 System',
     long_description=long_description,
     long_description_content_type='text/markdown',
