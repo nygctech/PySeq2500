@@ -36,7 +36,7 @@ setup(
     #},
     entry_points={
         'console_scripts': [
-            'pyseq=pyseq.main',
+            'pyseq=pyseq.__init__:main',
             ],
         },
     project_urls={
