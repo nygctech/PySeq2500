@@ -6,9 +6,9 @@ import os
 from os.path import join
 import sys
 import configparser
-import argparse
 import threading
 import warnings
+import argparse
 
 from . import methods
 
@@ -715,11 +715,11 @@ def integrate_fc_and_hs(port_dict):
             fc.stage[section]['z pos'] = z_pos.get(section,fallback=None)
             fc.stage[section]['obj pos'] = obj_pos.get(section,fallback=None)
 
-
 ##########################################################
 ## Get Command Line Arguments ############################
 ##########################################################
 def get_arguments():
+
     # Create argument parser
     parser = argparse.ArgumentParser(prog='pyseq')
     # Optional Configuration Path
@@ -764,6 +764,8 @@ def get_arguments():
         sys.exit()
 
     return args
+
+
 
 ##########################################################
 ## Get Config ############################################
@@ -816,8 +818,8 @@ def get_config(args):
 ###################################
 ## Run System #####################
 ###################################
-args = get_arguments()                                                      # Get config path, experiment name, & output path
-config = get_config(args)                                                   # Get config file
+args_ = get_arguments()                                                      # Get config path, experiment name, & output path
+config = get_config(args_)                                                   # Get config file
 logger = setup_logger()                                                     # Create logfiles
 port_dict = check_ports()                                                   # Check ports in configuration file
 first_line = check_instructions()                                           # Checks instruction file is correct and makes sense
