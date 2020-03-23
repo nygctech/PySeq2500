@@ -794,12 +794,11 @@ def get_config(args):
     if method in methods.get_methods():
         config_path, recipe_path = methods.return_method(method)
         config.read(config_path)
-    else:
-        try:
+    elif os.path.isfile(method):
             config.read(method)
-        except:
-            print('Error reading method configuration')
-            sys.exit()
+    else:
+        print('Error reading method configuration')
+        sys.exit()
 
     # Get recipe
     recipe_name = config[method]['recipe']
