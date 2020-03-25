@@ -8,7 +8,7 @@ Commands from www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking
 Examples:
     #Create FPGA object
     >>>import pyseq
-    >>>fpga = pyseq.FPGA('COM12','COM15')
+    >>>fpga = pyseq.fpga.FPGA('COM12','COM15')
     #Initialize FPGA
     >>>fpga.initialize()
     # Read write encoder position (to sync with y stage).
@@ -45,7 +45,7 @@ class FPGA():
                 FPGA.
 
            Returns:
-           (fpga object): A fpga object to control the FPGA.
+           fpga object: A fpga object to control the FPGA.
         """
 
         # Open Serial Port
@@ -78,7 +78,7 @@ class FPGA():
            text (str): A command to send to the FPGA.
 
            Returns:
-           (str): The response from the FPGA.
+           str: The response from the FPGA.
         """
 
         text = text + self.suffix

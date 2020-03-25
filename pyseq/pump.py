@@ -3,9 +3,12 @@
 Uses command set from Kloehn VersaPump3
 
 Examples:
+    #Create pump object
     >>>import pyseq
     >>>pumpA = pyseq.pump.Pump('COM10','pumpA')
+    #Initialize pump
     >>>pumpA.initialize()
+    #Pump 2000 uL at 4000 uL/min
     >>>pumpA.pump(2000,4000)
 
 Kunal Pandit 9/19
@@ -16,7 +19,7 @@ import serial
 import io
 import time
 
-# Pump object
+
 class Pump():
     """HiSeq 2500 System :: Pump
 
@@ -33,7 +36,7 @@ class Pump():
        name (str): The name of the pump.
     """
 
-    # Make pump object
+
     def __init__(self, com_port, name=None, logger=None):
         """The constructor for the pump.
 
@@ -44,7 +47,7 @@ class Pump():
                 pump to.
 
            Returns:
-           (pump object): A pump object to control the pump.
+           pump object: A pump object to control the pump.
         """
 
         baudrate = 9600
@@ -70,7 +73,6 @@ class Pump():
         self.name = name
 
 
-    # Initialize pump
     def initialize(self):
         """Initialize the pump."""
 
@@ -84,7 +86,7 @@ class Pump():
            text (str): A command to send to the pump.
 
            Returns:
-           (str): The response from the pump.
+           str: The response from the pump.
         """
 
         text = self.prefix + text + self.suffix                                 # Format text
@@ -96,7 +98,6 @@ class Pump():
             self.logger.info(self.name+'::rcvd::'+response)
 
         return  response
-
 
 
     def pump(self, volume, speed = 0):
@@ -154,7 +155,6 @@ class Pump():
                 else:
                     self.write_log('pump error')
                     return False
-
 
 
     def check_position(self):

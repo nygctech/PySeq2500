@@ -4,7 +4,7 @@
     Examples:
     #Create laser object
     >>>import pyseq
-    >>>green_laser = pyseq.laser('COM13', color='green')
+    >>>green_laser = pyseq.laser.Laser('COM13', color='green')
     #Initialize the laser, default power is 10 mW.
     >>>green_laser.initialize()
     >>>green_laser.status()
@@ -48,7 +48,7 @@ class Laser():
                 pump to.
 
            Returns:
-           (laser object): A laser object to control the laser.
+           laser object: A laser object to control the laser.
         """
 
         # Open Serial Port
@@ -81,7 +81,7 @@ class Laser():
            text (str): A command to send to the laser.
 
            Returns:
-           (str): The response from the laser.
+           str: The response from the laser.
         """
 
         text = text + self.suffix
