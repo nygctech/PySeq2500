@@ -1,28 +1,25 @@
 #!/usr/bin/python
-"""
-Kunal Pandit 9/19
-
-Illumina HiSeq 2500 System :: FPGA
-
+"""Illumina HiSeq 2500 System :: FPGA
 The FPGA arms triggers for the TDI cameras.
 The FPGA also controls the z stage, the objective stage, and the optics.
 
 Commands from www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking
 
 Examples:
-#Create FPGA object
->>>import pyseq
->>>fpga = pyseq.FPGA('COM12','COM15')
-#Initialize FPGA
->>>fpga.initialize()
-# Read write encoder position (to sync with y stage).
->>>fpga.read_position()
->>>0
->>>fpga.write_position(0)
-# Arm y stage triggers for TDI imgaging.
->>>fpga.TDIYPOS(3000000)
->>>fpga.TDIYPOS3(4096,3000000)
+    #Create FPGA object
+    >>>import pyseq
+    >>>fpga = pyseq.FPGA('COM12','COM15')
+    #Initialize FPGA
+    >>>fpga.initialize()
+    # Read write encoder position (to sync with y stage).
+    >>>fpga.read_position()
+    >>>0
+    >>>fpga.write_position(0)
+    # Arm y stage triggers for TDI imgaging.
+    >>>fpga.TDIYPOS(3000000)
+    >>>fpga.TDIYPOS3(4096,3000000)
 
+Kunal Pandit 9/19
 """
 
 
@@ -34,7 +31,7 @@ import time
 # FPGA object
 
 class FPGA():
-    """FPGA object."""
+    """HiSeq 2500 System :: FPGA"""
 
     def __init__(self, com_port_command, com_port_response, baudrate = 115200, logger = None):
         """The constructor for the FPGA.
@@ -43,7 +40,7 @@ class FPGA():
            com_port_command (str): The communication port to send FPGA commands.
            com_port_response (str): The communication port to receive FPGA
                 responses.
-           baudrate (int): The communication speed in symbols per second.
+           baudrate (int, optional): The communication speed in symbols per second.
            logger (log, optional): The log file to write communication with the
                 FPGA.
 

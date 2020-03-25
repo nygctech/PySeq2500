@@ -1,8 +1,5 @@
 #!/usr/bin/python
-"""
-Kunal Pandit 9/19
-
-Illumina HiSeq 2500 System Pump
+"""Illumina HiSeq 2500 System :: Pump
 Uses command set from Kloehn VersaPump3
 
 Examples:
@@ -10,6 +7,8 @@ Examples:
     >>>pumpA = pyseq.pump.Pump('COM10','pumpA')
     >>>pumpA.initialize()
     >>>pumpA.pump(2000,4000)
+
+Kunal Pandit 9/19
 """
 
 
@@ -19,7 +18,7 @@ import time
 
 # Pump object
 class Pump():
-    """Pump object
+    """HiSeq 2500 System :: Pump
 
        Attributes:
        n_barrels (int): The number of barrels used per lane. The max is 8.
