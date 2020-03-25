@@ -1,12 +1,10 @@
 #!/usr/bin/python
-#
-## @file
-#
-# Kunal Pandit 9/19
-#
-# Illumina HiSeq2500 Pump
-# Uses command set from Kloehn VersaPump3
-#
+'''
+Kunal Pandit 9/19
+
+Illumina HiSeq 2500 System Pump
+Uses command set from Kloehn VersaPump3
+'''
 
 
 import serial
@@ -16,9 +14,11 @@ import time
 # Pump object
 
 class Pump():
+    '''Pump object'''
 
     # Make pump object
     def __init__(self, com_port, name=None, logger=None):
+        '''Create a pump object.'''
 
         baudrate = 9600
 
@@ -45,47 +45,54 @@ class Pump():
 
     # Initialize pump
     def initialize(self):
-        response = self.command('W4R')                                  # Initialize Stage
+        '''Initialize the pump.'''
 
-    # Send generic serial commands to pump and return response
+        response = self.command('W4R')                                          # Initialize Stage
+
+
     def command(self, text):
-        text = self.prefix + text + self.suffix                         # Format text
-        self.serial_port.write(text)                                    # Write to serial port
-        self.serial_port.flush()                                        # Flush serial port
-        response = self.serial_port.readline()                          # Get the response
-        if self.logger is not None:
+        '''Send a serial command to the pump and return the response'''
+
+        text = self.prefix + text + self.suffix                                 # Format text
+        self.serial_port.write(text)                                            # Write to serial port
+        self.serial_port.flush()                                                # Flush serial port
+        response = self.serial_port.readline()                                  # Get the response
+        if self.logger is not None:                                             # Write command and response to log
             self.logger.info(self.name+'::txmt::'+text)
             self.logger.info(self.name+'::rcvd::'+response)
 
         return  response
 
 
-    # Pump desired volume at desired speed then waste
+
     def pump(self, volume, speed = 0):
+        '''Pump desired volume at desired speed then send liquid to waste'''
+
         if speed == 0:
-            speed = self.min_speed                                      # Default to min speed
+            speed = self.min_speed                                              # Default to min speed
 
-        position = self.vol_to_pos(volume)                              # Convert volume (uL) to position (steps)
-        sps = self.uLperMin_to_sps(speed)                               # Convert flowrate(uLperMin) to steps per second
+        position = self.vol_to_pos(volume)                                      # Convert volume (uL) to position (steps)
+        sps = self.uLperMin_to_sps(speed)                                       # Convert flowrate(uLperMin) to steps per second
 
-        self.check_pump()                                               # Make sure pump is ready
+        self.check_pump()                                                       # Make sure pump is ready
 
         #Aspirate
         while position != self.check_position():
-            self.command('IV' + str(sps) + 'A' + str(position) + 'R')   # Pull syringe down to position
+            self.command('IV' + str(sps) + 'A' + str(position) + 'R')           # Pull syringe down to position
             self.check_pump()
-        self.command('OR')                                              # Switch valve to waste
+        self.command('OR')                                                      # Switch valve to waste
 
         #Dispense
         position = 0
         while position != self.check_position():
-            self.command('OV' + str(self.dispense_speed) + 'A0R')       # Dispense, Push syringe to top at dispense speed
+            self.command('OV' + str(self.dispense_speed) + 'A0R')               # Dispense, Push syringe to top at dispense speed
             self.check_pump()
-        self.command('IR')                                              # Switch valve to input
+        self.command('IR')                                                      # Switch valve to input
 
 
-    # Check Pump status
     def check_pump(self):
+        '''Check the pump status and return True WHEN ready.'''
+
         busy = '@'
         ready = '`'
         status_code = ''
@@ -93,7 +100,7 @@ class Pump():
         while status_code != ready :
 
             while not status_code:
-                status_code = self.command('')                              # Ping pump for status
+                status_code = self.command('')                                  # Ping pump for status
 
                 if status_code.find(busy) > -1:
                     status_code = ''
@@ -106,9 +113,12 @@ class Pump():
                     return False
 
 
-    # Query and return pump position
+
     def check_position(self):
+        '''Query and return the pump position'''
+
         pump_position = self.command('?')
+
         while not isinstance(pump_position, int):
             pump_position = self.command('?')
             try:
@@ -121,24 +131,34 @@ class Pump():
         return pump_position
 
 
-    # Convert volume in uL to pump position
     def vol_to_pos(self, volume):
+        '''Convert volume from uL to pump position
+
+           If volume is too big or too small, return the max or min volume.
+        '''
+
         if volume > self.max_volume:
-            write_log('Volume is too large, only pumping ' + str(self.max_volume))
+            write_log('Volume is too large, only pumping ' +
+                       str(self.max_volume))
             volume = self.max_volume
         elif volume < self.min_volume:
-            write_log('Volume is too small, pumping ' + str(self.min_volume))
+            write_log('Volume is too small, pumping ' +
+                       str(self.min_volume))
             volume = self.min_volume
 
         position = round(volume / self.max_volume * self.steps)
         return int(position)
 
-    # Convert flowrate in uL per min to steps per second
+
     def uLperMin_to_sps(self, speed):
+        '''Convert flowrate from uL per min. to steps per second'''
+
         sps = round(speed / self.min_volume / 60)
         return int(sps)
 
-    # Write errors/warnings to log
+
     def write_log(self, text):
+        '''Write messages to log'''
+
         if self.logger is not None:
             self.logger.info(self.name + ' ' + text)

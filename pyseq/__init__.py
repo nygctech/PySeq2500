@@ -164,7 +164,7 @@ class HiSeq():
 
            n_frames = number of frames in images, int
            bundle = line bundle height of images, int
-           image_name = name of image, strftime
+           image_name = name of image, str
         '''
         date = time.strftime('%Y%m%d_%H%M%S')
         meta_path = join(self.image_path, 'meta_'+image_name+'.txt')
@@ -726,13 +726,11 @@ class HiSeq():
                 # Green laser, 558+610-687-740 emissions
                 elif li == 1:
                     signal = contrast[1] + contrast[2]
-                    new_f_score = contrast[1] + contrast[2]
-                                - contrast[0] - contrast[3]
+                    new_f_score = contrast[1] + contrast[2] - contrast[0] - contrast[3]
                 # Red laser, 687+740-558-610- emissions
                 elif li == 2:
                     signal = contrast[0] + contrast[3]
-                    new_f_score = contrast[0] + contrast[3]
-                                - contrast[1] - contrast[2]
+                    new_f_score = contrast[0] + contrast[3] - contrast[1] - contrast[2]
 
                 # Increase laser until you at least see some signal
                 if signal > signal_threshold:
