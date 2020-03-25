@@ -45,7 +45,7 @@ class Laser():
            baudrate (int, optional): The communication speed in symbols per second.
            color (str): The color of the laser.
            logger (log, optional): The log file to write communication with the
-                pump to.
+                laser to.
 
            Returns:
            laser object: A laser object to control the laser.

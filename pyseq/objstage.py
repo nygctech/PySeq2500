@@ -37,7 +37,7 @@ class OBJstage():
            Parameters:
            fpga (fpga object): The Illumina HiSeq 2500 System :: FPGA.
            logger (log, optional): The log file to write communication with the
-                pump to.
+                objective stage to.
 
            Returns:
            (objective stage object): A objective stage object to control the
