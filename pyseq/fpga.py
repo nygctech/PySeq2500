@@ -40,7 +40,8 @@ class FPGA():
            com_port_command (str): The communication port to send FPGA commands.
            com_port_response (str): The communication port to receive FPGA
                 responses.
-           baudrate (int, optional): The communication speed in symbols per second.
+           baudrate (int, optional): The communication speed in symbols per
+                second.
            logger (log, optional): The log file to write communication with the
                 FPGA.
 

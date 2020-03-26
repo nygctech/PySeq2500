@@ -2,7 +2,7 @@
 """Illumina HiSeq 2500 Systems :: X-STAGE
 Uses command set from Schneider Electric MCode
 
-The xstage can be moved from step positions 1000 to 50000. Initially, the 
+The xstage can be moved from step positions 1000 to 50000. Initially, the
 xstage is homed to step position 30000. Step position 1000 is to the right,
 and step position 50000 is to the left. Each xstage step is 0.375 microns.
 
@@ -16,6 +16,9 @@ Examples:
     >>>xstage.move(10000)
     >>>10000
 
+TODO:
+    * Change initialization to be aware position of flags.
+    
 Kunal Pandit 9/19
 """
 
@@ -35,14 +38,14 @@ class Xstage():
 
     # Make Xstage object
     def __init__(self, com_port, baudrate = 9600, logger = None):
-        """The constructor for the xstage
+        """The constructor for the xstage.
 
            Parameters:
-           com_port (str): Communication port for the pump.
+           com_port (str): Communication port for the xstage.
            baudrate (int, optional): The communication speed in symbols per
                 second.
            logger (log, optional): The log file to write communication with the
-                pump to.
+                xstage to.
 
            Returns:
            xstage object: A xstage object to control the xstage.
