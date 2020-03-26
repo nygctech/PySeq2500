@@ -57,7 +57,7 @@ class OBJstage():
 
 
     def initialize(self):
-        """Initialize the objective position."""
+        """Initialize the objective stage."""
 
         # Update the position of the objective
         self.position = self.check_position()
@@ -87,7 +87,7 @@ class OBJstage():
 
 
     def move(self, position):
-        """Move the objective to an step absolute position
+        """Move the objective to an absolute step position.
 
            The objective can move between steps 0 and 65535, where step 0 is
            the closest to the stage. If the position is out of range, the
@@ -109,7 +109,7 @@ class OBJstage():
 
 
     def check_position(self):
-        """Return the absolute position of the objective.
+        """Return the absolute step position of the objective.
 
            The objective can move between steps 0 and 65535, where step 0 is
            the closest to the stage. If the position of the objective can't be
@@ -131,7 +131,7 @@ class OBJstage():
 
 
     def set_velocity(self, v):
-        """Set the velocity the objective moves at.
+        """Set the velocity of the objective.
 
            The maximum objective velocity is 5 mm/s. If the objective velocity
            is not in range, the velocity is not set and an error message is

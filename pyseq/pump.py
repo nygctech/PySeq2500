@@ -131,7 +131,7 @@ class Pump():
 
 
     def check_pump(self):
-        """Check the pump status and return True WHEN ready.
+        """Wait until pump is ready and then return True.
 
            Returns:
            bool: True when the pump is ready. False, if the pump has an error.
@@ -158,7 +158,7 @@ class Pump():
 
 
     def check_position(self):
-        """Query and return the pump position.
+        """Return the pump position.
 
            Returns:
            int: The step position of the pump (0-48000).

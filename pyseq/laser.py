@@ -148,7 +148,7 @@ class Laser():
 
 
     def get_status(self):
-        """Returns the status of laser (bool), True if on, False if off."""
+        """Return the status of laser (bool), True if on, False if off."""
 
         self.status = self.command('STAT?')[0:-1]
 

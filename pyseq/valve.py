@@ -1,12 +1,20 @@
 #!/usr/bin/python
-#
-## @file
-#
-# Kunal Pandit 9/19
-#
-# Illumina HiSeq2500 Valve
-# Uses command set from Vici Technical Note 415
-#
+"""Illumina HiSeq 2500 System :: Valve
+Uses command set from Vici Technical Note 415
+
+Example:
+    #Create valve object
+    >>>import pyseq
+    >>>valveA10 = pyseq.valve.Valve('COM18', name='valveA10')
+    #Initialize valve
+    >>>valveA10.initialize()
+    #Move valve to port #1 and confirm the valve moved to port  #1
+    >>>valveA10.move('1')
+    >>>valve10.check_valve()
+    >>>1
+
+Kunal Pandit 9/19
+"""
 
 
 import serial
@@ -16,9 +24,31 @@ import time
 # Valve object
 
 class Valve():
+    """Illumina HiSeq 2500 System :: Valve
 
-    # Make pump object
+       Attributes:
+       n_ports (int): Number of available ports on the valves.
+       port_dict (dict): Dictionary of port number as keys and reagent names
+            as values.
+       name (str): Name of the valve.
+    """
+
+
     def __init__(self, com_port, name = None, logger = None, port_dict = dict()):
+        """The constructor for the valve.
+
+           Parameters:
+           com_port (str): Communication port for the valve.
+           name (str): Name of the valve.
+           logger (log, optional): The log file to write communication with the
+                valve to.
+           port_dict(dict, optional): Dictionary of port number as keys and
+                reagent names as values. If not specified, the port number
+                is used as the reagent name.
+
+           Returns:
+           valve object: A valve object to control the valve.
+        """
 
         baudrate = 9600
 
@@ -39,8 +69,10 @@ class Valve():
         self.name = name
 
 
-    # Initialize valve
+
     def initialize(self):
+        """Initialize the valve."""
+
         #Get ID of valve
         prefix = None
         while prefix == None:
@@ -54,20 +86,20 @@ class Valve():
                 self.prefix = prefix
 
             except:
-                self.write_log('error: could not parse ID')           		# Write error to log
+                self.write_log('error: could not parse ID')           		    # Write error to log
                 prefix = None
 
         #Get number of ports on valve
         n_ports = None
         while n_ports == None:
-            n_ports = self.command('NP')                                    # Query Port number
+            n_ports = self.command('NP')                                        # Query Port number
             try:
                 n_ports = n_ports.split('=')[1]
                 n_ports = n_ports.replace(' ','')                               # remove whitespace
                 n_ports = n_ports.replace('\n','')                              # remove newline
                 self.n_ports = int(n_ports)
             except:
-                self.write_log('error: could not get number of ports')           		# Write error to log
+                self.write_log('error: could not get number of ports')          # Write error to log
                 n_ports = None
 
         #If port dictionary empty map 1:1
@@ -76,20 +108,28 @@ class Valve():
                 self.port_dict[i] = i
 
 
-    # Send generic serial commands to pump and return response
     def command(self, text):
-        text = self.prefix + text + self.suffix                         # Format the command
-        self.serial_port.write(text)                                    # Write to serial port
-        self.serial_port.flush()                                        # Flush serial port
+        """Send a serial command to the valve and return the response.
+
+           Parameters:
+           text (str): A command to send to the valve.
+
+           Returns:
+           str: The response from the valve.
+        """
+
+        text = self.prefix + text + self.suffix                                 # Format the command
+        self.serial_port.write(text)                                            # Write to serial port
+        self.serial_port.flush()                                                #Flush serial port
         response = self.serial_port.readline()
 
-        if self.logger is not None:                                     # Log sent command
+        if self.logger is not None:                                             # Log sent command
             self.logger.info(self.name + '::txmt::'+text)
         else:
             print(text)
 
         blank = response
-        while blank is not '':                                          # Log received commands
+        while blank is not '':                                                  # Log received commands
             if self.logger is not None:
                 self.logger.info(self.name + '::rcvd::'+blank)
             else:
@@ -99,16 +139,17 @@ class Valve():
         return  response
 
 
-    # Move to port
     def move(self, port_name):
+        """Move valve to the specified port_name (str)."""
+
         position = self.port_dict[port_name]
         while position != self.check_valve():
             response = self.command('GO' + str(position))
             time.sleep(1)
 
 
-    # Query valve position
     def check_valve(self):
+        """Return the port number position of the valve (int)."""
 
         position = ''
         while not position:
@@ -116,15 +157,16 @@ class Valve():
 
             try:
                 position = position.split('=')[1]
-                position = position.replace(' ','')         # remove whitespace
-                position = position.replace('\n','')        # remove newline
+                position = position.replace(' ','')                             # remove whitespace
+                position = position.replace('\n','')                            # remove newline
             except:
-                self.write_log('error: could not parse position')           		# Write error to log
+                self.write_log('error: could not parse position')               # Write error to log
                 position = None
 
         return int(position)
 
-    # Write errors/warnings to log
+
     def write_log(self, text):
+        """Write errors/warnings to the log"""
         if self.logger is not None:
             self.logger.info(self.name + ' ' + text)
