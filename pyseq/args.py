@@ -39,8 +39,8 @@ parser.add_argument('-method',
                     metavar = 'METHOD'
                     )
 
+# Return arguments from command line
 def get_arguments():
-
 
     args = parser.parse_args()
     args = vars(args)

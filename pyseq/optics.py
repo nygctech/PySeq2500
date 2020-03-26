@@ -60,6 +60,9 @@ class Optics():
            fpga (fpga object): The Illumina HiSeq 2500 System :: FPGA.
            logger (log, optional): The log file to write communication with the
                 optics to.
+
+           Returns:
+           optics object: An optics object to control the optical filters. 
         """
 
         self.serial_port = fpga

@@ -3,7 +3,7 @@
 Uses commands found on www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking
 
 The objective can move between steps 0 and 65535, where step 0 is
-the closest to the stage. Each objective stage step is about 4 nm. 
+the closest to the stage. Each objective stage step is about 4 nm.
 
 Examples:
     #Create an objective stage objective
@@ -43,7 +43,7 @@ class OBJstage():
                 objective stage to.
 
            Returns:
-           (objective stage object): A objective stage object to control the
+           objective stage object: A objective stage object to control the
                 position of the objective.
         """
 

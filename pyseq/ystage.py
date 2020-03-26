@@ -16,6 +16,10 @@ Examples:
     >>>ystage.move(3000000)
     >>>True
 
+TODO:
+    * Set gains function
+    * Set velocity function
+
 Kunal Pandit 9/19
 """
 

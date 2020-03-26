@@ -1,4 +1,53 @@
-# Control an Illumina HiSeq 2500 System
+#!/usr/bin/python
+"""Illumina HiSeq 2500 System
+
+Examples:
+    #Create HiSeq object
+    >>>import pyseq
+    >>>hs = pyseq.HiSeq()
+    #Initialize cameras
+    >>>hs.initializeCams()
+    #Initialize Instruments, will take a few minutes
+    >>>hs.initializeInstruments()
+    #Specify directory to save images in
+    >>>hs.image_path = 'C:\\Users\\Public\\HiSeqImages\\'
+    #Get stage positioning and imaging details for section on flowcell A
+    >>>[xi, yi, xc, yx, n_scans, n_frames] = hs.position['A', 15.5, 45, 10.5, 35]
+    #Move to center of section
+    >>>hs.x.move(xc)
+    >>>12000
+    >>>hs.y.move(yc)
+    >>>True
+    #Move stage within focusing range.
+    >>>hs.z.move([21500, 21500, 21500])
+    #Find focus
+    >>>hs.fine_focus()
+    >>>[10000, 15000, 20000, 25000, 30000, 35000, 40000]
+    >>>[5, 24, 1245, 1593, 1353, 54, 9]
+    #Get optimal filters
+    >>>[l1_filter, l2_filter] = hs.optimize_filters()
+    # Take a 32 frame picture using the optimal filters
+    >>>hs.move_ex(1, l1_filter)
+    >>>hs.move_ex(2, l2_filter)
+    >>>hs.take_picture(32, image_name='FirstHiSeqImage')
+    #Move stage to the initial image scan position and scan image
+    >>>hs.x.move(xi)
+    >>>10000
+    >>>hs.y.move(yi)
+    >>>True
+    >>>hs.scan(xi, yi, hs.obj.position, hs.obj.position+1, 10, n_scans, n_frames, image_name='FirstHiSeqScan')
+
+
+TODO:
+    *Double check gains and velocity are set in take_picture
+    *Simplify zstack
+    *Simplify scan
+    *Filter score without background substraction
+    *New fine focus routine
+    *Fix positioning details in example
+
+Kunal Pandit 9/19
+"""
 
 
 #import instruments
@@ -24,9 +73,40 @@ from math import ceil
 
 
 class HiSeq():
+    """Illumina HiSeq 2500 System
+
+       Attributes:
+       x (xstage): Illumina HiSeq 2500 :: Xstage.
+       y (ystage): Illumina HiSeq 2500 :: Ystage.
+       z (zstage): Illumina HiSeq 2500 :: Zstage.
+       obj (objstage): Illumina HiSeq 2500 :: Objective stage.
+       p['A'] (pump): Illumina HiSeq 2500 :: Pump for flowcell A.
+       p['B'] (pump): Illumina HiSeq 2500 :: Pump for flowcell B.
+       v10['A'] (valve): Illumina HiSeq 2500 :: Valve with 10 ports
+            for flowcell A.
+       v10['B'] (valve): Illumina HiSeq 2500 :: Valve with 10 ports
+            for flowcell B.
+       v24['A'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
+            for flowcell A.
+       v24['B'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
+            for flowcell B.
+       l1 (laser): Illumina HiSeq 2500 :: Laser for 532 nm (green) line.
+       l2 (laser): Illumina HiSeq 2500 :: Laser for 660 nm (red) line.
+       f (fpga): Illumina HiSeq 2500 :: FPGA.
+       optics (optics): Illumina HiSeq 2500 :: Optics.
+       cam1 (camera): Camera for 558 nm and 687 nm emissions.
+       cam2 (camera): Camera for 610 nm and 740 nm emissions.
+       logger (logger): Logger object to log communication with HiSeq.
+       image_path (path): Directory to store images in.
+       log_path (path): Directory to write log files in.
+       bg_path (path): Directory to background calibration images.
+       scan_width (float): Width of field of view in mm.
+       resolution (float): Scale of pixels in microns per pixel.
+       bundle_height: Line scan bundle height for TDI imaging.
+       nyquist_obj: Nyquist sampling distance of z plane in objective steps
+    """
 
 
-    # Make HiSeq Object
     def __init__(self, Logger = None,
                        yCOM = 'COM10',
                        xCOM = 'COM9',
@@ -39,7 +119,7 @@ class HiSeq():
                        fpgaCOM = ['COM12','COM15'],
                        laser1COM = 'COM13',
                        laser2COM = 'COM14'):
-        ''' Create a HiSeq Object.'''
+        """Constructor for the HiSeq."""
 
         self.y = ystage.Ystage(yCOM, logger = Logger)
         self.f = fpga.FPGA(fpgaCOM[0], fpgaCOM[1], logger = Logger)
@@ -66,19 +146,20 @@ class HiSeq():
         self.distance = None                                                    # distance between objective and stage, WILL REMOVE IN FUTURE
         self.distance_offset = 0                                                # offset to calculated distance between stage and objective, WILL REMOVE IN FUTURE
         self.fc_height = 1200                                                   # height of flow cell in microns, WILL REMOVE IN FUTURE
-        self.max_distance = self.z.max_z/self.z.spum + self.obj.max_z/self.obj.spum - self.fc_height # WILL REMOVE IN FUTURE
+        self.max_distance = self.z.max_z/self.z.spum + self.obj.max_z/self.obj.spum - self.fc_height       # WILL REMOVE IN FUTURE
         self.fc_origin = {'A':[17571,-180000],
                           'B':[43310,-180000]}
-        self.scan_width = 0.769 #mm
-        self.resolution = 0.375 # um/px
+        self.scan_width = 0.769                                                 #mm
+        self.resolution = 0.375                                                 #um/px
         self.bundle_height = 128.0
-        self.nyquist_obj = 235 # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
+        self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
 
 
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
+
         from . import dcam
 
         self.cam1 = dcam.HamamatsuCamera(0, logger = Logger)
@@ -121,7 +202,7 @@ class HiSeq():
 
 
     def initializeInstruments(self):
-        '''Initialize x,y,z, & obj stages, pumps, valves, optics, and FPGA.'''
+        """Initialize x,y,z, & obj stages, pumps, valves, optics, and FPGA."""
 
         #Initialize X Stage before Y Stage!
         print('Initializing X & Y stages')
@@ -160,12 +241,17 @@ class HiSeq():
 
 
     def write_metadata(self, n_frames, bundle, image_name):
-        '''Write image metadata to file.
+        """Write image metadata to file.
 
-           n_frames = number of frames in images, int
-           bundle = line bundle height of images, int
-           image_name = name of image, str
-        '''
+           Parameters:
+           n_frames (int): Number of frames in the images.
+           bundle (int): Line bundle height of the images.
+           image_name (int): Common name of the images.
+
+           Returns:
+           file: Metadata file to write info about images to.
+        """
+
         date = time.strftime('%Y%m%d_%H%M%S')
         meta_path = join(self.image_path, 'meta_'+image_name+'.txt')
         meta_f = open(image_path, 'w+')
@@ -187,14 +273,28 @@ class HiSeq():
         return meta_f
 
 
-    def take_picture(self, n_frames, bundle, image_name = None):
-        '''Take a picture using all cameras and save as a tiff.
+    def take_picture(self, n_frames, bundle = 128, image_name = None):
+        """Take a picture using all the cameras and save as a tiff.
 
-           n_frames = number of frames, each frame is 2048 x bundle px in size
-           bundle = line bundle height (y px length of frame)
-           image_name = suffix for all images (camera_image_name.tiff)
-           Total number of pixels in y dimension = n_frames*bundle.
-        '''
+           The section to be imaged should already be in position and
+           optical settings should already be set.
+           The final size of the image is 2048 x n_frames*bundle px in size,
+           because the total number of pixels in the y dimension =
+           n_frames*bundle. The images and metadata are stored in the
+           self.image_path directory.
+
+           Parameters:
+           n_frames (int): Number of frames in the images.
+           bundle (int, optional): Line bundle height of the images, the
+                default is 128.
+           image_name (str, optional): Common name of the images, the default
+                is a time stamp.
+
+           Returns:
+           bool: True if all of the frames of the image were taken, False if
+                there were incomplete frames.
+        """
+
         y = self.y
         x = self.x
         obj = self.obj
@@ -394,7 +494,8 @@ class HiSeq():
 
 
     def reset_stage(self):
-        '''Home y stage and sync with TDI through the FPGA.'''
+        """Home ystage and sync with TDI through the FPGA."""
+
         self.message('Resetting FPGA and syncing with stage')
         self.y.move(self.y.home)
         self.f.initialize()
@@ -402,16 +503,19 @@ class HiSeq():
 
 
     def move_stage_out(self):
-        '''Move stage out for loading/unloading flowcells'''
+        """Move stage out for loading/unloading flowcells."""
+
         self.x.move(self.x.home)
         self.y.move(self.y.min_y)
 
 
     def zstack(self, obj_start, obj_stop, obj_step, n_frames, y_pos):
-        '''Take a zstack/tile of images.
+        """Take a zstack/tile of images.
 
            Takes images from incremental z planes at the same x&y position.
-        '''
+           Parameters:
+           WILL FILL IN LATER AFTER SIMPLIFYING
+        """
 
         exp_date = time.strftime('%Y%m%d_%H%M%S')
 
@@ -429,11 +533,17 @@ class HiSeq():
 
 
     def scan(self, x_pos, y_pos, obj_start, obj_stop, obj_step, n_scans, n_frames, image_name=None):
-        '''Image a volume.
+        """Image a volume.
 
            Images a zstack at incremental x positions.
            The length of the image (y dimension) remains constant.
-        '''
+
+           Parameters:
+           WILL FILL IN AFTER SIMPLIFYING.
+
+           Returns:
+           int: Time it took to do scan.
+        """
         if image_name is None:
             image_name = time.strftime('%Y%m%d_%H%M%S')
 
@@ -462,18 +572,33 @@ class HiSeq():
 
 
     def twoscan(self, n):
-        '''Takes n images at 2 different positions.
+        """Takes n (int) images at 2 different positions.
 
            For validation of positioning.
-        '''
+        """
 
         for i in range(n):
-            hs.take_picture(50, 128, y_pos = 6500000, x_pos = 11900, obj_pos = 45000)
-            hs.take_picture(50, 128, y_pos = 6250000, x_pos = 11500, obj_pos = 45000)
+            hs.take_picture(50, 128, y_pos = 6500000, x_pos = 11900,
+                obj_pos = 45000)
+            hs.take_picture(50, 128, y_pos = 6250000, x_pos = 11500,
+                obj_pos = 45000)
 
 
     def jpeg(self, filename):
-        '''Saves image from all channels as jpegs.'''
+        """Saves image from all channels as jpegs.
+
+           Convert all tiff images with the common filename to jpegs and
+           add the file size from all 4 emission channels together as a
+           measure of how sharp and focused the image is. Images that are
+           more in focus will have a larger file size after compressed into
+           a jpeg.
+
+           Parameters:
+           filename (str): Common filename for all emmission channels.
+
+           Returns:
+           int: Sum of the jpeg size from all emmission channels.
+        """
 
         image_prefix=[self.cam1.left_emission,
                       self.cam1.right_emission,
@@ -493,10 +618,27 @@ class HiSeq():
 
 
     def rough_focus(self, z_start = 21200, z_interval = 200, n_images = 6):
-        '''Bring the sample into focus by moving the z stage.
+        """Bring the sample into focus by moving the z stage.
 
-           Returns a matrix of [z stage position, focus value]
-        '''
+           Images a ~ 0.75 mm x 1.5 mm area in the center of the section,
+           at increasing zstage heights while keeping the objective position
+           constant. The image file size as compressed jpegs are measured
+           as a proxy for how in focus the images are. The focus value as
+           a function of zstage position is fit to a gaussian curve, and
+           the center of the peak is chosen as the optimal position for
+           the zstage for in focus pictures.
+
+           Parameters:
+           z_start (int, optional): Absolute z stage position to start
+                taking pictures.
+           z_interval (int, optional): Zstage steps to increase the stage
+                height by for subsequent images.
+           n_images (int, optional): Number of zstage positions to image.
+
+           Returns:
+           [int,...],[int,...]: List of zstage absolute stage positions and
+                list of file sizes.
+        """
 
         # move stage to initial distance
         y_pos = self.y.position
@@ -537,11 +679,11 @@ class HiSeq():
 
 
     def fine_focus(self, obj_start = 10000, obj_interval = 5000, n_images = 7):
-        '''Bring the sample into focus by moving the objective.
+        """Bring the sample into focus by moving the objective.
 
            Returns matrix of [obj position, focus value]
            Will be updated in future.
-        '''
+        """
         #Initialize
         y_pos = self.y.position
         obj_pos = obj_start
@@ -618,17 +760,38 @@ class HiSeq():
 
 
     def position(self, AorB, box):
-        '''Returns stage position information.
+        """Returns stage position information.
 
-           Returns x&y center position,
-                   x&y initial position for scan,
-                   number of scans, and
-                   number of frames
-           AorB = flowcell position A or B
-           box = [LLx, LLy, URx, URy],
-           LL: Lower Left, UR: Upper Right
-           LLx = box[0]; LLy = box[1]; URx = box[2]; URy = box[3]
-        '''
+           The center of the image is used to bring the section into focus
+           and optimize laser intensities. Image scans of sections start on
+           the upper right corner of the section. The section is imaged in
+           strips 0.760 mm wide by length of the section long until the entire
+           section has been imaged. The box region of interest surrounding the
+           section is converted into stage and imaging details to scan the
+           entire section.
+
+           =====  ========   ===========
+           index  value      description
+           =====  ========   ===========
+           0      x_center   The xstage center position of the section.
+           1      y_center   The ystage center position of the section.
+           2      x_initial  Initial xstage position to scan the section.
+           3      y_initial  Initial ystage position to scan the section.
+           4      n_scans    Number of scans to image the entire section.
+           5      n_frames   Number of frames to image the entire section.
+
+           Parameters:
+           AorB (str): Flowcell A or B.
+           box ([float, float, float, float]) = The region of interest as
+                x&y position of the corners of a box surrounding the section
+                to be imaged defined as [LLx, LLy, URx, URy] where LL=Lower
+                Left and UR=Upper Right corner using the slide ruler.
+
+           Returns:
+           [int, int, int, int, int, int]: List of stage positioning and
+                imaging details to scan the entire section. See table
+                above for details.
+        """
 
         # Number of scans
         n_scans = ceil((LLx - URx)/self.scan_width)
@@ -664,18 +827,26 @@ class HiSeq():
 
 
     def optimize_filter(self, nframes, nbins = 256, sat_threshold = 0.0005, signal_threshold = 20):
-        '''Finds and returns the best filter settings.
+        """Finds and returns the best filter settings.
 
-           nframes = number of frames for subsection
-           nbins = number of bins to define histogram
-           sat_threshold = max fraction of pixels allowed to be saturated
-           signal_threshold = max signal intensity allowed in nonspecic channels
+           Images a portion of the section with one laser at a time at
+           increasing laser intensity. Images are analyzed from all emission
+           channels to calculate a filter score. Images are scored to maximize
+           the image histogram without saturating too many pixels and minimizes
+           crosstalk in non specific channels.
 
-           Images a small subsection with one laser at increasing intensity.
-           Analyze images from all channels to calculate a score.
-           Images are scored to maximize the histogram without saturating
-           too many pixels and minimizes crosstalk non specific channels.
-         '''
+           Parameters:
+           nframes (int): Number of frames for portion of section.
+           nbins (int): Number of bins to define the image histogram
+           sat_threshold (float): Maximum fraction of pixels allowed to be
+                saturated
+           signal_threshold (int): Maximum signal intensity allowed in
+                nonspecific channels
+
+           Returns:
+           [str, str]: List of optimal for filters for each laser for the
+                section to be imaged.
+         """
         # Save y position
         y_pos = self.y.position
 
@@ -755,7 +926,8 @@ class HiSeq():
 
 
     def message(self, text):
-        '''Print output to logger or console'''
+        """Print output text to logger or console"""
+
         if self.logger is None:
             print(str(text))
         else:
@@ -763,12 +935,18 @@ class HiSeq():
 
 
 def find_focus(X, Y):
-    '''Fit Y(X) to gaussian curve and return the center point.
+    """Fit Y(X) to gaussian curve and return the center point.
 
-       X = position
-       Y = focus
-       Used to fit focus(z position) to find and return optimal focus
-    '''
+       Used to fit focus as function of z position to a gaussion curve and
+       find the optimal focus. X = position and Y = focus.
+
+       Parameters:
+       X ([int,]): List of z or objective stage positions
+       Y ([int,]): List of focus values.
+
+       Returns:
+       int: Center position of gaussian peak = to optimal focus.
+    """
 
     Ynorm = Y - np.min(Y)
     Ynorm = Ynorm/np.max(Y)
@@ -794,14 +972,14 @@ def find_focus(X, Y):
 
 
 def signal_and_saturation(img, nbins = 256):
-    '''Return mean intensity of signal and fraction of pixels saturated.
+    """Return mean intensity of signal and fraction of pixels saturated.
 
        img = image to be analyzed
        nbins = number of bins in histograms
 
        Fits histogram of image to 2 peaks, and assumes 1st peak is the
        background and the 2nd peak is the signal.
-    '''
+    """
 
     # Histogram of image
     hist, bin_edges = np.histogram(img, bins = nbins, range = (0,4095), density = True)
@@ -833,7 +1011,7 @@ def signal_and_saturation(img, nbins = 256):
 
 
 def contrast2(filename, channel, path, nbins=256):
-    '''Return the image contrast and fraction of pixels saturated.
+    """Return the image contrast and fraction of pixels saturated.
 
        filename = name of image
        channel = color channel of image
@@ -843,7 +1021,7 @@ def contrast2(filename, channel, path, nbins=256):
        Uses a precalibrated background file to subtract the background from the
        image, then fit the remaining signal to a gaussian curve to find the mean
        image contrast.
-    '''
+    """
     im = imageio.imread(filename)    #read picture
     im = im[64:,:]                                                              #Remove bright band artifact
     bg_path = join(path, str(channel) + 'background.txt')
@@ -862,5 +1040,5 @@ def contrast2(filename, channel, path, nbins=256):
 
 
 def _1gaussian(x, amp1,cen1,sigma1):
-    '''Gaussian function for curve fitting'''
+    """Gaussian function for curve fitting."""
     return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
