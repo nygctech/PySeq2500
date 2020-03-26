@@ -6,15 +6,17 @@ Controls the excitation and emission filters on the Illumina HiSeq 2500
 System. The excitation filters are optical density filters that block a
 portion of the light to quickly change between laser intensities. The
 percent of light passed through is 10**-OD*100 where OD is the optical
-density of the filter. All of the light is blocked at the home "filter".
-The names and OD of available filters are listed in the following table.
+density of the filter. All of the light is blocked, laser intensity = 0
+mW at the home "filter". None of the light is blocked, laser intensity
+= the set power of the laser, at the open "filter". The names and OD of
+available filters are listed in the following table.
 
-===========  ===========  ==================================
+===========  ===========  ========================================
 laser color  laser index  filters
-===========  ===========  ==================================
-green        1            0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
-red          2            0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
-===========  ===========  ==================================
+===========  ===========  ========================================
+green        1            open, 0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
+red          2            open, 0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
+===========  ===========  ========================================
 
 The emission filter has 2 states, in the light path or out of the light
 path.
@@ -134,12 +136,12 @@ class Optics():
            the home "filter". The names and OD of available filters are listed
            in the following table.
 
-           ===========  ===========  ==================================
+           ===========  ===========  ========================================
            laser color  laser index  filters
-           ===========  ===========  ==================================
-           green        1            0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
-           red          2            0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
-           ===========  ===========  ==================================
+           ===========  ===========  ========================================
+           green        1            open, 0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
+           red          2            open, 0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
+           ===========  ===========  ========================================
 
            Parameters:
            wheel (int): The index of laser line where 1 = green laser or

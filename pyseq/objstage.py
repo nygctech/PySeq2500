@@ -2,6 +2,9 @@
 """Illumina HiSeq2500 :: Objective Stage
 Uses commands found on www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking
 
+The objective can move between steps 0 and 65535, where step 0 is
+the closest to the stage. Each objective stage step is about 4 nm. 
+
 Examples:
     #Create an objective stage objective
     >>>import pyseq

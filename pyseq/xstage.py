@@ -1,12 +1,23 @@
 #!/usr/bin/python
-#
-## @file
-#
-# Kunal Pandit 9/19
-#
-# Illumina HiSeq2500 X-STAGE
-# Uses command set from Schneider Electric MCode
-#
+"""Illumina HiSeq 2500 Systems :: X-STAGE
+Uses command set from Schneider Electric MCode
+
+The xstage can be moved from step positions 1000 to 50000. Initially, the 
+xstage is homed to step position 30000. Step position 1000 is to the right,
+and step position 50000 is to the left. Each xstage step is 0.375 microns.
+
+Examples:
+    #Create xstage
+    >>>import pyseq
+    >>>xstage = pyseq.xstage.Xstage('COM9')
+    #Initialize xstage
+    >>>xstage.initialize()
+    #Move xstage to step position 10000
+    >>>xstage.move(10000)
+    >>>10000
+
+Kunal Pandit 9/19
+"""
 
 
 import serial
@@ -14,12 +25,28 @@ import io
 import time
 
 
-# XSTAGE object
-
 class Xstage():
+    """Illumina HiSeq 2500 Systems :: X-STAGE
+
+    Attributes:
+    spum (float): Number of xstage steps per micron.
+    position (int): The absolution position of the xstage in steps.
+    """
 
     # Make Xstage object
     def __init__(self, com_port, baudrate = 9600, logger = None):
+        """The constructor for the xstage
+
+           Parameters:
+           com_port (str): Communication port for the pump.
+           baudrate (int, optional): The communication speed in symbols per
+                second.
+           logger (log, optional): The log file to write communication with the
+                pump to.
+
+           Returns:
+           xstage object: A xstage object to control the xstage.
+        """
 
         # Open Serial Port
         s = serial.Serial(com_port, baudrate, timeout = 1)
@@ -37,9 +64,11 @@ class Xstage():
         self.logger = logger
 
 
-    # Initialize Xstage
     def initialize(self):
-        response = self.command('\x03')                                 # Initialize Stage
+        """Initialize the xstage."""
+
+        # Initialize Stage
+        response = self.command('\x03')
 
         #Change echo mode to respond only to print and list commands
         response = self.command('EM=2')
@@ -88,11 +117,18 @@ class Xstage():
         self.check_position(self.position)
 
 
-    # Send generic serial commands to Xstage and return response
     def command(self, text):
+        """Send a serial command to the xstage and return the response.
+
+           Parameters:
+           text (str): A command to send to the xstage.
+
+           Returns:
+           str: The response from the xstage.
+        """
         text = text + self.suffix
-        self.serial_port.write(text)                                    # Write to serial port
-        self.serial_port.flush()                                        # Flush serial port
+        self.serial_port.write(text)                                            # Write to serial port
+        self.serial_port.flush()                                                # Flush serial port
         response = self.serial_port.readline()
         if self.logger is not None:
             self.logger.info('Xstage::txmt::'+text)
@@ -102,22 +138,39 @@ class Xstage():
 
 
 
-    # Move Xstage to absolute position
-    def move(self, position):
-        if position <= self.max_x and position >= self.min_x:
-            self.command('MA ' + str(position))                         # Move Absolute
-            return self.check_position(position)                        # Check position
-        else:
-            print("XSTAGE can only move between " + str(self.min_x) + ' and ' + str(self.max_x))
 
-                                          
-    # Check if Xstage is at a position
+    def move(self, position):
+        """Move xstage to absolute step position.
+
+           Parameters:
+           position (int): Absolute step position must be between 1000 - 50000.
+
+           Returns:
+           int: Absolute step position after move.
+        """
+        if position <= self.max_x and position >= self.min_x:
+            self.command('MA ' + str(position))                                 # Move Absolute
+            return self.check_position(position)                                # Check position
+        else:
+            print('XSTAGE can only move between ' + str(self.min_x) +
+                  ' and ' + str(self.max_x))
+
+
+    # Check if Xstage is at a positio
     def check_position(self, position):
+        """Check if xstage is in positions.
+
+           Parameters:
+           position (int): Absolute step position must be between 1000 - 50000.
+
+           Returns:
+           bool: True if xstage is in position, False if it is not in position.
+        """
         moving = 1
         while moving != 0:
-            moving = int(self.command('PR MV'))                             # Check if moving, 1 = yes, 0 = no
+            moving = int(self.command('PR MV'))                                 # Check if moving, 1 = yes, 0 = no
             time.sleep(1)
 
-        self.position = int(self.command('PR P'))                           # Set position
+        self.position = int(self.command('PR P'))                               # Set position
 
-        return position == self.position                                # Return TRUE if in position or False if not
+        return position == self.position                                        # Return TRUE if in position or False if not
