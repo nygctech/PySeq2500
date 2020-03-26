@@ -98,7 +98,7 @@ class Ystage():
 
         return  response
 
-    # Move Ystage to a position
+
     def move(self, position):
         """Move ystage to absolute step position.
 

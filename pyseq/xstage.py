@@ -3,8 +3,8 @@
 Uses command set from Schneider Electric MCode
 
 The xstage can be moved from step positions 1000 to 50000. Initially, the
-xstage is homed to step position 30000. Step position 1000 is to the right,
-and step position 50000 is to the left. Each xstage step is 0.375 microns.
+xstage is homed to step position 30000. Lower step positions are to the right,
+and higher step positions are to the left. Each xstage step is 0.375 microns.
 
 Examples:
     #Create xstage
@@ -18,7 +18,7 @@ Examples:
 
 TODO:
     * Change initialization to be aware position of flags.
-    
+
 Kunal Pandit 9/19
 """
 
