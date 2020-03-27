@@ -1,5 +1,5 @@
 #!/usr/bin/python
-'''A ctypes based interface to Hamamatsu cameras.
+"""A ctypes based interface to Hamamatsu cameras.
 Modified from `Zhuang_Lab_Github <https://github.com/lumasullo/Tempesta/
     blob/master/hamamatsu/hamamatsu_camera.py>`_
 
@@ -21,9 +21,9 @@ Original Notes:
 TODO:
     * Review what is actually needed and get rid of unused functions.
     * Document functions
-    
+
 Modified by Kunal Pandit 9/19
-'''
+"""
 
 import ctypes
 import ctypes.util
