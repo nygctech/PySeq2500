@@ -1,26 +1,29 @@
 #!/usr/bin/python
-#
-## @file
-#
-# Modified by Kunal Pandit 9/19
-#
-# A ctypes based interface to Hamamatsu cameras.
-# (tested on a sCMOS Flash 4.0).
-#
-# The documentation is a little confusing to me on this subject..
-# I used c_int32 when this is explicitly specified, otherwise I use c_int.
-#
-# FIXME: I'm using the "old" functions because these are documented..
-#    Switch to the "new" functions at some point.
-#
-# FIXME: How to stream 2048 x 2048 at max frame rate to the flash disk?
-#    The Hamamatsu software can do this.
-#
-# Hazen 10/13
-#
-#from https://github.com/lumasullo/Tempesta/blob/master/hamamatsu/hamamatsu_camera.py
-#Zhuang Lab Github
-#
+'''A ctypes based interface to Hamamatsu cameras.
+Modified from `Zhuang_Lab_Github <https://github.com/lumasullo/Tempesta/
+    blob/master/hamamatsu/hamamatsu_camera.py>`_
+
+Original Notes:
+
+    (tested on a sCMOS Flash 4.0).
+
+    The documentation is a little confusing to me on this subject.
+    I used c_int32 when this is explicitly specified, otherwise I use c_int.
+
+    FIXME: I'm using the "old" functions because these are documented.
+        Switch to the "new" functions at some point.
+
+    FIXME: How to stream 2048 x 2048 at max frame rate to the flash disk?
+        The Hamamatsu software can do this.
+
+    Hazen 10/13
+
+TODO:
+    * Review what is actually needed and get rid of unused functions.
+    * Document functions
+    
+Modified by Kunal Pandit 9/19
+'''
 
 import ctypes
 import ctypes.util
