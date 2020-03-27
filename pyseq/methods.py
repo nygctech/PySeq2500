@@ -1,3 +1,9 @@
+#!/usr/bin/python
+'''Get details about installed methods
+
+Kunal Pandit 3/15/2020
+'''
+
 import configparser
 
 try:
@@ -8,8 +14,16 @@ except ImportError:
 
 from . import recipes
 
-# Return method config and recipe
+
 def return_method(method):
+    '''Return the paths to the method configuration and recipe.
+
+       Parameters:
+       method (str): Name of the method.
+
+       Returns.
+       path, path: Path to method configuration, and path to the recipe
+    '''
     config_path = None
     recipe_path = None
     contents = pkg_resources.contents(recipes)
@@ -25,8 +39,10 @@ def return_method(method):
 
     return config_path, recipe_path
 
-# Get installed methods
+
 def get_methods():
+    '''Return list of installed methods'''
+
     contents = pkg_resources.contents(recipes)
     methods = []
     for i in contents:
@@ -34,14 +50,18 @@ def get_methods():
             methods.append(i[0:-4])
     return methods
 
-# List installed methods
+
 def list_methods():
+    '''Print list of methods.'''
+    
     methods = get_methods()
     for i in methods:
         print(i)
 
-# Print out details of a method
+
 def print_method(method):
+    '''Print configuration and recipe of method'''
+
     methods = get_methods()
     if method in methods:
         # Print out method configuration
