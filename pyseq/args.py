@@ -1,6 +1,19 @@
-##########################################################
-## Get Command Line Arguments ############################
-##########################################################
+#!/usr/bin/python
+"""Arguments for Pyseq
+
+usage: pyseq [-h] [-config PATH] [-name NAME] [-output PATH] [-list]
+             [-method METHOD]
+
+optional arguments:
+  -h, --help      show this help message and exit
+  -config PATH    path to config file, default = ./config.cfg
+  -name NAME      experiment name, default = timestap(YYYYMMDD_HHMMSS)
+  -output PATH    directory to save data, default = current directory
+  -list           list installed methods
+  -method METHOD  print method details
+
+Kunal Pandit 3/15/2020
+"""
 import argparse
 import os
 from os.path import join
@@ -39,8 +52,8 @@ parser.add_argument('-method',
                     metavar = 'METHOD'
                     )
 
-# Return arguments from command line
 def get_arguments():
+    """Return arguments from command line"""
 
     args = parser.parse_args()
     args = vars(args)
