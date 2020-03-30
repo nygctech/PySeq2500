@@ -7,14 +7,15 @@ xstage is homed to step position 30000. Lower step positions are to the right,
 and higher step positions are to the left. Each xstage step is 0.375 microns.
 
 Examples:
-    #Create xstage
-    >>>import pyseq
-    >>>xstage = pyseq.xstage.Xstage('COM9')
-    #Initialize xstage
-    >>>xstage.initialize()
-    #Move xstage to step position 10000
-    >>>xstage.move(10000)
-    >>>10000
+.. code-block:: python
+#Create xstage
+import pyseq
+xstage = pyseq.xstage.Xstage('COM9')
+#Initialize xstage
+xstage.initialize()
+#Move xstage to step position 10000
+xstage.move(10000)
+10000
 
 TODO:
     * Change initialization to be aware position of flags.

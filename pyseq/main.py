@@ -922,37 +922,39 @@ def get_config(args):
 ###################################
 ## Run System #####################
 ###################################
-args_ = args.get_arguments()                                                    # Get config path, experiment name, & output path
-config = get_config(args_)                                                      # Get config file
-logger = setup_logger()                                                         # Create logfiles
-port_dict = check_ports()                                                       # Check ports in configuration file
-first_line = check_instructions()                                               # Checks instruction file is correct and makes sense
-flowcells = setup_flowcells(first_line)                                         # Create flowcells
-hs = initialize_hs()                                                            # Initialize HiSeq, takes a few minutes
-integrate_fc_and_hs(port_dict)                                                  # Integrate flowcell info with hs
+args_ = args.get_arguments()
 
-do_flush()                                                                      # Flush out lines
+if __name__ == 'pyseq.main':                                                    # Get config path, experiment name, & output path
+    config = get_config(args_)                                                  # Get config file
+    logger = setup_logger()                                                     # Create logfiles
+    port_dict = check_ports()                                                   # Check ports in configuration file
+    first_line = check_instructions()                                           # Checks instruction file is correct and makes sense
+    flowcells = setup_flowcells(first_line)                                     # Create flowcells
+    hs = initialize_hs()                                                        # Initialize HiSeq, takes a few minutes
+    integrate_fc_and_hs(port_dict)                                              # Integrate flowcell info with hs
 
-cycles_complete = False
+    do_flush()                                                                  # Flush out lines
 
-while not cycles_complete:
-    stuck = 0
-    complete = 0
+    cycles_complete = False
 
-    for fc in flowcells.values():
-        if not fc.thread.is_alive():                                            # flowcell not busy, do next step in recipe
-            do_recipe(fc)
+    while not cycles_complete:
+        stuck = 0
+        complete = 0
 
-        if fc.signal_event:                                                     # check if flowcells are waiting on each other
-            stuck += 1
+        for fc in flowcells.values():
+            if not fc.thread.is_alive():                                        # flowcell not busy, do next step in recipe
+                do_recipe(fc)
 
-        if fc.cycle > fc.total_cycles:                                          # check if all cycles are complete on flowcell
-            complete += 1
+            if fc.signal_event:                                                 # check if flowcells are waiting on each other
+                stuck += 1
 
-    if stuck == len(flowcells):                                                 # Start the first flowcell if they are waiting on each other
-        free_fc()
+            if fc.cycle > fc.total_cycles:                                      # check if all cycles are complete on flowcell
+                complete += 1
 
-    if complete == len(flowcells):                                              # Exit while loop
-        cycles_complete = True
+        if stuck == len(flowcells):                                             # Start the first flowcell if they are waiting on each other
+            free_fc()
 
-do_shutdown()                                                                   # Shutdown HiSeq
+        if complete == len(flowcells):                                          # Exit while loop
+            cycles_complete = True
+
+    do_shutdown()                                                               # Shutdown HiSeq

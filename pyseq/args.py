@@ -60,10 +60,10 @@ def get_arguments():
 
     if args['list'] is True:
         methods.list_methods()
-        sys.exit()
+        #sys.exit()
 
     if args['method'] in methods.get_methods():
         methods.print_method(args['method'])
-        sys.exit()
+        #sys.exit()
 
     return args
