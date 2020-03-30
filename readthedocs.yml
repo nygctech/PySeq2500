@@ -17,9 +17,4 @@ sphinx:
 python:
    version: 3.7
    install:
-      - method: pip
-        path: ./pyseq
-        extra_requirements:
-           - docs
-      - method: setuptools
-        path: package
+      - requirements: requirements.txt
