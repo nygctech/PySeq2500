@@ -18,7 +18,7 @@ python:
    version: 3.7
    install:
       - method: pip
-        path: .
+        path: ./pyseq
         extra_requirements:
            - docs
       - method: setuptools
