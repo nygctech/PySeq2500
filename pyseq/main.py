@@ -286,12 +286,9 @@ def initialize_hs():
     method = config[experiment['method']]
 
     hs = pyseq.HiSeq(logger)
-
-
+    check_filters(hs)
     hs.initializeCams(logger)
     hs.initializeInstruments()
-
-
 
     # Set line bundle height
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
@@ -484,11 +481,11 @@ def check_ports():
                     if variable in port_dict:
                         port_dict[variable][int(cyc_number)] = reagent
                     else:
-                        print(variable +
+                        warnings.warn(variable +
                               ' not listed as variable reagent in config')
                         error += 1
                 else:
-                    print('Cycle reagent: ' + reagent +
+                    warnings.warn('Cycle reagent: ' + reagent +
                           ' does not exist on valve')
                     error += 1
 
@@ -496,7 +493,7 @@ def check_ports():
             for variable in cycle_variables:
                 variable = variable.replace(' ','')
                 if len(port_dict[variable]) != total_cycles:
-                    print('Number of ' + variable +
+                    warnings.warn('Number of ' + variable +
                           ' reagents does not match experiment cycles')
                     error += 1
 
@@ -514,12 +511,67 @@ def check_ports():
         warnings.warn('No ports are specified')
 
     if error > 0:
-        print(str(error) + ' errors in configuration file')
+        warnings.warn(str(error) + ' errors in configuration file')
         sys.exit()
     else:
         print('Ports checked without errors')
         return port_dict
 
+
+
+def check_filters(hs):
+    """Check filter section of config file.
+
+       **Parameters:**
+       - hs: A HiSeq Object.
+
+    """
+
+    # NOTE: This is the only local use of a HiSeq object
+
+    cycle_filters = config['filters'].items()
+
+    for item in cycle_filters:
+        # Get laser cycle = filter
+        filter = item[1]
+        if filter is not 'home' and filter is not 'open':                       # filters are floats, except for home and open
+            filter = float(filter)
+        laser, cycle = item[0].split(' ')
+
+        # Check laser, cycle, and filter are valid
+        if laser is hs.l1.color:
+            if filter in hs.optics.ex_dict[0]:
+                if cycle in hs.optics.cycle_dict[0]:
+                    hs.optics.cycle_dict[0][cycle] = filter
+                else:
+                    warnings.warn('Experiment config error in filter section. '+
+                    'Duplicated cycle for ' + hs.l1.color + ' laser')
+            else:
+                warnings.warn('Experiment config error in filter section. ' +
+                'Invalid filter for ' + hs.l1.color + ' laser')
+        elif laser is hs.l2.color:
+            if filter in hs.optics.ex_dict[1]:
+                if cycle in hs.optics.cycle_dict[1]:
+                    hs.optics.cycle_dict[1][cycle] = filter
+                else:
+                    warnings.warn('Experiment config error in filter section. '+
+                    'Duplicated cycle for ' + hs.l2.color + ' laser')
+            else:
+                warnings.warn('Experiment config error in filter section. ' +
+                'Invalid filter for ' + hs.l2.color + ' laser')
+        else:
+            warnings.warn('Experiment config error: invalid laser')
+
+        # Add None to cycles with out filters specified
+        method = config.get('experiment', 'method')
+        method = config[method]
+        for c in range(int(config['experiment','cycles'])):
+            if c not in hs.optics.cycle_dict[0]:
+                hs.optics.cycle_dict[0][c] = method.get('default filter 1',
+                                                         fallback = None)
+            if c not in hs.optics.cycle_dict[1]:
+                hs.optics.cycle_dict[1][c] = method.get('default filter 2',
+                                                         fallback = None)
 
 ##########################################################
 ## Flush Lines ###########################################
@@ -704,8 +756,7 @@ def IMAG(fc, n_Zplanes):
         else:
             hs.z.move(fc.stage[section]['z pos'])
 
-        # Find/Move to focal obj stage position,
-        # Edited to find focus every cycle change -1 to None if only want initial cycle
+        # Find Fine Focue with objective
         logger.log(21, AorB+'::Finding fine focus of ' + str(section))
 
         hs.y.move(y_center)
@@ -718,16 +769,28 @@ def IMAG(fc, n_Zplanes):
         Z,C = hs.fine_focus()
         fc.stage[section]['obj pos'] = hs.obj.position
 
-        # Optimize filter
-        logger.log(21, AorB+'::Finding optimal filter')
-        hs.y.move(y_pos)
-        hs.x.move(x_center)
-        opt_filter = hs.optimize_filter(32)                                     #Find optimal filter set on 32 frames on image
-        hs.optics.move_ex(1, opt_filter[0])
-        hs.optics.move_ex(2, opt_filter[1])
+        # Position excitation filter for laser 1
+        if hs.optics.cycle_dict[0][fc.cycle] is None:
+            logger.log(21, AorB+'::Finding optimal filter for ' + hs.l1.color +
+                           ' laser')
+            hs.y.move(y_center)
+            hs.x.move(x_center)
+            opt_filter = hs.optimize_filter(32)                                 #Find optimal filter set on 32 frames on image
+            hs.optics.move_ex(1, opt_filter[0])
+        else:
+            hs.optics.move_ex(1, hs.optics.cycle_dict[0][fc.cycle])             #Move to filter specifed for current cycle
+        # Position excitation filter for laser 2
+        if hs.optics.cycle_dict[1][fc.cycle] is None:
+            logger.log(21, AorB+'::Finding optimal filter for ' + hs.l2.color +
+                           ' laser')
+            hs.y.move(y_center)
+            hs.x.move(x_center)
+            opt_filter = hs.optimize_filter(32)                                 #Find optimal filter set on 32 frames on image
+            hs.optics.move_ex(2, opt_filter[1])
+        else:
+            hs.optics.move_ex(2, hs.optics.cycle_dict[1][fc.cycle])             #Move to filter specifed for current cycle
+        # Position emission filter
         hs.optics.move_em_in(True)
-        fc.ex_filter1 = opt_filter[0]
-        fc.ex_filter2 = opt_filter[1]
 
         # Calculate objective positions to image
         if n_Zplanes > 1:
@@ -854,9 +917,7 @@ def free_fc():
     return fc.position
 
 
-##########################################################
-## Initialize Flowcells ##################################
-##########################################################
+
 def integrate_fc_and_hs(port_dict):
     """Integrate flowcell info with hiseq configuration info."""
 
@@ -889,9 +950,7 @@ def integrate_fc_and_hs(port_dict):
             fc.stage[section]['obj pos'] = obj_pos.get(section,fallback=None)
 
 
-##########################################################
-## Get Config ############################################
-##########################################################
+
 def get_config(args):
     """Return the experiment config appended with the method config.
 

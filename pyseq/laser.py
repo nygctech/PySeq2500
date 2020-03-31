@@ -27,13 +27,14 @@ import time
 class Laser():
     """HiSeq 2500 System :: Laser
 
-       Attributes:
-       on (bool): True if the laser is on, False if the laser is off.
-       power (int): Power in mW of the laser:
-       max_power: Maximum power of the laser in mW.
-       min_power: Minimum power of the laser in mW.
-       color: Color of the laser.
-       version: Version number of the control software.
+       **Attributes:**
+       - on (bool): True if the laser is on, False if the laser is off.
+       - power (int): Power in mW of the laser:
+       - max_power: Maximum power of the laser in mW.
+       - min_power: Minimum power of the laser in mW.
+       - color: Color of the laser.
+       - version: Version number of the control software.
+       
     """
 
 

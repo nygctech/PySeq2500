@@ -44,13 +44,18 @@ import time
 class Optics():
     """Illumina HiSeq 2500 System :: Optics
 
-    Attributes:
-    ex ([str,str]): The current excitation filter for each laser line. The
-        first filter is for the green laser and the second filter for the
-        red laser.
-    em_in (bool): True if the emission filter is in the light path or False
-        if the emission filter is out of the light path.
+    **Attributes:**
+    - ex ([str,str]): The current excitation filter for each laser line. The
+      first filter is for the green laser and the second filter for the
+      red laser.
+    - em_in (bool): True if the emission filter is in the light path or False
+      if the emission filter is out of the light path.
+    - cycle_dict[dict,dict]: Dictionaries of filters to use for each laser line
+      at different cycles. The first dictionary is for the green laser and the
+      second dictionary is for the red laser.
+
     """
+
 
 
     def __init__(self, fpga, logger = None):
@@ -62,7 +67,7 @@ class Optics():
                 optics to.
 
            Returns:
-           optics object: An optics object to control the optical filters. 
+           optics object: An optics object to control the optical filters.
         """
 
         self.serial_port = fpga
@@ -70,6 +75,7 @@ class Optics():
         self.ex = [None, None]
         self.em_in = None
         self.suffix = '\n'
+        self.cycle_dict = None
         self.ex_dict = [
                         # EX1
                         {'home' : 0,
