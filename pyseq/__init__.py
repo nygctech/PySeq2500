@@ -72,6 +72,7 @@ import numpy as np
 import imageio
 from scipy.optimize import curve_fit
 from math import ceil
+import warning
 
 
 
@@ -512,7 +513,7 @@ class HiSeq():
         self.y.move(self.y.min_y)
 
 
-    def zstack(self, obj_start, obj_stop, obj_step, n_frames, y_pos):
+    def zstack(self, n_Zplanes, n_frames, bundle):
         """Take a zstack/tile of images.
 
            Takes images from incremental z planes at the same x&y position.
@@ -521,19 +522,22 @@ class HiSeq():
         """
 
         exp_date = time.strftime('%Y%m%d_%H%M%S')
+        y_pos = self.y.position
 
-        for obj_pos in range(obj_start, obj_stop+1, obj_step):
+        for n in range(n_Zplanes):
             image_name = exp_date + '_' + str(obj_pos)
             image_complete = False
-            self.y.move(y_pos)
+
             while not image_complete:
                 image_complete = self.take_picture(n_frames, bundle, image_name)
-                if not image_complete:
-                    print('Image not take')
+                if image_complete:
+                    self.obj.move(self.obj.position + self.nyquist_obj)
+                    self.y.move(y_pos)
+                else:
+                    warnings.warn('Image not take')
                     # Reset stage and FPGA
                     self.reset_stage()
                     self.y.move(y_pos)
-
 
     def scan(self, x_pos, y_pos, obj_start, obj_stop, obj_step, n_scans, n_frames, image_name=None):
         """Image a volume.
