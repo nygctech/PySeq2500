@@ -1,6 +1,8 @@
 # PySeq2500V2
 Control HiSeq2500 with instruments as objects
 
+[Read the Docs ](https://pyseq2500.readthedocs.io/en/entrypoint/)
+
 # Initializing HiSeq
 
 ```python
