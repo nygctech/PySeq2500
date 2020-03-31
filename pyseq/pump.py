@@ -2,16 +2,20 @@
 """Illumina HiSeq 2500 System :: Pump
 Uses command set from Kloehn VersaPump3
 
-Examples:
+**Examples:**
+
+.. code-block::python
+
     #Create pump object
-    >>>import pyseq
-    >>>pumpA = pyseq.pump.Pump('COM10','pumpA')
+    import pyseq
+    pumpA = pyseq.pump.Pump('COM10','pumpA')
     #Initialize pump
-    >>>pumpA.initialize()
+    pumpA.initialize()
     #Pump 2000 uL at 4000 uL/min
-    >>>pumpA.pump(2000,4000)
+    pumpA.pump(2000,4000)
 
 Kunal Pandit 9/19
+
 """
 
 
@@ -23,31 +27,38 @@ import time
 class Pump():
     """HiSeq 2500 System :: Pump
 
-       Attributes:
-       n_barrels (int): The number of barrels used per lane. The max is 8.
-       max_volume (float): The maximum volume pumped in one stroke in uL.
-       min_volume (float): The minimum volume that can be pumped in uL.
-       max_speed (int): The maximum flowrate of the pump in uL/min.
-       min_speed (int): The minimum flowrate of the pump in uL/min.
-       dispense_speed (int): The speed to dipense liquid to waste in steps per
-            second.
-       prefix (str): The prefix for commands to the pump. It depends on the
-            pump address.
-       name (str): The name of the pump.
+       **Attributes:**
+
+       - n_barrels (int): The number of barrels used per lane. The max is 8.
+       - max_volume (float): The maximum volume pumped in one stroke in uL.
+       - min_volume (float): The minimum volume that can be pumped in uL.
+       - max_speed (int): The maximum flowrate of the pump in uL/min.
+       - min_speed (int): The minimum flowrate of the pump in uL/min.
+       - dispense_speed (int): The speed to dipense liquid to waste in steps per
+         second
+       - prefix (str): The prefix for commands to the pump. It depends on the
+         pump address.
+       - name (str): The name of the pump.
+
     """
 
 
-    def __init__(self, com_port, name=None, logger=None):
+    def __init__(self, com_port, name=None, logger=None, n_barrels = 8):
         """The constructor for the pump.
 
-           Parameters:
-           com_port (str): Communication port for the pump.
-           name (str): Name of the pump.
-           logger (log, optional): The log file to write communication with the
-                pump to.
+           **Parameters:**
 
-           Returns:
-           pump object: A pump object to control the pump.
+           - com_port (str): Communication port for the pump.
+           - name (str): Name of the pump.
+           - logger (log, optional): The log file to write communication with the
+             pump to.
+           - n_barrels (int): The number of barrels used per lane. The max and
+             default is 8.
+
+           **Returns:**
+
+           - pump object: A pump object to control the pump.
+
         """
 
         baudrate = 9600
@@ -82,11 +93,14 @@ class Pump():
     def command(self, text):
         """Send a serial command to the pump and return the response.
 
-           Parameters:
-           text (str): A command to send to the pump.
+           **Parameters:**
 
-           Returns:
-           str: The response from the pump.
+           - text (str): A command to send to the pump.
+
+           **Returns:**
+
+           - str: The response from the pump.
+
         """
 
         text = self.prefix + text + self.suffix                                 # Format text
@@ -103,9 +117,11 @@ class Pump():
     def pump(self, volume, speed = 0):
         """Pump desired volume at desired speed then send liquid to waste.
 
-           Parameters:
-           volume (float): The volume to be pumped in uL.
-           speed (float): The flowrate to pump at in uL/min.
+           **Parameters:**
+
+           - volume (float): The volume to be pumped in uL.
+           - speed (float): The flowrate to pump at in uL/min.
+
         """
 
         if speed == 0:
@@ -133,8 +149,10 @@ class Pump():
     def check_pump(self):
         """Wait until pump is ready and then return True.
 
-           Returns:
-           bool: True when the pump is ready. False, if the pump has an error.
+           **Returns:**
+
+           - bool: True when the pump is ready. False, if the pump has an error.
+
         """
 
         busy = '@'
@@ -160,8 +178,10 @@ class Pump():
     def check_position(self):
         """Return the pump position.
 
-           Returns:
-           int: The step position of the pump (0-48000).
+           **Returns:**
+
+           - int: The step position of the pump (0-48000).
+
         """
 
         pump_position = self.command('?')
@@ -182,6 +202,7 @@ class Pump():
         """Convert volume from uL (float) to pump position (int, 0-48000).
 
            If the volume is too big or too small, returns the max or min volume.
+
         """
 
         if volume > self.max_volume:
@@ -199,6 +220,7 @@ class Pump():
 
     def uLperMin_to_sps(self, speed):
         """Convert flowrate from uL per min. (float) to steps per second (int).
+        
         """
 
         sps = round(speed / self.min_volume / 60)
