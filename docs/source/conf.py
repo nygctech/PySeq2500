@@ -26,6 +26,8 @@ author = 'Kunal Pandit'
 # The full version, including alpha/beta/rc tags
 release = '0.4'
 
+# Flag to make index.rst the masterfile
+master_doc = 'index'
 
 # -- General configuration ---------------------------------------------------
 
