@@ -151,7 +151,7 @@ def setup_flowcells(first_line):
 
        **Returns:**
        - dict: Dictionary of flowcell position keys with flowcell object values.
-       
+
     """
 
     experiment = config['experiment']
@@ -166,20 +166,20 @@ def setup_flowcells(first_line):
         if AorB not in flowcells.keys():
             flowcells[AorB] = flowcell(AorB)
             flowcells[AorB].recipe_path = experiment['recipe path']
+            flowcells[AorB].first_line = first_line
             flowcells[AorB].flush_volume = int(method.get('flush volume',
                 fallback=2000))
             flowcells[AorB].pump_speed['flush'] = int(method.get('flush speed',
                 fallback=700))
             flowcells[AorB].pump_speed['reagent'] = int(method.get(
                 'reagent speed', fallback=40))
-            flowcells[AorB].first_line = first_line
             flowcells[AorB].total_cycles = int(config.get('experiment',
                 'cycles'))
 
         # Add section to flowcell
         if sect_name in flowcells[AorB].sections:
-            print(sect_name + ' already on flowcell ' + AorB)
-            print('check config file for section name duplications')
+            warnings.warn(sect_name + ' already on flowcell ' + AorB)
+            warnings.warn('Config file error: section name duplications')
             sys.exit()
         else:
             coord = coord.split(',')
@@ -189,7 +189,7 @@ def setup_flowcells(first_line):
                 try:
                     flowcells[AorB].sections[sect_name].append(float(coord[i]))
                 except:
-                    print(sect_name +
+                    warnings.warn(sect_name +
                         ' does not have a position, check config file')
                     sys.exit()
 
@@ -658,7 +658,7 @@ def IMAG(fc, n_Zplanes):
     """Image the flowcell at a number of z planes.
 
        For each section on the flowcell, the stage is first positioned
-       to the center of the section find the optimal focus. Then if no
+       to the center of the section to find the optimal focus. Then if no
        optical settings are listed, the optimal filter sets are found.
        Next, the stage is repositioned to scan the entire section and
        image the specified number of z planes.
@@ -702,18 +702,17 @@ def IMAG(fc, n_Zplanes):
 
         # Find/Move to focal obj stage position,
         # Edited to find focus every cycle change -1 to None if only want initial cycle
-        if fc.stage[section]['obj pos'] is not -1:
-            logger.log(21, AorB+'::Finding fine focus of ' + str(section))
+        logger.log(21, AorB+'::Finding fine focus of ' + str(section))
 
-            hs.y.move(y_center)
-            hs.x.move(x_center)
-            hs.optics.move_ex(1, 0.6)
-            hs.optics.move_ex(2, 0.9)
-            hs.optics.move_em_in(True)
-            Z,C = hs.fine_focus()
-            fc.stage[section]['obj pos'] = hs.obj.position
-        else:
-            hs.obj.move(fc.stage[section]['obj pos'])
+        hs.y.move(y_center)
+        hs.x.move(x_center)
+        focus_filter_1 = method.get('focus filter 1', fallback = 1.6)
+        focus_filter_2 = method.get('focus filter 2', fallback = 2.0)
+        hs.optics.move_ex(1, focus_filter_1)
+        hs.optics.move_ex(2, focus_filter_2)
+        hs.optics.move_em_in(True)
+        Z,C = hs.fine_focus()
+        fc.stage[section]['obj pos'] = hs.obj.position
 
         # Optimize filter
         logger.log(21, AorB+'::Finding optimal filter')
@@ -726,8 +725,7 @@ def IMAG(fc, n_Zplanes):
         fc.ex_filter1 = opt_filter[0]
         fc.ex_filter2 = opt_filter[1]
 
-
-
+        # Calculate objective positions to image
         if n_Zplanes > 1:
             obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes/2)
             #obj_step = hs.nyquist_obj
@@ -883,7 +881,7 @@ def integrate_fc_and_hs(port_dict):
             fc.stage[section]['y initial'] = stage[3]
             fc.stage[section]['n tiles'] = stage[4]
             fc.stage[section]['n frames'] = stage[5]
-            fc.stage[section]['z pos'] = z_pos.get(section,fallback=None)
+            fc.stage[section]['z pos'] = method.get('z position',fallback=None) # Z stage position for imaging
             fc.stage[section]['obj pos'] = obj_pos.get(section,fallback=None)
 
 
@@ -912,7 +910,7 @@ def get_config(args):
     if os.path.isfile(args['config']):
          config.read(args['config'])
     else:
-        print('Configuration file does not exist')
+        warnings.warn('Configuration file does not exist')
         sys.exit()
     # Set output path
     config['experiment']['save path'] = args['output']
