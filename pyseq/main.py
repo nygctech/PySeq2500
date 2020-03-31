@@ -293,9 +293,10 @@ def initialize_hs():
     # Set line bundle height
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
 
-    # Set laser powe
-    hs.l1.set_power(int(method.get('laser power', fallback = 100)))
-    hs.l2.set_power(int(method.get('laser power', fallback = 100)))
+    # Set laser power
+    laser_power = int(method.get('laser power', fallback = 100))
+    for color in hs.lasers.keys()
+        hs.laser[color].set_power(laser_power)
 
     # Assign output directory
     save_path = experiment['save path']
@@ -539,26 +540,17 @@ def check_filters(hs):
         laser, cycle = item[0].split(' ')
 
         # Check laser, cycle, and filter are valid
-        if laser is hs.l1.color:
-            if filter in hs.optics.ex_dict[0]:
-                if cycle in hs.optics.cycle_dict[0]:
-                    hs.optics.cycle_dict[0][cycle] = filter
+        colors = hs.lasers.keys()
+        if lasers in colors:
+            if filter in hs.optics.ex_dict[laser]:
+                if cycle not in hs.optics.cycle_dict[laser]:
+                    hs.optics.cycle_dict[laser][cycle] = filter
                 else:
                     warnings.warn('Experiment config error in filter section. '+
-                    'Duplicated cycle for ' + hs.l1.color + ' laser')
+                    'Duplicated cycle for ' + laser + ' laser')
             else:
                 warnings.warn('Experiment config error in filter section. ' +
-                'Invalid filter for ' + hs.l1.color + ' laser')
-        elif laser is hs.l2.color:
-            if filter in hs.optics.ex_dict[1]:
-                if cycle in hs.optics.cycle_dict[1]:
-                    hs.optics.cycle_dict[1][cycle] = filter
-                else:
-                    warnings.warn('Experiment config error in filter section. '+
-                    'Duplicated cycle for ' + hs.l2.color + ' laser')
-            else:
-                warnings.warn('Experiment config error in filter section. ' +
-                'Invalid filter for ' + hs.l2.color + ' laser')
+                'Invalid filter for ' + laser + ' laser')
         else:
             warnings.warn('Experiment config error: invalid laser')
 
@@ -566,12 +558,14 @@ def check_filters(hs):
         method = config.get('experiment', 'method')
         method = config[method]
         for c in range(int(config['experiment','cycles'])):
-            if c not in hs.optics.cycle_dict[0]:
-                hs.optics.cycle_dict[0][c] = method.get('default filter 1',
-                                                         fallback = None)
-            if c not in hs.optics.cycle_dict[1]:
-                hs.optics.cycle_dict[1][c] = method.get('default filter 2',
-                                                         fallback = None)
+            if c not in hs.optics.cycle_dict[colors[0]]:
+                hs.optics.cycle_dict[colors[0]][c] = method.get(
+                                                    'default filter 1',
+                                                    fallback = None)
+            if c not in hs.optics.cycle_dict[colors[1]]:
+                hs.optics.cycle_dict[colors[1]][c] = method.get(
+                                                    'default filter 2',
+                                                    fallback = None)
 
 ##########################################################
 ## Flush Lines ###########################################
@@ -732,7 +726,7 @@ def IMAG(fc, n_Zplanes):
     cycle = str(fc.cycle)
     fc.imaging = True
     start = time.time()
-
+    colors = hs.lasers.keys()
 
     for section in fc.sections:
         x_center = fc.stage[section]['x center']
@@ -748,8 +742,8 @@ def IMAG(fc, n_Zplanes):
 
             hs.y.move(y_center)
             hs.x.move(x_center)
-            hs.optics.move_ex(1, 0.6)
-            hs.optics.move_ex(2, 0.9)
+            hs.optics.move_ex(colors[0], 0.6)
+            hs.optics.move_ex(colors[1], 0.9)
             hs.optics.move_em_in(True)
             Z,C = hs.rough_focus()
             fc.stage[section]['z pos'] = hs.z.position[:]
@@ -763,33 +757,25 @@ def IMAG(fc, n_Zplanes):
         hs.x.move(x_center)
         focus_filter_1 = method.get('focus filter 1', fallback = 1.6)
         focus_filter_2 = method.get('focus filter 2', fallback = 2.0)
-        hs.optics.move_ex(1, focus_filter_1)
-        hs.optics.move_ex(2, focus_filter_2)
+        hs.optics.move_ex(colors[0], focus_filter_1)
+        hs.optics.move_ex(colors[0], focus_filter_2)
         hs.optics.move_em_in(True)
         Z,C = hs.fine_focus()
         fc.stage[section]['obj pos'] = hs.obj.position
 
-        # Position excitation filter for laser 1
-        if hs.optics.cycle_dict[0][fc.cycle] is None:
-            logger.log(21, AorB+'::Finding optimal filter for ' + hs.l1.color +
-                           ' laser')
+        # Position excitation filtes for lasers
+        for col in colors:
+            # Find optimal filter if filter not specified
+            if hs.optics.cycle_dict[col][fc.cycle] is None:
+                logger.log(21, AorB+'::Finding optimal filter for ' +
+                               col + ' laser')
             hs.y.move(y_center)
             hs.x.move(x_center)
             opt_filter = hs.optimize_filter(32)                                 #Find optimal filter set on 32 frames on image
-            hs.optics.move_ex(1, opt_filter[0])
+            hs.optics.move_ex(col, opt_filter[0])
         else:
-            hs.optics.move_ex(1, hs.optics.cycle_dict[0][fc.cycle])             #Move to filter specifed for current cycle
-        # Position excitation filter for laser 2
-        if hs.optics.cycle_dict[1][fc.cycle] is None:
-            logger.log(21, AorB+'::Finding optimal filter for ' + hs.l2.color +
-                           ' laser')
-            hs.y.move(y_center)
-            hs.x.move(x_center)
-            opt_filter = hs.optimize_filter(32)                                 #Find optimal filter set on 32 frames on image
-            hs.optics.move_ex(2, opt_filter[1])
-        else:
-            hs.optics.move_ex(2, hs.optics.cycle_dict[1][fc.cycle])             #Move to filter specifed for current cycle
-        # Position emission filter
+            hs.optics.move_ex(col, hs.optics.cycle_dict[col][fc.cycle])         #Move to filter specifed for current cycle
+
         hs.optics.move_em_in(True)
 
         # Calculate objective positions to image

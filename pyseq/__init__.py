@@ -92,8 +92,8 @@ class HiSeq():
          for flowcell A.
        - v24['B'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
          for flowcell B.
-       - l1 (laser): Illumina HiSeq 2500 :: Laser for 532 nm (green) line.
-       - l2 (laser): Illumina HiSeq 2500 :: Laser for 660 nm (red) line.
+       - lasers['green'] (laser): Illumina HiSeq 2500 :: Laser for 532 nm line.
+       - lasers['red'] (laser): Illumina HiSeq 2500 :: Laser for 660 nm line.
        - f (fpga): Illumina HiSeq 2500 :: FPGA.
        - optics (optics): Illumina HiSeq 2500 :: Optics.
        - cam1 (camera): Camera for 558 nm and 687 nm emissions.
@@ -126,8 +126,10 @@ class HiSeq():
         self.y = ystage.Ystage(yCOM, logger = Logger)
         self.f = fpga.FPGA(fpgaCOM[0], fpgaCOM[1], logger = Logger)
         self.x = xstage.Xstage(xCOM, logger = Logger)
-        self.l1 = laser.Laser(laser1COM, color = 'green', logger = Logger)
-        self.l2 = laser.Laser(laser2COM, color = 'red', logger = Logger)
+        self.lasers = {'green': laser.Laser(laser1COM, color = 'green',
+                                            logger = Logger),
+                      'red': laser.Laser(laser2COM, color = 'red',
+                                         logger = Logger)}
         self.z = zstage.Zstage(self.f.serial_port, logger = Logger)
         self.obj = objstage.OBJstage(self.f.serial_port, logger = Logger)
         self.optics = optics.Optics(self.f.serial_port, logger = Logger)
@@ -213,8 +215,8 @@ class HiSeq():
         self.x.initialize() # Do it twice to make sure its centered!
         self.y.initialize()
         print('Initializing lasers')
-        self.l1.initialize()
-        self.l2.initialize()
+        self.lasers['green'].initialize()
+        self.lasers['red'].initialize()
         print('Initializing pumps and valves')
         self.p['A'].initialize()
         self.p['B'].initialize()
@@ -265,8 +267,8 @@ class HiSeq():
                      'frames ' + str(n_frames) + '\n' +
                      'bundle ' + str(self.bundle_height) + '\n' +
                      'TDIY ' + str(self.f.read_position()) +  '\n' +
-                     'laser1 ' + str(self.l1.get_power()) + '\n' +
-                     'laser2 ' + str(self.l2.get_power()) + '\n' +
+                     'laser1 ' + str(self.lasers['green'].get_power()) + '\n' +
+                     'laser2 ' + str(self.lasers['red'].get_power()) + '\n' +
                      'ex filters ' + str(self.optics.ex) + '\n' +
                      'em filter in ' + str(self.optics.em_in)
                      )
@@ -300,8 +302,6 @@ class HiSeq():
         x = self.x
         obj = self.obj
         f = self.f
-        l1 = self.l1
-        l2 = self.l2
         op = self.optics
         cam1 = self.cam1
         cam2 = self.cam2
