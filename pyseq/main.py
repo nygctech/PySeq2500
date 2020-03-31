@@ -659,9 +659,9 @@ def IMAG(fc, n_Zplanes):
     for section in fc.sections:
         x_center = fc.stage[section]['x center']
         y_center = fc.stage[section]['y center']
-        x_pos = fc.stage[section]['x initial']
-        y_pos = fc.stage[section]['y initial']
-        n_scans = fc.stage[section]['n scans']
+        x_initial = fc.stage[section]['x initial']
+        y_initial = fc.stage[section]['y initial']
+        n_tiles = fc.stage[section]['n tiles']
         n_frames = fc.stage[section]['n frames']
 
         # Find/Move to focal z stage position
@@ -708,22 +708,23 @@ def IMAG(fc, n_Zplanes):
 
         if n_Zplanes > 1:
             obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes/2)
-            obj_step = hs.nyquist_obj
-            obj_stop = int(hs.obj.position + hs.nyquist_obj*n_Zplanes/2)
+            #obj_step = hs.nyquist_obj
+            #obj_stop = int(hs.obj.position + hs.nyquist_obj*n_Zplanes/2)
         else:
             obj_start = hs.obj.position
-            obj_step = 1000
-            obj_stop = hs.obj.position + 10
+            #obj_step = 1000
+            #obj_stop = hs.obj.position + 10
 
         image_name = AorB
         image_name = image_name + '_' + str(section)
         image_name = image_name + '_' + 'c' + cycle
 
         # Scan section on flowcell
+        hs.y.move(y_initial)
+        hs.x.move(x_initial)
+        hs.obj.move(obj_start)
         logger.log(21, AorB + '::cycle'+cycle+'::Imaging ' + str(section))
-        scan_time = hs.scan(x_pos, y_pos,
-                            obj_start, obj_stop, obj_step,
-                            n_scans, n_frames, image_name)
+        scan_time = hs.scan(n_tiles, n_Zframes, n_frames, image_name)
         scan_time = str(int(scan_time/60))
         logger.log(21, AorB+'::cycle'+cycle+'::Took ' + scan_time +
                        ' minutes ' + 'imaging ' + str(section))
@@ -857,7 +858,7 @@ def integrate_fc_and_hs(port_dict):
             fc.stage[section]['y center'] = stage[1]
             fc.stage[section]['x initial'] = stage[2]
             fc.stage[section]['y initial'] = stage[3]
-            fc.stage[section]['n scans'] = stage[4]
+            fc.stage[section]['n tiles'] = stage[4]
             fc.stage[section]['n frames'] = stage[5]
             fc.stage[section]['z pos'] = z_pos.get(section,fallback=None)
             fc.stage[section]['obj pos'] = obj_pos.get(section,fallback=None)

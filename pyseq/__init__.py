@@ -15,7 +15,7 @@ Examples:
     #Specify directory to save images in
     hs.image_path = 'C:\\Users\\Public\\HiSeqImages\\'
     #Get stage positioning and imaging details for section on flowcell A
-    [xi, yi, xc, yx, n_scans, n_frames] = hs.position['A', 15.5, 45, 10.5, 35]
+    [xi, yi, xc, yx, n_tiles, n_frames] = hs.position['A', 15.5, 45, 10.5, 35]
     #Move to center of section
     hs.x.move(xc)
     12000
@@ -38,13 +38,11 @@ Examples:
     10000
     hs.y.move(yi)
     True
-    hs.scan(xi, yi, hs.obj.position, hs.obj.position+1, 10, n_scans, n_frames, image_name='FirstHiSeqScan')
+    hs.scan(n_scans, 1, n_frames, image_name='FirstHiSeqScan')
 
 
 TODO:
     - Double check gains and velocity are set in take_picture
-    - Simplify zstack
-    - Simplify scan
     - Filter score without background substraction
     - New fine focus routine
     - Fix positioning details in example
@@ -104,7 +102,7 @@ class HiSeq():
        image_path (path): Directory to store images in.
        log_path (path): Directory to write log files in.
        bg_path (path): Directory to background calibration images.
-       scan_width (float): Width of field of view in mm.
+       tile_width (float): Width of field of view in mm.
        resolution (float): Scale of pixels in microns per pixel.
        bundle_height: Line scan bundle height for TDI imaging.
        nyquist_obj: Nyquist sampling distance of z plane in objective steps.
@@ -153,7 +151,7 @@ class HiSeq():
         self.max_distance = self.z.max_z/self.z.spum + self.obj.max_z/self.obj.spum - self.fc_height       # WILL REMOVE IN FUTURE
         self.fc_origin = {'A':[17571,-180000],
                           'B':[43310,-180000]}
-        self.scan_width = 0.769                                                 #mm
+        self.line_width = 0.769                                                 #mm
         self.resolution = 0.375                                                 #um/px
         self.bundle_height = 128.0
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
@@ -513,19 +511,33 @@ class HiSeq():
         self.y.move(self.y.min_y)
 
 
-    def zstack(self, n_Zplanes, n_frames, bundle):
+    def zstack(self, n_Zplanes, n_frames, bundle=128, image_name=None):
         """Take a zstack/tile of images.
 
-           Takes images from incremental z planes at the same x&y position.
-           Parameters:
-           WILL FILL IN LATER AFTER SIMPLIFYING
+           Takes images from all channels at incremental z planes at the same
+           x&y position.
+
+           **Parameters:**
+           - n_Zplanes (int): Number of Z planes to image.
+           - n_frames (int): Number of frames to image.
+           - bundle (int): Line bundle height of the images, the default is 128.
+           - image_name (str): Common name for images, the default is a time
+             stamp.
+
+           **Returns:**
+           - int: Time it took to do zstack in seconds.
+
         """
 
-        exp_date = time.strftime('%Y%m%d_%H%M%S')
+        if image_name is None:
+            image_name = time.strftime('%Y%m%d_%H%M%S')
+
         y_pos = self.y.position
 
+        start = time.time()
+
         for n in range(n_Zplanes):
-            image_name = exp_date + '_' + str(obj_pos)
+            image_name = image_name + '_' + str(self.obj.position)
             image_complete = False
 
             while not image_complete:
@@ -534,44 +546,43 @@ class HiSeq():
                     self.obj.move(self.obj.position + self.nyquist_obj)
                     self.y.move(y_pos)
                 else:
-                    warnings.warn('Image not take')
+                    warnings.warn('Image not taken')
                     # Reset stage and FPGA
                     self.reset_stage()
                     self.y.move(y_pos)
 
-    def scan(self, x_pos, y_pos, obj_start, obj_stop, obj_step, n_scans, n_frames, image_name=None):
+         stop = time.time()
+
+         return stop-start
+
+    def scan(self, n_tiles, n_Zplanes, n_frames, bundle=128, image_name=None):
         """Image a volume.
 
            Images a zstack at incremental x positions.
            The length of the image (y dimension) remains constant.
 
-           Parameters:
-           WILL FILL IN AFTER SIMPLIFYING.
+           **Parameters:**
+           - n_tiles (int): Number of x positions to image.
+           - n_Zplanes (int): Number of Z planes to image.
+           - n_frames (int): Number of frames to image.
+           - bundle (int): Line bundle height of the images, the default is 128.
+           - image_name (str): Common name for images, the default is a time
+             stamp.
 
-           Returns:
-           int: Time it took to do scan.
+           **Returns:**
+           - int: Time it took to do scan in seconds.
+
         """
+
         if image_name is None:
             image_name = time.strftime('%Y%m%d_%H%M%S')
 
         start = time.time()
-        self.y.move(y_pos)
-        for n in range(n_scans):
-            self.x.move(x_pos)
-            for obj_pos in range(obj_start, obj_stop+1, obj_step):
-                self.obj.move(obj_pos)
-                f_img_name = image_name + '_x' + str(x_pos) + '_o' + str(obj_pos)
-                image_complete = False
 
-                while not image_complete:
-                    image_complete = self.take_picture(n_frames, 128, f_img_name)
-                    self.y.move(y_pos)
-                    if not image_complete:
-                        print('Image not taken')
-                        self.reset_stage()
-                        self.y.move(y_pos)
-
-            x_pos = self.x.position + 315
+        for n_X in range(n_tiles):
+            image_name = image_name + '_' + str(self.x.position)
+            stack_time = self.zstack(n_Zplanes, n_frames, bundle, image_name)   # Take a zstack
+            self.x.move(self.x.position + 315)                                  # Move to next x position
 
         stop = time.time()
 
@@ -784,8 +795,8 @@ class HiSeq():
            1      y_center   The ystage center position of the section.
            2      x_initial  Initial xstage position to scan the section.
            3      y_initial  Initial ystage position to scan the section.
-           4      n_scans    Number of scans to image the entire section.
-           5      n_frames   Number of frames to image the entire section.
+           4      n_tiles    Number of tiles to scan the entire section.
+           5      n_frames   Number of frames to scan the entire section.
 
            Parameters:
            AorB (str): Flowcell A or B.
@@ -801,7 +812,7 @@ class HiSeq():
         """
 
         # Number of scans
-        n_scans = ceil((LLx - URx)/self.scan_width)
+        n_tiles = ceil((LLx - URx)/self.tile_width)
 
         # X center of scan
         x_center = self.fc_origin[AorB][0]
@@ -810,7 +821,7 @@ class HiSeq():
         x_center = int(x_center)
 
         # initial X of scan
-        x_initial = x_center - n_scans*self.scan_width*1000*self.x.spum/2
+        x_initial = x_center - n_tiles*self.tile_width*1000*self.x.spum/2
         x_initial = int(x_initial)
 
         # initial Y of scan
@@ -826,11 +837,11 @@ class HiSeq():
         n_frames = ceil(n_frames + 10)
 
         # Adjust x and y center so focus will image (32 frames, 128 bundle) in center of section
-        x_center -= int(self.scan_width*1000*self.x.spum/2)
+        x_center -= int(self.tile_width*1000*self.x.spum/2)
         y_center += int(32*128/2*self.resolution*self.y.spum)
 
 
-        return [x_center, y_center, x_initial, y_initial, n_scans, n_frames]
+        return [x_center, y_center, x_initial, y_initial, n_tiles, n_frames]
 
 
     def optimize_filter(self, nframes, nbins = 256, sat_threshold = 0.0005, signal_threshold = 20):
