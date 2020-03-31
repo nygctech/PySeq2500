@@ -1,6 +1,8 @@
 # PySeq2500
 Control an Illumina HiSeq 2500 System Interactively
 
+[Read the Docs](https://pyseq2500.readthedocs.io/en/entrypoint/)
+
 # Initializing HiSeq
 
 ```python
