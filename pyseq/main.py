@@ -281,6 +281,10 @@ def initialize_hs():
     experiment = config['experiment']
     method = config[experiment['method']]
 
+    # Set line bundle height
+    hs.bundle_height = int(method.get('bundle height', fallback = 128))
+    
+    # Set laser powe
     hs.l1.set_power(int(method.get('laser power', fallback = 100)))
     hs.l2.set_power(int(method.get('laser power', fallback = 100)))
 
@@ -294,10 +298,12 @@ def initialize_hs():
     image_path = join(save_path, experiment['image path'])
     if not os.path.exists(image_path):
         os.mkdir(image_path)
+    hs.image_path = image_path
     # Assign log directory
     log_path = join(save_path, experiment['log path'])
     if not os.path.exists(log_path):
         os.mkdir(log_path)
+    hs.log_path = log_path
 
     return hs
 

@@ -104,7 +104,7 @@ class HiSeq():
        bg_path (path): Directory to background calibration images.
        tile_width (float): Width of field of view in mm.
        resolution (float): Scale of pixels in microns per pixel.
-       bundle_height: Line scan bundle height for TDI imaging.
+       bundle_height: Line bundle height for TDI imaging.
        nyquist_obj: Nyquist sampling distance of z plane in objective steps.
     """
 
@@ -242,7 +242,7 @@ class HiSeq():
         print('HiSeq initialized!')
 
 
-    def write_metadata(self, n_frames, bundle, image_name):
+    def write_metadata(self, n_frames, image_name):
         """Write image metadata to file.
 
            Parameters:
@@ -263,7 +263,7 @@ class HiSeq():
                      'z ' + str(self.z.position) + '\n' +
                      'obj ' + str(self.obj.position) + '\n' +
                      'frames ' + str(n_frames) + '\n' +
-                     'bundle ' + str(bundle) + '\n' +
+                     'bundle ' + str(self.bundle_height) + '\n' +
                      'TDIY ' + str(self.f.read_position()) +  '\n' +
                      'laser1 ' + str(self.l1.get_power()) + '\n' +
                      'laser2 ' + str(self.l2.get_power()) + '\n' +
@@ -275,26 +275,25 @@ class HiSeq():
         return meta_f
 
 
-    def take_picture(self, n_frames, bundle = 128, image_name = None):
+    def take_picture(self, n_frames, image_name = None):
         """Take a picture using all the cameras and save as a tiff.
 
            The section to be imaged should already be in position and
            optical settings should already be set.
-           The final size of the image is 2048 x n_frames*bundle px in size,
-           because the total number of pixels in the y dimension =
-           n_frames*bundle. The images and metadata are stored in the
-           self.image_path directory.
 
-           Parameters:
-           n_frames (int): Number of frames in the images.
-           bundle (int, optional): Line bundle height of the images, the
-                default is 128.
-           image_name (str, optional): Common name of the images, the default
-                is a time stamp.
+           The final size of the image is 2048 x n_frames*self.bundle_height px
+           in size. The images and metadata are stored in the self.image_path
+           directory.
 
-           Returns:
-           bool: True if all of the frames of the image were taken, False if
-                there were incomplete frames.
+           **Parameters:**
+           - n_frames (int): Number of frames in the images.
+           - image_name (str, optional): Common name of the images, the default
+             is a time stamp.
+
+           **Returns:**
+           - bool: True if all of the frames of the image were taken, False if
+             there were incomplete frames.
+
         """
 
         y = self.y
@@ -333,8 +332,10 @@ class HiSeq():
             cam2.stopAcquisition()
             cam2.freeFrames()
         # Set bundle height
-        cam1.setPropertyValue("sensor_mode_line_bundle_height", bundle)
-        cam2.setPropertyValue("sensor_mode_line_bundle_height", bundle)
+        cam1.setPropertyValue("sensor_mode_line_bundle_height",
+                               self.bundle_height)
+        cam2.setPropertyValue("sensor_mode_line_bundle_height",
+                               self.bundle_height)
         cam1.captureSetup()
         cam2.captureSetup()
         # Allocate memory for image data
@@ -346,7 +347,7 @@ class HiSeq():
         #Arm stage triggers
         #
         #TODO check trigger y values are reasonable
-        n_triggers = n_frames * bundle
+        n_triggers = n_frames * self.bundle_height
         end_y_pos = y_pos - n_triggers*75
         f.TDIYPOS(y_pos)
         f.TDIYARM3(n_triggers, y_pos)
@@ -354,7 +355,7 @@ class HiSeq():
 
 
 
-        meta_f = self.write_metadata(n_frames, bundle, image_name)
+        meta_f = self.write_metadata(n_frames, image_name)
 
         ################################
         ### Start Imaging ##############
@@ -511,7 +512,7 @@ class HiSeq():
         self.y.move(self.y.min_y)
 
 
-    def zstack(self, n_Zplanes, n_frames, bundle=128, image_name=None):
+    def zstack(self, n_Zplanes, n_frames, image_name=None):
         """Take a zstack/tile of images.
 
            Takes images from all channels at incremental z planes at the same
@@ -520,7 +521,6 @@ class HiSeq():
            **Parameters:**
            - n_Zplanes (int): Number of Z planes to image.
            - n_frames (int): Number of frames to image.
-           - bundle (int): Line bundle height of the images, the default is 128.
            - image_name (str): Common name for images, the default is a time
              stamp.
 
@@ -541,7 +541,7 @@ class HiSeq():
             image_complete = False
 
             while not image_complete:
-                image_complete = self.take_picture(n_frames, bundle, image_name)
+                image_complete = self.take_picture(n_frames, image_name)
                 if image_complete:
                     self.obj.move(self.obj.position + self.nyquist_obj)
                     self.y.move(y_pos)
@@ -555,7 +555,7 @@ class HiSeq():
 
          return stop-start
 
-    def scan(self, n_tiles, n_Zplanes, n_frames, bundle=128, image_name=None):
+    def scan(self, n_tiles, n_Zplanes, n_frames, image_name=None):
         """Image a volume.
 
            Images a zstack at incremental x positions.
@@ -565,7 +565,6 @@ class HiSeq():
            - n_tiles (int): Number of x positions to image.
            - n_Zplanes (int): Number of Z planes to image.
            - n_frames (int): Number of frames to image.
-           - bundle (int): Line bundle height of the images, the default is 128.
            - image_name (str): Common name for images, the default is a time
              stamp.
 
@@ -581,7 +580,7 @@ class HiSeq():
 
         for n_X in range(n_tiles):
             image_name = image_name + '_' + str(self.x.position)
-            stack_time = self.zstack(n_Zplanes, n_frames, bundle, image_name)   # Take a zstack
+            stack_time = self.zstack(n_Zplanes, n_frames, image_name)           # Take a zstack
             self.x.move(self.x.position + 315)                                  # Move to next x position
 
         stop = time.time()
@@ -838,7 +837,7 @@ class HiSeq():
 
         # Adjust x and y center so focus will image (32 frames, 128 bundle) in center of section
         x_center -= int(self.tile_width*1000*self.x.spum/2)
-        y_center += int(32*128/2*self.resolution*self.y.spum)
+        y_center += int(32*self.bundle_height/2*self.resolution*self.y.spum)
 
 
         return [x_center, y_center, x_initial, y_initial, n_tiles, n_frames]
