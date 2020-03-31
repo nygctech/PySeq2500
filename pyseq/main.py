@@ -1,4 +1,8 @@
 #!/usr/bin/python
+"""
+TODO:
+
+"""
 
 import time
 import logging
@@ -19,40 +23,42 @@ from . import args
 class flowcell():
     """HiSeq 2500 System :: Flowcell
 
-       Attributes:
-       position (str): Flowcell is at either position A (left slot )
-            or B (right slot).
-       recipe_path (path): Path to the recipe.
-       recipe (file): File handle for the recipe.
-       first_line (int): Line number for the recipe to start from on the
-            initial cycle.
-       cycle (int): The current cycle.
-       total_cycles (int): Total number of the cycles for the experiment.
-       history ([[int,],[str,],[str,]]): Timeline of flowcells events, the
-            1st column is the timestamp, the 2nd column is the event, and the
-            3rd column is an event specific detail.
-       imaging (bool): True if the flowcell is being imaged, False if the
-            flowcell is not being imaged.
-       sections (dict): Dictionary of section names keys and coordinate
-            positions of the sections on the flowcell values.
-       stage (dict): Dictionary of section names keys and stage positioning
-            and imaging details of the sections on the flowcell values.
-       thread (int): Thread id of the current event on the flowcell.
-       signal_event (str): Event that signals the other flowcell to continue
-       wait_thread (threading.Event()): Blocks other flowcell until current
-            flowcell reaches signal event.
-       waits_for (str): Flowcell A waits for flowcell B and vice versa.
-       pump_speed (dict): Dictionary of pump scenario keys and pump speed
-            values.
-       flush_volume (int): Volume in uL to flush reagent lines.
+       **Attributes:**
+       - position (str): Flowcell is at either position A (left slot )
+         or B (right slot).
+       - recipe_path (path): Path to the recipe.
+       - recipe (file): File handle for the recipe.
+       - first_line (int): Line number for the recipe to start from on the
+         initial cycle.
+       - cycle (int): The current cycle.
+       - total_cycles (int): Total number of the cycles for the experiment.
+       - history ([[int,],[str,],[str,]]): Timeline of flowcells events, the
+         1st column is the timestamp, the 2nd column is the event, and the
+         3rd column is an event specific detail.
+       - imaging (bool): True if the flowcell is being imaged, False if the
+         flowcell is not being imaged.
+       - sections (dict): Dictionary of section names keys and coordinate
+         positions of the sections on the flowcell values.
+       - stage (dict): Dictionary of section names keys and stage positioning
+         and imaging details of the sections on the flowcell values.
+       - thread (int): Thread id of the current event on the flowcell.
+       - signal_event (str): Event that signals the other flowcell to continue
+       - wait_thread (threading.Event()): Blocks other flowcell until current
+         flowcell reaches signal event.
+       - waits_for (str): Flowcell A waits for flowcell B and vice versa.
+       - pump_speed (dict): Dictionary of pump scenario keys and pump speed
+         values.
+       - flush_volume (int): Volume in uL to flush reagent lines.
+
     """
 
     def __init__(self, position):
         """Constructor for flowcells
 
-           Parameters:
-           position (str): Flowcell is at either position A (left slot) or
-                B (right slot).
+           **Parameters:**
+           - position (str): Flowcell is at either position A (left slot) or
+             B (right slot).
+
         """
 
         self.recipe_path = None
@@ -81,14 +87,15 @@ class flowcell():
     def addEvent(self, event, command):
         """Record history of events on flow cell.
 
-           Parameters:
-           instrument (str): Type of event can be valv, pump, hold, wait, or
-                imag.
-           command (str): Details specific to each event such as hold time,
-                buffer, event to wait for, z planes to image, or pump volume.
+           **Parameters:**
+           - instrument (str): Type of event can be valv, pump, hold, wait, or
+             imag.
+           - command (str): Details specific to each event such as hold time,
+             buffer, event to wait for, z planes to image, or pump volume.
 
-           Returns:
-           int: A time stamp of the last event.
+           **Returns:**
+           - int: A time stamp of the last event.
+
         """
 
         self.history[0].append(time.time())                                     # time stamp
@@ -138,12 +145,13 @@ class flowcell():
 def setup_flowcells(first_line):
     """Read configuration file and create flowcells.
 
-       Parameters:
-       first_line (int): Line number for the recipe to start from on the
-            initial cycle.
+       **Parameters:**
+       - first_line (int): Line number for the recipe to start from on the
+         initial cycle.
 
-       Returns:
-       dict: Dictionary of flowcell position keys with flowcell object values.
+       **Returns:**
+       - dict: Dictionary of flowcell position keys with flowcell object values.
+       
     """
 
     experiment = config['experiment']
@@ -205,7 +213,7 @@ def setup_flowcells(first_line):
 ## Parse lines from recipe ###############################
 ##########################################################
 def parse_line(line):
-    """Parse line and return event (str) and command (str)"""
+    """Parse line and return event (str) and command (str)."""
 
     comment_character = '#'
     delimiter = '\t'
@@ -270,7 +278,7 @@ def setup_logger():
 ## Setup HiSeq ###########################################
 ##########################################################
 def initialize_hs():
-    """Initialize the HiSeq and return the handle"""
+    """Initialize the HiSeq and return the handle."""
 
     import pyseq
 
@@ -283,7 +291,7 @@ def initialize_hs():
 
     # Set line bundle height
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
-    
+
     # Set laser powe
     hs.l1.set_power(int(method.get('laser power', fallback = 100)))
     hs.l2.set_power(int(method.get('laser power', fallback = 100)))
@@ -293,12 +301,17 @@ def initialize_hs():
     experiment_name = experiment['experiment name']
     save_path = join(experiment['save path'], experiment['experiment name'])
     if not os.path.exists(save_path):
-        os.mkdir(save_path)
+        try:
+            os.mkdir(save_path)
+        except:
+            warnings.warn('Experiment config error: Save path not valid.')
+
     # Assign image directory
     image_path = join(save_path, experiment['image path'])
     if not os.path.exists(image_path):
         os.mkdir(image_path)
     hs.image_path = image_path
+
     # Assign log directory
     log_path = join(save_path, experiment['log path'])
     if not os.path.exists(log_path):
@@ -314,9 +327,10 @@ def initialize_hs():
 def check_instructions():
     """Check the instructions for errors.
 
-       Returns:
-       first_line (int): Line number for the recipe to start from on the
-            initial cycle.
+       **Returns:**
+       - first_line (int): Line number for the recipe to start from on the
+       initial cycle.
+
     """
 
     method = config.get('experiment', 'method')
@@ -422,7 +436,7 @@ def check_instructions():
 ## Check Ports ###########################################
 ##########################################################
 def check_ports():
-    """Check for port errors and return a port dictionary"""
+    """Check for port errors and return a port dictionary."""
 
     method = config.get('experiment', 'method')
     method = config[method]
@@ -549,8 +563,9 @@ def do_nothing():
 def do_recipe(fc):
     """Do the next event in the recipe.
 
-       Parameters:
-       fc (flowcell): The current flowcell.
+       **Parameters:**
+       - fc (flowcell): The current flowcell.
+
     """
 
     AorB = fc.position
@@ -654,6 +669,7 @@ def IMAG(fc, n_Zplanes):
 
        Returns:
        int: Time in seconds to scan the entire section.
+
     """
 
     AorB = fc.position
@@ -751,6 +767,7 @@ def WAIT(AorB, event):
 
        Returns:
        int: Time in seconds the current flowcell was held.
+
     """
     signaling_fc = flowcells[AorB].waits_for
     cycle = str(flowcells[AorB].cycle)
@@ -876,12 +893,13 @@ def integrate_fc_and_hs(port_dict):
 def get_config(args):
     """Return the experiment config appended with the method config.
 
-       Parameters:
-       args (dict): Dictionary with the config path, the experiment name and
-            the output path to store images and logs.
+       **Parameters:**
+       - args (dict): Dictionary with the config path, the experiment name and
+         the output path to store images and logs.
 
-       Returns:
-       config: The experiment config appended with the method config.
+       **Returns:**
+       - config: The experiment config appended with the method config.
+
     """
     # Create config parser
     config = configparser.ConfigParser()
