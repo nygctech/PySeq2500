@@ -15,7 +15,7 @@ The following files are needed to automate a method on a HiSeq 2500 System.
 Start a method on a HiSeq2500 System.
 =====================================
 
-.. code-block::
+::
 
    pyseq -c experiment_config -n experiment_name -o output_path
 
@@ -26,14 +26,14 @@ Start a method on a HiSeq2500 System.
 See usage of pyseq.
 ===================
 
-.. code-block::
+::
 
    pyseq -h, --help
 
 See installed methods.
 ======================
 
-.. code-block::
+::
 
    pyseq -l
 
@@ -41,7 +41,7 @@ See a method config and method recipe.
 ======================================
 The example here is to see the config and recipe for a method called 4i.
 
-.. code-block::
+::
 
    pyseq -m 4i
 
@@ -52,7 +52,7 @@ Method Config
 1. [method]
 ===========
 
-.. code-block::
+::
 
    [4i]
    recipe = 4i_recipe.txt
@@ -85,7 +85,7 @@ The other keys are optional.
 2. [valve24]
 ============
 
-.. code-block::
+::
 
    [valve24]
    1 = PBS
@@ -108,7 +108,7 @@ Experiment Config
 1. [experiment]
 ===============
 
-.. code-block::
+::
 
    [experiment]
    method = 4i
@@ -124,7 +124,7 @@ experiment details (required, unless noted)
 2. [sections]
 =============
 
-.. code-block::
+::
 
    [sections]
    section1 = A: 15.5, 45, 10.5, 35
@@ -143,7 +143,7 @@ position of sections on flowcell (required). `section name = F: LLx, LLy, URx, U
 3. [valve24]
 ============
 
-.. code-block::
+::
 
    [valve24]
    6 = GFAP
@@ -158,7 +158,7 @@ Specify additional ports (optional). `N = name`
 4. [cycles]
 ===========
 
-.. code-block::
+::
 
    [cycles]
    1stab 1 = GFAP
@@ -181,9 +181,9 @@ There are 5 basic actions to build a recipe.
 
 1. **PORT**: *port name* (string)
 =================================
-Valve switches to specified port.
 
-.. code-block::
+Valve switches to specified port.
+::
 
    PORT: water
 
@@ -191,8 +191,7 @@ Valve switches to specified port.
 ==========================================
 
 Syringe pump draws specified volume through flowcell lane.
-
-.. code-block::
+::
 
    PUMP: 2000
 
@@ -201,8 +200,7 @@ Syringe pump draws specified volume through flowcell lane.
 ==========================================
 
 Recipe pauses for specified time.
-
-.. code-block::
+::
 
    HOLD: 10
 
@@ -211,8 +209,7 @@ Recipe pauses for specified time.
 
 Recipe waits to continue until the other flowcell is imaging (**IMAG**) or
 switches to *port name*. If there is only one flowcell, **WAIT** is ignored.
-
-.. code-block::
+::
 
    WAIT: water
 
@@ -221,8 +218,7 @@ switches to *port name*. If there is only one flowcell, **WAIT** is ignored.
 
 The flowcell is imaged at the specified number of z focal planes at the
 sections listed in the experiment config.
-
-.. code-block::
+::
 
    IMAG: 15
 
@@ -231,8 +227,7 @@ Example Recipe
 
 This recipe automates a method called 4i. In the 4i **method config** the
 **variable reagents** and **first port** are set as follows:
-
-.. code-block::
+::
 
    variable reagents = 1stab, 2ndab
    first port = blocking
@@ -241,8 +236,7 @@ The 4i method stains tissue sections by first blocking sections for 1 hr, then
 staining sections with 1stab, followed by 2ndab for 2 hrs. After the sections
 are imaged in imaging buffer, antibodies are eluted off the tissue sections, and
 are then ready for subsequent rounds of staining.
-
-.. code-block::
+::
 
    PORT:	water		#Move valve to water wash (port 2)
    PUMP:	2000		#Pump 2000 uL
