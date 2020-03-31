@@ -77,35 +77,35 @@ import warning
 class HiSeq():
     """Illumina HiSeq 2500 System
 
-       Attributes:
-       x (xstage): Illumina HiSeq 2500 :: Xstage.
-       y (ystage): Illumina HiSeq 2500 :: Ystage.
-       z (zstage): Illumina HiSeq 2500 :: Zstage.
-       obj (objstage): Illumina HiSeq 2500 :: Objective stage.
-       p['A'] (pump): Illumina HiSeq 2500 :: Pump for flowcell A.
-       p['B'] (pump): Illumina HiSeq 2500 :: Pump for flowcell B.
-       v10['A'] (valve): Illumina HiSeq 2500 :: Valve with 10 ports
-            for flowcell A.
-       v10['B'] (valve): Illumina HiSeq 2500 :: Valve with 10 ports
-            for flowcell B.
-       v24['A'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
-            for flowcell A.
-       v24['B'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
-            for flowcell B.
-       l1 (laser): Illumina HiSeq 2500 :: Laser for 532 nm (green) line.
-       l2 (laser): Illumina HiSeq 2500 :: Laser for 660 nm (red) line.
-       f (fpga): Illumina HiSeq 2500 :: FPGA.
-       optics (optics): Illumina HiSeq 2500 :: Optics.
-       cam1 (camera): Camera for 558 nm and 687 nm emissions.
-       cam2 (camera): Camera for 610 nm and 740 nm emissions.
-       logger (logger): Logger object to log communication with HiSeq.
-       image_path (path): Directory to store images in.
-       log_path (path): Directory to write log files in.
-       bg_path (path): Directory to background calibration images.
-       tile_width (float): Width of field of view in mm.
-       resolution (float): Scale of pixels in microns per pixel.
-       bundle_height: Line bundle height for TDI imaging.
-       nyquist_obj: Nyquist sampling distance of z plane in objective steps.
+       **Attributes:**
+       - x (xstage): Illumina HiSeq 2500 :: Xstage.
+       - y (ystage): Illumina HiSeq 2500 :: Ystage.
+       - z (zstage): Illumina HiSeq 2500 :: Zstage.
+       - obj (objstage): Illumina HiSeq 2500 :: Objective stage.
+       - p['A'] (pump): Illumina HiSeq 2500 :: Pump for flowcell A.
+       - p['B'] (pump): Illumina HiSeq 2500 :: Pump for flowcell B.
+       - v10['A'] (valve): Illumina HiSeq 2500 :: Valve with 10 ports
+         for flowcell A.
+       - v10['B'] (valve): Illumina HiSeq 2500 :: Valve with 10 ports
+         for flowcell B.
+       - v24['A'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
+         for flowcell A.
+       - v24['B'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
+         for flowcell B.
+       - l1 (laser): Illumina HiSeq 2500 :: Laser for 532 nm (green) line.
+       - l2 (laser): Illumina HiSeq 2500 :: Laser for 660 nm (red) line.
+       - f (fpga): Illumina HiSeq 2500 :: FPGA.
+       - optics (optics): Illumina HiSeq 2500 :: Optics.
+       - cam1 (camera): Camera for 558 nm and 687 nm emissions.
+       - cam2 (camera): Camera for 610 nm and 740 nm emissions.
+       - logger (logger): Logger object to log communication with HiSeq.
+       - image_path (path): Directory to store images in.
+       - log_path (path): Directory to write log files in.
+       - bg_path (path): Directory to background calibration images.
+       - tile_width (float): Width of field of view in mm.
+       - resolution (float): Scale of pixels in microns per pixel.
+       - bundle_height: Line bundle height for TDI imaging.
+       - nyquist_obj: Nyquist sampling distance of z plane in objective steps.
     """
 
 

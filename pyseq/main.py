@@ -282,12 +282,16 @@ def initialize_hs():
 
     import pyseq
 
+    experiment = config['experiment']
+    method = config[experiment['method']]
+
     hs = pyseq.HiSeq(logger)
+
+
     hs.initializeCams(logger)
     hs.initializeInstruments()
 
-    experiment = config['experiment']
-    method = config[experiment['method']]
+
 
     # Set line bundle height
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
