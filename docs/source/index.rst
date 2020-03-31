@@ -11,7 +11,7 @@ control, and liquid handling that can assay 2 flowcells at once.
 Installing
 ----------
 
-.. code-block::
+::
 
    pip3 install pyseq2500
 
@@ -19,7 +19,7 @@ Installing
 Command Line Quick Start
 ------------------------
 
-.. code-block::
+::
 
    pyseq -h
 
