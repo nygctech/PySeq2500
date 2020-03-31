@@ -3,23 +3,27 @@
 The FPGA arms triggers for the TDI cameras.
 The FPGA also controls the z stage, the objective stage, and the optics.
 
-Commands from www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking
+Commands from [hackteria](www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking)
 
-Examples:
+**Examples:**
+
+.. code-block::python
+
     #Create FPGA object
-    >>>import pyseq
-    >>>fpga = pyseq.fpga.FPGA('COM12','COM15')
+    import pyseq
+    fpga = pyseq.fpga.FPGA('COM12','COM15')
     #Initialize FPGA
-    >>>fpga.initialize()
+    fpga.initialize()
     # Read write encoder position (to sync with y stage).
-    >>>fpga.read_position()
-    >>>0
-    >>>fpga.write_position(0)
+    fpga.read_position()
+    0
+    fpga.write_position(0)
     # Arm y stage triggers for TDI imgaging.
-    >>>fpga.TDIYPOS(3000000)
-    >>>fpga.TDIYPOS3(4096,3000000)
+    fpga.TDIYPOS(3000000)
+    fpga.TDIYPOS3(4096,3000000)
 
 Kunal Pandit 9/19
+
 """
 
 
@@ -36,17 +40,19 @@ class FPGA():
     def __init__(self, com_port_command, com_port_response, baudrate = 115200, logger = None):
         """The constructor for the FPGA.
 
-           Parameters:
-           com_port_command (str): The communication port to send FPGA commands.
-           com_port_response (str): The communication port to receive FPGA
-                responses.
-           baudrate (int, optional): The communication speed in symbols per
-                second.
-           logger (log, optional): The log file to write communication with the
-                FPGA.
+           **Parameters:**
+           - com_port_command (str): The communication port to send FPGA
+             commands.
+           - com_port_response (str): The communication port to receive FPGA
+             responses.
+           - baudrate (int, optional): The communication speed in symbols per
+             second.
+           - logger (log, optional): The log file to write communication with
+             the FPGA.
 
-           Returns:
-           fpga object: A fpga object to control the FPGA.
+           **Returns:**
+           - fpga object: A fpga object to control the FPGA.
+
         """
 
         # Open Serial Port
@@ -65,21 +71,22 @@ class FPGA():
     def initialize(self):
         """Initialize the FPGA."""
 
-        response = self.command('RESET')                                # Initialize FPGA
-        self.command('EX1HM')                                           # Home excitation filter
-        self.command('EX2HM')                                           # Home excitation filter
-        self.command('EM2I')                                            # Move emission filter into light path
-        self.command('SWLSRSHUT 0')                                     # Shutter lasers
+        response = self.command('RESET')                                        # Initialize FPGA
+        self.command('EX1HM')                                                   # Home excitation filter on laser line 1
+        self.command('EX2HM')                                                   # Home excitation filter on laser line 2
+        self.command('EM2I')                                                    # Move emission filter into light path
+        self.command('SWLSRSHUT 0')                                             # Shutter lasers
 
 
     def command(self, text):
         """Send commands to the FPGA and return the response.
 
-           Parameters:
-           text (str): A command to send to the FPGA.
+           **Parameters:**
+           - text (str): A command to send to the FPGA.
 
-           Returns:
-           str: The response from the FPGA.
+           **Returns:**
+           - str: The response from the FPGA.
+
         """
 
         text = text + self.suffix
@@ -96,8 +103,9 @@ class FPGA():
     def read_position(self):
         """Read the y position of the encoder for TDI imaging.
 
-           Returns:
-           int: The y position of the encoder.
+           ****Returns:****
+           - int: The y position of the encoder.
+
         """
         tdi_pos = self.command('TDIYERD')
         tdi_pos = tdi_pos.split(' ')[1]
@@ -108,11 +116,11 @@ class FPGA():
     def write_position(self, position):
         """Write the position of the y stage to the encoder.
 
-           Parameters:
-           position (int) = The position of the y stage.
+           Allows for a 5 step (50 nm) error.
 
-           TODO:
-           * Confirm the position is written correctly.
+           **Parameters:**
+           - position (int) = The position of the y stage.
+
         """
         position = position + self.y_offset
         while abs(self.read_position() + self.y_offset - position) > 5:
@@ -123,8 +131,9 @@ class FPGA():
     def TDIYPOS(self, y_pos):
         """Set the y position for TDI imaging.
 
-           Parameters:
-           y_pos (int): The initial y position of the image.
+           **Parameters:**
+           - y_pos (int): The initial y position of the image.
+
         """
         self.command('TDIYPOS ' + str(y_pos+self.y_offset-80000))
 
@@ -132,8 +141,9 @@ class FPGA():
     def TDIYARM3(self, n_triggers, y_pos):
         """Arm the y stage triggers for TDI imaging.
 
-           Parameters:
-           y_pos (int) = The initial y position of the image.
+           **Parameters:**
+           - y_pos (int) = The initial y position of the image.
+
         """
         self.command('TDIYARM3 ' + str(n_triggers) + ' ' +
                   str(y_pos + self.y_offset-10000) + ' 1')
