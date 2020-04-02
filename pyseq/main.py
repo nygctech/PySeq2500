@@ -748,7 +748,10 @@ def IMAG(fc, n_Zplanes):
             Z,C = hs.rough_focus()
             fc.stage[section]['z pos'] = hs.z.position[:]
         else:
-            hs.z.move(fc.stage[section]['z pos'])
+            # Only move z stage if not in position
+            z_position = fc.stage[section]['z pos']
+            if not hs.z.in_position(z_position):
+                hs.z.move(z_position)
 
         # Find Fine Focue with objective
         logger.log(21, AorB+'::Finding fine focus of ' + str(section))
@@ -774,6 +777,8 @@ def IMAG(fc, n_Zplanes):
             opt_filter = hs.optimize_filter(32)                                 #Find optimal filter set on 32 frames on image
             hs.optics.move_ex(col, opt_filter[0])
         else:
+            for z in hs.z.position:
+
             hs.optics.move_ex(col, hs.optics.cycle_dict[col][fc.cycle])         #Move to filter specifed for current cycle
 
         hs.optics.move_em_in(True)
