@@ -79,11 +79,11 @@ class Optics():
         self.ex = [None, None]
         self.em_in = None
         self.suffix = '\n'
-        self.cycle_dict = {colors[0]:{},colors[1]:{}}
-        self.colors = {colors[0]:1, colors[1]:2}
+        self.colors = {1:colors[0], 2:colors[1]}
+        self.cycle_dict = {self.colors[1]:{},self.colors[2]:{}}
         self.ex_dict = {
                         # EX1
-                        colors[0]:
+                        self.colors[1]:
                         {'home' : 0,
                          0.2 : -36,
                          0.6 : -71,
@@ -93,7 +93,7 @@ class Optics():
                          2.0 : 71,
                          4.0 : 36},
                         # EX
-                        colors[1],
+                        self.colors[2]:,
                         {'home' : 0,
                          4.5 : 36,
                          3.0 : 71,
@@ -165,10 +165,14 @@ class Optics():
         """
 
 
-        if color not in self.colors.keys():
+        if color not in self.colors.values():
             warnings.warn('Laser color is invalid.')
         elif position in self.ex_dict[color].keys():
-            index = self.colors[color]
+            # laser index
+            for i in range(len(colors)):
+                if color is self.colors[i]:
+                    index = i+1
+
             self.command('EX' + str(index)+ 'HM')                               # Home Filter
             self.ex[index] = position
             if position != 'home':

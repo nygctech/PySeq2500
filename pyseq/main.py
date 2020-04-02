@@ -286,7 +286,21 @@ def initialize_hs():
     method = config[experiment['method']]
 
     hs = pyseq.HiSeq(logger)
+
+    # Configure laser color & filters
+    colors = [method.get('laser color 1'), fallback = 'green',
+              method.get('laser color 2'), fallback = 'red']
+    default_colors = [*hs.optics.colors.keys()]
+    for i in range(colors):
+        if colors[i] is not default_colors[i]:
+            hs.laser[colors[i]] = hs.laser[default_colors[i]]                   # Add new laser
+            hs.laser[colors[i]].color = colors[i]                               # Update laser color
+            hs.laser[default_colors[i]].pop()                                   # Remove default laser color
+            hs.optics.colors[i] = colors[i]                                     # Update laser line color
+
+    #Check filters for laser at each cycle are valid
     check_filters(hs)
+
     hs.initializeCams(logger)
     hs.initializeInstruments()
 
@@ -526,6 +540,14 @@ def check_filters(hs):
        **Parameters:**
        - hs: A HiSeq Object.
 
+       **Exceptions:**
+       - Invalid Filter: System exits when a listed filter does not match
+       configured filters on the HiSeq.
+       - Duplicate Cycle: System exists when a filter for a laser is listed for
+         the same cycle more than once.
+       - Invalid laser: System exits when a listed laser color does not match
+       configured laser colors on the HiSeq.
+
     """
 
     # NOTE: This is the only local use of a HiSeq object
@@ -548,11 +570,14 @@ def check_filters(hs):
                 else:
                     warnings.warn('Experiment config error in filter section. '+
                     'Duplicated cycle for ' + laser + ' laser')
+                    sys.exit()
             else:
                 warnings.warn('Experiment config error in filter section. ' +
                 'Invalid filter for ' + laser + ' laser')
+                sys.exit()
         else:
             warnings.warn('Experiment config error: invalid laser')
+            sys.exit()
 
         # Add None to cycles with out filters specified
         method = config.get('experiment', 'method')
