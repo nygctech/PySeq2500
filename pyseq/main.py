@@ -766,20 +766,18 @@ def IMAG(fc, n_Zplanes):
         Z,C = hs.fine_focus()
         fc.stage[section]['obj pos'] = hs.obj.position
 
-        # Position excitation filtes for lasers
+        # Position excitation filters for lasers
         for col in colors:
             # Find optimal filter if filter not specified
             if hs.optics.cycle_dict[col][fc.cycle] is None:
                 logger.log(21, AorB+'::Finding optimal filter for ' +
                                col + ' laser')
-            hs.y.move(y_center)
-            hs.x.move(x_center)
-            opt_filter = hs.optimize_filter(32)                                 #Find optimal filter set on 32 frames on image
-            hs.optics.move_ex(col, opt_filter[0])
-        else:
-            for z in hs.z.position:
-
-            hs.optics.move_ex(col, hs.optics.cycle_dict[col][fc.cycle])         #Move to filter specifed for current cycle
+                hs.y.move(y_center)
+                hs.x.move(x_center)
+                opt_filter = hs.optimize_filter(32)                             #Find optimal filter set on 32 frames on image
+                hs.optics.move_ex(col, opt_filter)
+            else:
+                hs.optics.move_ex(col, hs.optics.cycle_dict[col][fc.cycle])     #Move to filter specifed for current cycle
 
         hs.optics.move_em_in(True)
 

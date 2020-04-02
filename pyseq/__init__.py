@@ -843,26 +843,30 @@ class HiSeq():
         return [x_center, y_center, x_initial, y_initial, n_tiles, n_frames]
 
 
-    def optimize_filter(self, nframes, nbins = 256, sat_threshold = 0.0005, signal_threshold = 20):
+    def optimize_filter(self, nframes, color, nbins = 256,
+                        sat_threshold = 0.0005, signal_threshold = 20):
+
         """Finds and returns the best filter settings.
 
-           Images a portion of the section with one laser at a time at
-           increasing laser intensity. Images are analyzed from all emission
-           channels to calculate a filter score. Images are scored to maximize
-           the image histogram without saturating too many pixels and minimizes
+           Images a portion of the section with one laser at increasing laser
+           intensity. Images are analyzed from all emission channels to
+           calculate a filter score. Images are scored to maximize the image
+           histogram without saturating too many pixels and minimizes
            crosstalk in non specific channels.
 
-           Parameters:
-           nframes (int): Number of frames for portion of section.
-           nbins (int): Number of bins to define the image histogram
-           sat_threshold (float): Maximum fraction of pixels allowed to be
-                saturated
-           signal_threshold (int): Maximum signal intensity allowed in
-                nonspecific channels
+           **Parameters:**
+           - nframes (int): Number of frames for portion of section.
+           - color (str): Laser line color to optimize filter.
+           - nbins (int, optional): Number of bins to define the image histogram,
+             default is 256 bins.
+           - sat_threshold (float): Maximum fraction of pixels allowed to be
+             saturated, default is 0.0005.
+           - signal_threshold (int): Maximum signal intensity allowed in
+             nonspecific channels, default is 20.
 
-           Returns:
-           [str, str]: List of optimal for filters for each laser for the
-                section to be imaged.
+           **Returns:**
+           - float: Optimal filter for specified laser.
+
          """
         # Save y position
         y_pos = self.y.position
@@ -873,71 +877,79 @@ class HiSeq():
                       self.cam2.right_emission]                                 # 740
 
         #Order of filters to loop through
-        f_order = [[4.0, 2.0, 1.6, 1.4, 0.6, 0.2],
-                [4.5, 3.0, 2.0, 1.0, 0.9, 0.2]]
+        f_order = []
+        for key in hs.optics.ex_dict[color].keys():
+            if isinstance(key,float):
+                f_order.append(key)
+        f_order = sorted(f_order, reverse = True)
+        # f_order = [[4.0, 2.0, 1.6, 1.4, 0.6, 0.2],
+        #         [4.5, 3.0, 2.0, 1.0, 0.9, 0.2]]
+
         # Empty list of optimal filters
-        opt_filter = [None, None]
+        opt_filter = None
+        #opt_filter = [None, None]
         # list of lasers, Green = 1, Red = 2
-        lasers = [1,2]
+        #lasers = [1,2]
 
         # Loop through filters until optimized
-        for li in lasers:
-            fi = 0
-            self.optics.move_ex(1, 'home')                                      # Home and block lasers
-            self.optics.move_ex(2, 'home')
-            self.optics.move_em_in(True)
-            new_f_score = 0
-            while opt_filter[li-1] is None:
-                self.optics.move_ex(li,f_order[li-1][fi])                       # Move excitation filter
-                image_name = 'L'+str(li)+'_filter'+str(f_order[li-1][fi])
-                image_complete = False
-                # Take Picture
-                while not image_complete:
-                    image_complete = self.take_picture(nframes, 128, image_name)
-                    self.y.move(y_pos)
+        #for li in lasers:
+        fi = 0                                                                  # filter index
+        self.optics.move_ex(1, 'home')                                          # Home and block lasers
+        self.optics.move_ex(2, 'home')
+        self.optics.move_em_in(True)
+        new_f_score = 0
+        while opt_filter is None:
+            self.optics.move_ex(color,f_order[fi])                              # Move excitation filter
+            image_name = 'L'+color+'_filter'+str(f_order[fi])
+            image_complete = False
+            # Take Picture
+            while not image_complete:
+                image_complete = self.take_picture(nframes, 128, image_name)
+                self.y.move(y_pos)
 
-                contrast = np.array([])
-                saturation = np.array([])
-                #read picture
-                for image in image_prefix:
-                    im_name = self.image_path+str(image)+'_'+image_name+'.tiff'
-                    #Calculate background subtracted contrast and %saturation
-                    C, S = contrast2(im_name, image, self.bg_path, nbins)
+            contrast = np.array([])
+            saturation = np.array([])
+            #read picture
+            for image in image_prefix:
+                im_name = self.image_path+str(image)+'_'+image_name+'.tiff'
+                #Calculate background subtracted contrast and %saturation
+                C, S = contrast2(im_name, image, self.bg_path, nbins)
 
-                    contrast = np.append(contrast,C)
-                    saturation = np.append(saturation,S)
+                contrast = np.append(contrast,C)
+                saturation = np.append(saturation,S)
 
-                old_f_score = new_f_score
-                # make sure image is not too saturated
-                if any(saturation > sat_threshold):
-                    new_f_score = 0
-                # Green laser, 558+610-687-740 emissions
-                elif li == 1:
-                    signal = contrast[1] + contrast[2]
-                    new_f_score = contrast[1] + contrast[2] - contrast[0] - contrast[3]
-                # Red laser, 687+740-558-610- emissions
-                elif li == 2:
-                    signal = contrast[0] + contrast[3]
-                    new_f_score = contrast[0] + contrast[3] - contrast[1] - contrast[2]
+            old_f_score = new_f_score
+            # make sure image is not too saturated
+            if any(saturation > sat_threshold):
+                new_f_score = 0
+            # Green laser, 558+610-687-740 emissions
+            elif self.optics.colors[color] == 1 :
+                signal = contrast[1] + contrast[2]
+                new_f_score = contrast[1] + contrast[2] - contrast[0] - contrast[3]
+            # Red laser, 687+740-558-610- emissions
+            elif self.optics.colors[color] == 2:
+                signal = contrast[0] + contrast[3]
+                new_f_score = contrast[0] + contrast[3] - contrast[1] - contrast[2]
 
-                # Increase laser until you at least see some signal
-                if signal > signal_threshold:
-                    # Too much crosstalk / saturation
-                    if old_f_score >= new_f_score and fi > 0:
-                        opt_filter[li-1] = f_order[li-1][fi-1]
-                    else:
-                        fi += 1
-                # Last filter
-                elif fi == 5:
-                    opt_filter[li-1] = f_order[li-1][fi]
-                # Move to next filter
+            # Increase laser until you at least see some signal
+            if signal > signal_threshold:
+                # Too much crosstalk / saturation
+                if old_f_score >= new_f_score and fi > 0:
+                    opt_filter = f_order[fi-1]
                 else:
                     fi += 1
-                self.message('Laser : ' + str(li))
-                self.message('Filter: ' + str(f_order[li-1][fi]))
-                self.message('Contrast: ' + str(contrast))
-                self.message('Saturation: ' + str(saturation))
-                self.message('Filter Score ' + str(new_f_score))
+            # Last filter
+            elif fi == (len(f_order) - 1):
+                opt_filter = f_order[fi]
+            # Move to next filter
+            else:
+                fi += 1
+
+            self.message('Laser : ' + str(li))
+            self.message('Filter: ' + str(f_order[li-1][fi]))
+            self.message('Contrast: ' + str(contrast))
+            self.message('Saturation: ' + str(saturation))
+            self.message('Filter Score ' + str(new_f_score))
 
         return opt_filter
 
