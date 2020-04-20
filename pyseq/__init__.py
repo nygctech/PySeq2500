@@ -700,6 +700,7 @@ class HiSeq():
 
            Returns matrix of [obj position, focus value]
            Will be updated in future.
+
         """
         #Initialize
         y_pos = self.y.position
@@ -841,6 +842,18 @@ class HiSeq():
 
 
         return [x_center, y_center, x_initial, y_initial, n_tiles, n_frames]
+
+
+    def px_to_step(self, [row,col], x_initial, y_initial, scale):
+
+        scale = scale*self.resolution
+
+        x_step = (col - 1/2)*scale*self.x.spum + x_initial
+
+        trigger_offset = -80000
+        y_step = (row - 1/2)*scale*self.y.spum + y_initial + trigger_offset
+
+        return [x_step, y_step]
 
 
     def optimize_filter(self, nframes, color, nbins = 256,
