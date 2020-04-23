@@ -145,11 +145,7 @@ class HiSeq():
                     }
         self.image_path = None                                                  # path to save images in
         self.log_path = None                                                    # path to save logs in
-        self.bg_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\PySeq2500V2\\calibration\\' # path save background calibration images, WILL REMOVE IN FUTURE
-        self.distance = None                                                    # distance between objective and stage, WILL REMOVE IN FUTURE
-        self.distance_offset = 0                                                # offset to calculated distance between stage and objective, WILL REMOVE IN FUTURE
-        self.fc_height = 1200                                                   # height of flow cell in microns, WILL REMOVE IN FUTURE
-        self.max_distance = self.z.max_z/self.z.spum + self.obj.max_z/self.obj.spum - self.fc_height       # WILL REMOVE IN FUTURE
+        self.bg_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\PySeq2500V2\\calibration\\' # path save background calibration images, WILL REMOVE IN FUTURE                                                # offset to calculated distance between stage and objective, WILL REMOVE IN FUTURE                                                   # height of flow cell in microns, WILL REMOVE IN FUTURE
         self.fc_origin = {'A':[17571,-180000],
                           'B':[43310,-180000]}
         self.scan_width = 0.769                                                 #mm
@@ -239,7 +235,6 @@ class HiSeq():
         self.y.position = self.y.read_position()
         self.f.write_position(0)
 
-        self.distance = self.get_distance()
         print('HiSeq initialized!')
 
 
