@@ -288,8 +288,8 @@ def initialize_hs():
     hs = pyseq.HiSeq(logger)
 
     # Configure laser color & filters
-    colors = [method.get('laser color 1'), fallback = 'green',
-              method.get('laser color 2'), fallback = 'red']
+    colors = [method.get('laser color 1', fallback = 'green'),
+              method.get('laser color 2', fallback = 'red')]
     default_colors = [*hs.optics.colors.keys()]
     for i in range(colors):
         if colors[i] is not default_colors[i]:
@@ -534,11 +534,8 @@ def check_ports():
 
 
 
-def check_filters(hs):
+def check_filters():
     """Check filter section of config file.
-
-       **Parameters:**
-       - hs: A HiSeq Object.
 
        **Exceptions:**
        - Invalid Filter: System exits when a listed filter does not match

@@ -36,6 +36,7 @@ Examples:
     >>>optics.move_em_in(False)
 
 Kunal Pandit 9/19
+
 """
 
 import time
@@ -72,6 +73,7 @@ class Optics():
 
            Returns:
            optics object: An optics object to control the optical filters.
+           
         """
 
         self.serial_port = fpga
@@ -79,11 +81,11 @@ class Optics():
         self.ex = [None, None]
         self.em_in = None
         self.suffix = '\n'
-        self.colors = {1:colors[0], 2:colors[1]}
-        self.cycle_dict = {self.colors[1]:{},self.colors[2]:{}}
+        self.colors = [colors[0], colors[1]]
+        self.cycle_dict = {self.colors[0]:{}, self.colors[1]:{}}
         self.ex_dict = {
                         # EX1
-                        self.colors[1]:
+                        self.colors[0]:
                         {'home' : 0,
                          0.2 : -36,
                          0.6 : -71,
@@ -93,7 +95,7 @@ class Optics():
                          2.0 : 71,
                          4.0 : 36},
                         # EX
-                        self.colors[2]:,
+                        self.colors[1]:
                         {'home' : 0,
                          4.5 : 36,
                          3.0 : 71,
@@ -111,10 +113,11 @@ class Optics():
            The default position for the excitation filters is home
            which blocks excitation light. The default position for
            the emission filter is in the light path.
+           
         """
 
         #Home Excitation Filters
-        for color in self.colors.keys():
+        for color in self.colors:
             self.move_ex(color, 'home')
 
         # Move emission filter into light path
@@ -129,6 +132,7 @@ class Optics():
 
            Returns:
            str: The response from the optics.
+           
         """
 
         text = text + self.suffix
@@ -162,22 +166,19 @@ class Optics():
            Parameters:
            color (str): The color of laser line.
            position (str): The name of the filter to change to.
+           
         """
 
 
-        if color not in self.colors.values():
+        if color not in self.colors:
             warnings.warn('Laser color is invalid.')
         elif position in self.ex_dict[color].keys():
-            # laser index
-            for i in range(len(colors)):
-                if color is self.colors[i]:
-                    index = i+1
-
+            index = self.colors.index(color)
             self.command('EX' + str(index)+ 'HM')                               # Home Filter
             self.ex[index] = position
             if position != 'home':
                 position = str(self.ex_dict[color][position])                   # get step position
-                self.command('EX' + str(index) + 'MV ' + position)              # Move Filter relative to home
+                self.command('EX' + str(index+1) + 'MV ' + position)              # Move Filter relative to home
         elif position not in self.ex_dict[wheel-1].keys():
             print(position + ' excitation filter does not exist for ' + color +
                   ' laser.')
