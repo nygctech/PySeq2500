@@ -65,6 +65,7 @@ from . import zstage
 import time
 from os.path import getsize
 from os.path import join
+from os import getcwd
 import threading
 import numpy as np
 import imageio
@@ -144,14 +145,14 @@ class HiSeq():
         self.v24 = {'A': valve.Valve(valveA24COM, 'valveA24', logger = Logger),
                     'B': valve.Valve(valveB24COM, 'valveB24', logger = Logger)
                     }
-        self.image_path = None                                                  # path to save images in
-        self.log_path = None                                                    # path to save logs in
+        self.image_path = getcwd()                                                  # path to save images in
+        self.log_path = getcwd()                                                  # path to save logs in
         self.bg_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\PySeq2500V2\\calibration\\' # path save background calibration images, WILL REMOVE IN FUTURE
         self.fc_origin = {'A':[17571,-180000],
                           'B':[43310,-180000]}
         self.line_width = 0.769                                                 #mm
         self.resolution = 0.375                                                 #um/px
-        self.bundle_height = 128.0
+        self.bundle_height = 128
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
 
@@ -253,7 +254,7 @@ class HiSeq():
 
         date = time.strftime('%Y%m%d_%H%M%S')
         meta_path = join(self.image_path, 'meta_'+image_name+'.txt')
-        meta_f = open(image_path, 'w+')
+        meta_f = open(meta_path, 'w+')
         meta_f.write('time ' + date + '\n' +
                      'y ' + str(self.y.position) + '\n' +
                      'x ' + str(self.x.position) + '\n' +
@@ -343,12 +344,10 @@ class HiSeq():
         #
         #TODO check trigger y values are reasonable
         n_triggers = n_frames * self.bundle_height
-        end_y_pos = y_pos - n_triggers*75
+        end_y_pos = y_pos - n_triggers - 300000
         f.TDIYPOS(y_pos)
         f.TDIYARM3(n_triggers, y_pos)
         #print('Trigger armed, Imaging starting')
-
-
 
         meta_f = self.write_metadata(n_frames, image_name)
 
@@ -369,14 +368,16 @@ class HiSeq():
         ################################
         ### Stop Imaging ###############
         ################################
-
+        # Close laser shutter
+        f.command('SWLSRSHUT 0')
+        
         # Stop Cameras
         cam1.stopAcquisition()
         cam2.stopAcquisition()
-        # Close laser shutter
-        f.command('SWLSRSHUT 0')
+        
         # Check if all frames were taken from camera 1 then save images
         if cam1.getFrameCount() != n_frames:
+            print('Cam1 frames: ', cam1.getFrameCount())
             print('Cam1 image not taken')
             image_complete = False
         else:
@@ -384,11 +385,12 @@ class HiSeq():
             image_complete = True
         # Check if all frames were taken from camera 2 then save images
         if cam2.getFrameCount() != n_frames:
+            print('Cam2 frames: ', cam2.getFrameCount())
             print('Cam2 image not taken')
-            image_complete = False
+            image_complete += False
         else:
             cam2.saveImage(image_name, self.image_path)
-            image_complete = True
+            image_complete += True
         # Print out info pulses = triggers, not sure with CLINES is
         if image_complete:
             response = f.command('TDICLINES')
@@ -403,7 +405,7 @@ class HiSeq():
 
         meta_f.close()
 
-        return image_complete
+        return image_complete == 2
 
 ##########################################
 #### AUTOFOCUS WORK IN PROGRESS ##########

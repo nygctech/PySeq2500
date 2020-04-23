@@ -534,7 +534,7 @@ def check_ports():
 
 
 
-def check_filters():
+def check_filters(hs):
     """Check filter section of config file.
 
        **Exceptions:**
