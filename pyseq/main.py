@@ -294,11 +294,13 @@ def initialize_hs():
     image_path = join(save_path, experiment['image path'])
     if not os.path.exists(image_path):
         os.mkdir(image_path)
+    hs.image_path = image_path
     # Assign log directory
     log_path = join(save_path, experiment['log path'])
     if not os.path.exists(log_path):
         os.mkdir(log_path)
-
+    hs.log_path = log_path
+    
     return hs
 
 
@@ -837,8 +839,8 @@ def integrate_fc_and_hs(port_dict):
     method = config.get('experiment', 'method')                                 # Read method specific info
     method = config[method]
     variable_ports = method.get('variable reagents', fallback = None)
-    z_pos = config['z position']
-    obj_pos = config['obj position']
+    z_pos = method.get('z start', fallback = None)
+    obj_pos = method.get('objective start', fallback = None)
 
     n_barrels = int(method.get('barrels per lane', 8))                          # Get method specific pump barrels per lane, fallback to 8
 
@@ -859,8 +861,8 @@ def integrate_fc_and_hs(port_dict):
             fc.stage[section]['y initial'] = stage[3]
             fc.stage[section]['n scans'] = stage[4]
             fc.stage[section]['n frames'] = stage[5]
-            fc.stage[section]['z pos'] = z_pos.get(section,fallback=None)
-            fc.stage[section]['obj pos'] = obj_pos.get(section,fallback=None)
+            fc.stage[section]['z pos'] = z_pos
+            fc.stage[section]['obj pos'] = obj_pos
 
 
 ##########################################################

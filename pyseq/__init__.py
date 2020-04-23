@@ -790,7 +790,12 @@ class HiSeq():
                 imaging details to scan the entire section. See table
                 above for details.
         """
-
+        
+        LLx = box[0]
+        LLy = box[1]
+        URx = box[2]
+        URy = box[3]
+        
         # Number of scans
         n_scans = ceil((LLx - URx)/self.scan_width)
 
