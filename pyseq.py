@@ -841,7 +841,7 @@ class HiSeq():
                     signal = contrast[0] + contrast[3]
                     new_f_score = contrast[0] + contrast[3] - contrast[1] - contrast[2]             # Red laser, 687+740-558-610- emissions
         
-                if signal > signal_threshold:                                                       # Increase laser until you at least see some signal
+                if signal > signal_threshold and fi != 5:                                                       # Increase laser until you at least see some signal
                     if old_f_score >= new_f_score and fi > 0:                                       # Too much crosstalk / saturation
                         opt_filter[li-1] = f_order[li-1][fi-1]                                  
                     else:

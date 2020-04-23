@@ -38,7 +38,7 @@ class Ystage():
         self.on = False
         self.position = 0
         self.home = 0
-        self.logger = None
+        self.logger = logger
         
     #
     # Initialize Ystage
@@ -69,7 +69,8 @@ class Ystage():
         if self.logger is not None:
             self.logger.info('Ystage::txmt::'+text)
             self.logger.info('Ystage::rcvd::'+response)
-        
+        else:
+            print(response)
         return  response                    
         
     # 

@@ -96,6 +96,7 @@ def setup_flowcells(first_line):
     experiment = config['experiment']
     method = experiment['method']
     method = config[method]
+    z_pos = config['z position']
     
     flowcells = {}
     for sect_name in config['sections']:
@@ -105,8 +106,8 @@ def setup_flowcells(first_line):
             flowcells[AorB] = flowcell(AorB)
             flowcells[AorB].recipe_path = method['recipe']
             flowcells[AorB].flush_volume = int(method.get('flush volume', fallback=2000))
-            flowcells[AorB].pump_speed['flush'] = int(method.get('flush speed', fallback=700))
-            flowcells[AorB].pump_speed['reagent'] = int(method.get('reagent speed', fallback=40))
+            flowcells[AorB].pump_speed['flush'] = int(method.get('flush speed', fallback=1000))
+            flowcells[AorB].pump_speed['reagent'] = int(method.get('reagent speed', fallback=200))
             flowcells[AorB].first_line = first_line
             flowcells[AorB].total_cycles = int(config.get('experiment','cycles'))
 
@@ -123,6 +124,9 @@ def setup_flowcells(first_line):
                 sect_position = sect_position.split(',')
                 flowcells[AorB].sections[sect_name] = []
                 flowcells[AorB].stage[sect_name] = {}
+                flowcells[AorB].stage[sect_name]['z pos'] = z_pos.get(sect_name, fallback = None)
+                if flowcells[AorB].stage[sect_name]['z pos'] is not None:
+                    flowcells[AorB].stage[sect_name]['z pos'] = int(flowcells[AorB].stage[sect_name]['z pos'])
                 for pos in sect_position:
                     flowcells[AorB].sections[sect_name].append(float(pos))
         else:
