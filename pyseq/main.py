@@ -726,6 +726,23 @@ def do_recipe(fc):
         fc.thread =  threading.Thread(target = time.sleep, args = (10,))
         fc.thread.start()
 
+def autofocus(n_tiles, n_frames):
+    start = time.time()
+
+    # Take initial image to find focus points
+    if not hs.focus_points:
+        image_name = time.strftime('%Y%m%d_%H%M%S')
+        hs.scan(n_tiles, 1, n_frames, image_name)
+        focus_points = find_focus_points(image_name)
+    else:
+        focus_points = hs.focus_points
+        
+    focus_steps = []
+    for point in focus_points:
+        jpeg_size = hs.objstack()
+        focus_steps.append(pyseq.find_focus())
+    hs.auto_level(focus_steps)
+
 ##########################################################
 ## Image flowcell ########################################
 ##########################################################
