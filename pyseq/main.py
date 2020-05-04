@@ -736,11 +736,24 @@ def autofocus(n_tiles, n_frames):
         focus_points = find_focus_points(image_name)
     else:
         focus_points = hs.focus_points
-        
+
+
     focus_steps = []
     for point in focus_points:
-        jpeg_size = hs.objstack()
-        focus_steps.append(pyseq.find_focus())
+        in_range = False
+        while in_range not False:
+            hs.x.move(point[0])
+            hs.y.move(point[1])
+            jpeg_size = hs.objstack()
+            focal_point = pyseq.find_focus(jpeg_size)
+            if focal_point = -1:
+                hs.z.move(down)
+            elif focal_point = 1:
+                hs.z.move(up)
+            else:
+                in_range = True
+
+
     hs.auto_level(focus_steps)
 
 ##########################################################

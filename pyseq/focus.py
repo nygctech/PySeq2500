@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 from . import image
+import numpy as np
 
 def focus(hs, x_initial, y_initial, n_tiles, n_frames, AorB, section, cycle):
     hs.x.move(x_initial)
@@ -31,14 +32,28 @@ def focus(hs, x_initial, y_initial, n_tiles, n_frames, AorB, section, cycle):
     # Find focus points
     focus_points = get_focus_points(roi)
     # Shift focus points towards center
-    stage_points = []
+    stage_points = np.zeros(shape=[3,2])
     for i in range(1,4):
         focus_point = image.shift_focus(focus_points[i,:],
                                         focus_points[0,:],
                                         2048/2/scale)
-        stage_points.append(hs.px_to_step(focus_point, x_initial, y_initial,
-                                          scale))
-    print(stage_points)
+        stage_points[i-1,:]= hs.px_to_step(focus_point, x_initial, y_initial,
+                                           scale)
+
+    # Reorder stage points to match z stage motore indice
+    ordered_stage_points = np.zeros(shape=[3,2])
+
+    m0 = np.where(stage_points[:,0] == np.min(stage_points[:,0]))[0][0]
+    ordered_stage_point[0,:] = stage_points[m0,:]
+    stage_points = np.delete(stage_points,m0,0)
+
+    m1 = np.where(stage_points[:,1] == np.min(stage_points[:,1]))[0][0]
+    ordered_stage_point[1,:] = stage_points[m1,:]
+    stage_points = np.delete(stage_points,m0,0)
+
+
+
+    print(ordered_stage_points)
 
 
 def get_image_df(dir, image_name = None):
