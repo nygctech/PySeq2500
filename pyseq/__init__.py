@@ -508,9 +508,33 @@ class HiSeq():
     def move_stage_out(self):
         """Move stage out for loading/unloading flowcells."""
 
+        self.z.move([0,0,0])
         self.x.move(self.x.home)
         self.y.move(self.y.min_y)
 
+
+    def autolevel(self, focus_points):
+        """Tilt the stage motors so the focus points are on a level plane
+
+           Parameters:
+           focus_points [int, int, int]: List of focus points.
+
+           Returns:
+           [int, int, int]: Z stage positions for a level plane.
+
+        """
+
+        focal_point = int(sum(focus_points)/3)
+        z_steps  = []
+        i = 0
+        old_z_steps = self.z.get_position()
+        for point in focus_points:
+            z_steps.append(int(focal_point/point*old_z_steps[i]))
+            i += 1
+
+        self.z.move(z_steps)
+
+        return z_steps
 
     def zstack(self, n_Zplanes, n_frames, image_name=None):
         """Take a zstack/tile of images.
@@ -855,7 +879,7 @@ class HiSeq():
 
            Returns:
            [int, int]: X-stage and Y-stage step position respectively.
-           
+
         '''
 
         scale = scale*self.resolution
