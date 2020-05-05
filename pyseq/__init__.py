@@ -513,11 +513,11 @@ class HiSeq():
         self.y.move(self.y.min_y)
 
 
-    def autolevel(self, focal_points):
+    def autolevel(self, focal_points, obj_focus):
         """Tilt the stage motors so the focus points are on a level plane
 
            Parameters:
-           focus_points [int, int, int]: List of focus points.
+           focal_points [int, int, int]: List of focus points.
 
            Returns:
            [int, int, int]: Z stage positions for a level plane.
@@ -525,10 +525,10 @@ class HiSeq():
         """
 
         # Find point closest to midpoint of imaging plane
-        obj_step_distance = abs(32000 - focal_points[:,2])
+        obj_step_distance = abs(obj_focus - focal_points[:,2])
         min_obj_step_distance = np.min(obj_step_distance)
         p_ip = np.where(obj_step_distance == min_obj_step_distance)
-        offset_distance = 32000 - focal_points[p_ip,2]
+        offset_distance = obj_focus - focal_points[p_ip,2]
 
         # Convert stage step position microns
         focal_points[:,0] = focal_points[:,0]/self.x.spum
@@ -540,9 +540,6 @@ class HiSeq():
         u_ip = focal_points[1,:] - focal_points[0,:]
         v_ip = focal_points[2,:] - focal_points[0,:]
         n_ip = np.cross(u_ip, v_ip)
-
-        # magnitude imaging plane normal
-        #n_ip_mag = np.linalg.norm(n_ip)
 
         # Imaging plane correction
         correction = [0, 0, n_ip[2]] - n_ip
@@ -561,23 +558,23 @@ class HiSeq():
         else:
             p_sp = 1 # left front motor
 
-        
+        # Target normal of level stage plane
+        n_tp = n_sp + correction
 
-        # point closest to midpoint of imaging plane
-        np.where()
-        focal_point = int(sum(focus_points)/3)
-        z_steps  = []
-        i = 0
-        old_z_steps = self.z.get_position()
-        for point in focus_points:
-            z_steps.append(int(focal_point/point*old_z_steps[i]))
-            i += 1
+        # Solve system equations for level plane
+        A = np.array([v_sp[1]-u_sp[1], -v_sp[1], u_sp[1],
+                      u_sp[0]-v_sp[0], v_sp[0], u_sp[0],
+                      0, 0, 0])
+        A = np.reshape(A,[3,3])
+        A[2, p_sp] = 1
+        offset_distance = int(offset_distance*self.z.spum)
+        offset_distance += self.z.position[p_sp]
+        B = np.array([n_tp[0], n_tp[1], offset_distance])
+        z_pos = np.linalg.solve(A,B)
 
-        self.z.move(z_steps)
+        self.z.move(z_pos)
 
-
-
-        return z_steps
+        return z_pos
 
     def zstack(self, n_Zplanes, n_frames, image_name=None):
         """Take a zstack/tile of images.
