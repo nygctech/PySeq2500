@@ -513,7 +513,7 @@ class HiSeq():
         self.y.move(self.y.min_y)
 
 
-    def autolevel(self, focus_points):
+    def autolevel(self, focal_points):
         """Tilt the stage motors so the focus points are on a level plane
 
            Parameters:
@@ -524,6 +524,47 @@ class HiSeq():
 
         """
 
+        # Find point closest to midpoint of imaging plane
+        obj_step_distance = abs(32000 - focal_points[:,2])
+        min_obj_step_distance = np.min(obj_step_distance)
+        p_ip = np.where(obj_step_distance == min_obj_step_distance)
+        offset_distance = 32000 - focal_points[p_ip,2]
+
+        # Convert stage step position microns
+        focal_points[:,0] = focal_points[:,0]/self.x.spum
+        focal_points[:,1] = focal_points[:,1]/self.y.spum
+        focal_points[:,2] = focal_points[:,2]/self.obj.spum
+        offset_distance = offset_distance/self.obj.spum
+
+        # Find normal vector of imaging plane
+        u_ip = focal_points[1,:] - focal_points[0,:]
+        v_ip = focal_points[2,:] - focal_points[0,:]
+        n_ip = np.cross(u_ip, v_ip)
+
+        # magnitude imaging plane normal
+        #n_ip_mag = np.linalg.norm(n_ip)
+
+        # Imaging plane correction
+        correction = [0, 0, n_ip[2]] - n_ip
+
+        # Find normal vector of stage plane
+        stage_points = self.z.get_motor_points()
+        u_sp = stage_points[1,:] - stage_points[0,:]
+        v_sp = stage_points[2,:] - stage_points[0,:]
+        n_sp = np.cross(u_sp, v_sp)
+
+        # Pick reference stage point
+        if correction[0] >= 0:
+            p_sp = 0 # right motor
+        elif correction[1] >= 0:
+            p_sp = 2 # left back motors
+        else:
+            p_sp = 1 # left front motor
+
+        
+
+        # point closest to midpoint of imaging plane
+        np.where()
         focal_point = int(sum(focus_points)/3)
         z_steps  = []
         i = 0
@@ -533,6 +574,8 @@ class HiSeq():
             i += 1
 
         self.z.move(z_steps)
+
+
 
         return z_steps
 

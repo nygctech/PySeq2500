@@ -210,8 +210,8 @@ def get_roi(im, psat = 98, sq_size = 3):
     return roi
 
 
-def get_focus_points(roi):
-    '''Get focus points.
+def get_focus_pos(roi):
+    '''Get focus positions.
 
        Parameters:
        roi (array): Binary array of region of intereste
@@ -242,13 +242,15 @@ def get_focus_points(roi):
     dist2 = np.sum(dist2, axis = 0)
     max_ind.append(np.argmax(dist2))
 
-    focal_points = np.zeros(shape(4,2))
-    # center focus point
-    focal_points[0,:] = props[0].centroid
-    # edge focus points
-    focal_points[1:4,:] = contour[max_ind,:]
+    focus_pos = np.zeros(shape(4,2))
+    # center focus position
+    focus_pos[0,:] = props[0].centroid
+    # edge focus position
+    focus_pos[1:4,:] = contour[max_ind,:]
 
-    return focal_points
+    # Order the focus positions to match with motor indices
+
+    return focus_pos
 
 def shift_focus(fpoint, center, scale):
     '''Shift focus points towards the center.

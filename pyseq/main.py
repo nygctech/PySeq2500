@@ -727,34 +727,42 @@ def do_recipe(fc):
         fc.thread.start()
 
 def autofocus(n_tiles, n_frames):
+    # position stage before autofocus.
+
     start = time.time()
 
-    # Take initial image to find focus points
+    # Take initial image to find focus positions
     if not hs.focus_points:
         image_name = time.strftime('%Y%m%d_%H%M%S')
         hs.scan(n_tiles, 1, n_frames, image_name)
-        focus_points = find_focus_points(image_name)
+        # get binary roi
+        # Returns 4 positions, first position is center, next 3 are on edge
+        focus_pos = image.get_focus_pos(roi)
     else:
-        focus_points = hs.focus_points
+        focus_pos = hs.focus_points
 
-
-    focus_steps = []
-    for point in focus_points:
-        in_range = False
-        while in_range not False:
-            hs.x.move(point[0])
-            hs.y.move(point[1])
+    # Find focal points
+    focal_points = np.empty(shape[3,3])
+    in_range = False
+    for i in range (1,4):
+        focal_points[i-1,0:1] = focus_pos[i,:]
+        hs.x.move(focus_pos[i,0])
+        hs.y.move(focus_pos[i,1])
+        counter = 0
+        while in_range is False or counter == 0:
+            obj_range =
             jpeg_size = hs.objstack()
-            focal_point = pyseq.find_focus(jpeg_size)
-            if focal_point = -1:
-                hs.z.move(down)
-            elif focal_point = 1:
-                hs.z.move(up)
-            else:
-                in_range = True
+            focus_steps.append(pyseq.find_focus(obj_range, jpeg_size))
+            counter += 1
+            if in_range is False:
+                if focal_point == -1:
+                    hs.z.move(down)
+                elif focal_point == 1:
+                    hs.z.move(up)
+                else:
+                    in_range = True
 
-
-    hs.auto_level(focus_steps)
+    hs.auto_level(focal_points)
 
 ##########################################################
 ## Image flowcell ########################################
