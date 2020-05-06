@@ -1084,10 +1084,12 @@ def find_focus(X, Y):
         center  = int(popt_guass[1])
         #error  = perr_gauss[1]
     except:
-        center = None
-        #perr_gauss = None
+        if Ynorm[0] > Ynorm[-1]:
+            center = -1
+        else:
+            center = 1
 
-    # Return center and error
+    # Return center
     return center
 
 
