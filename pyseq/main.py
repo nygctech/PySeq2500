@@ -731,27 +731,43 @@ def autofocus(n_tiles, n_frames):
 
     start = time.time()
 
+    image_name = time.strftime('%Y%m%d_%H%M%S')
+    x_init = hs.x.position
+    y_init = hs.y.position
     # Take initial image to find focus positions
-    if not hs.focus_points:
-        image_name = time.strftime('%Y%m%d_%H%M%S')
-        hs.scan(n_tiles, 1, n_frames, image_name)
-        # get binary roi
-        # Returns 4 positions, first position is center, next 3 are on edge
-        focus_pos = image.get_focus_pos(roi)
-    else:
-        focus_pos = hs.focus_points
+    hs.scan(n_tiles, 1, n_frames, image_name)
+    # Gather scans
+    df_x = image.get_image_df(hs.image_path, image_name)
+    # Normalize and stitch scans
+    im = norm_and_stitch(hs.image_path,df_x, scaled = True)
+    # Get ROI in scan
+    roi = image.get_roi()
+    # Get focus pixels, first 3 are on edge, last is center
+    focus_px_4 = image.get_focus_pos(roi)
+    edge_px = focus_px_4[0:2,:]
+    center_px = focus_pos_4[3,:]
+    scale_factor = im[0,0]
+    focus_pos = []
+    for px in edge_px:
+        #shift edge px towards center
+        shift_px = image.shift_focus(px, center_px, scale_factor)
+        #Convert pixel to stage step positions
+        focus_pos.append(hs.px_to_step(shift_px, x_init, y_init, scale_factor))
 
     # Find focal points
     focal_points = np.empty(shape[3,3])
     in_range = False
-    for i in range (1,4):
-        focal_points[i-1,0:1] = focus_pos[i,:]
+    for i in range(3):
+        focal_points[i,0:1] = focus_pos[i,:]
         hs.x.move(focus_pos[i,0])
         hs.y.move(focus_pos[i,1])
         counter = 0
         while in_range is False or counter == 0:
+            # Loop until a frame with max focus is found
             obj_range =
+            # Take objective stack
             jpeg_size = hs.objstack()
+            # Find position that is most in focus
             focus_steps.append(pyseq.find_focus(obj_range, jpeg_size))
             counter += 1
             if in_range is False:
@@ -762,7 +778,13 @@ def autofocus(n_tiles, n_frames):
                 else:
                     in_range = True
 
-    hs.auto_level(focal_points)
+    # level the stage so focus is at obj_focus
+    obj_focus = 32000
+    z_pos = hs.auto_level(focal_points, obj_focus)
+
+    stop = time.time()
+
+    return stop-start
 
 ##########################################################
 ## Image flowcell ########################################

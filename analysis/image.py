@@ -217,12 +217,12 @@ def get_focus_pos(roi):
        roi (array): Binary array of region of intereste
 
        Returns
-       array: Coordinates of focus points, first point is the center, the
-       remaining 3 points are along the edge.
+       array: Coordinates of 4 focus pixels, 1st 3 points are edge positions,
+       the last point is the centroid.
 
     '''
 
-    # Get properties of region of intereste
+    # Get properties of region of interest
     roi_props = regionprops(roi)
     center = props[0].centroid
 
@@ -242,13 +242,20 @@ def get_focus_pos(roi):
     dist2 = np.sum(dist2, axis = 0)
     max_ind.append(np.argmax(dist2))
 
-    focus_pos = np.zeros(shape(4,2))
-    # center focus position
-    focus_pos[0,:] = props[0].centroid
-    # edge focus position
-    focus_pos[1:4,:] = contour[max_ind,:]
-
-    # Order the focus positions to match with motor indices
+    # Reorder stage points to match z stage motor index
+    focus_pos = np.zeros(shape=[3,2])
+    # Motor position 0
+    m0 = np.where(pos[:,0] == np.min(pos[:,0]))[0][0]
+    focus_pos[0,:] = pos[m0,:]
+    pos = np.delete(pos,m0,0)
+    # Motor position 1
+    m1 = np.where(pos[:,1] == np.min(pos[:,1]))[0][0]
+    focus_pos[1,:] = pos[m1,:]
+    pos = np.delete(pos,m1,0)
+    # Motor position 2
+    focus_pos[2,:] = pos[0,:]
+    # Center position
+    focus_pos[3,:] = props[0].centroid
 
     return focus_pos
 
