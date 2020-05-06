@@ -196,7 +196,10 @@ class Zstage():
             return in_pos
 
         def get_motor_points(self):
-            
+            """Return stage step coordinates tilt motors."""
+
             points = [[self.xstep[0], self.ystep[0], self.position[0]],
                       [self.xstep[1], self.ystep[1], self.position[1]],
                       [self.xstep[2], self.ystep[2], self.position[2]]]
+
+            return points
