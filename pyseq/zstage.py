@@ -64,6 +64,8 @@ class Zstage():
         self.motors = ['1','2','3']
         self.logger = logger
         self.tolerance = 2
+        self.xstep = [0, 50000, 50000]
+        self.ystep = [2000000, 2000000, 6000000]
 
 
     def initialize(self):
@@ -192,3 +194,9 @@ class Zstage():
                     in_pos = False
 
             return in_pos
+
+        def get_motor_points(self):
+            
+            points = [[self.xstep[0], self.ystep[0], self.position[0]],
+                      [self.xstep[1], self.ystep[1], self.position[1]],
+                      [self.xstep[2], self.ystep[2], self.position[2]]]

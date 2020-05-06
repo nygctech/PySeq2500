@@ -545,12 +545,15 @@ class HiSeq():
         correction = [0, 0, n_ip[2]] - n_ip
 
         # Find normal vector of stage plane
-        stage_points = self.z.get_motor_points()
+        stage_points = np.array(self.z.get_motor_points())
+        stage_points[:,0] = stage_points[:,0] / self.x.spum
+        stage_points[:,1] = stage_points[:,1] / self.y.spum
+        stage_points[:,2] = stage_points[:,2] / self.z.spum
         u_sp = stage_points[1,:] - stage_points[0,:]
         v_sp = stage_points[2,:] - stage_points[0,:]
         n_sp = np.cross(u_sp, v_sp)
 
-        # Pick reference stage point
+        # Pick reference motor
         if correction[0] >= 0:
             p_sp = 0 # right motor
         elif correction[1] >= 0:
@@ -562,10 +565,9 @@ class HiSeq():
         n_tp = n_sp + correction
 
         # Solve system equations for level plane
-        A = np.array([v_sp[1]-u_sp[1], -v_sp[1], u_sp[1],
-                      u_sp[0]-v_sp[0], v_sp[0], u_sp[0],
-                      0, 0, 0])
-        A = np.reshape(A,[3,3])
+        A = np.array([[v_sp[1]-u_sp[1], -v_sp[1], u_sp[1]],
+                      [u_sp[0]-v_sp[0], v_sp[0], u_sp[0]],
+                      [0, 0, 0]])
         A[2, p_sp] = 1
         offset_distance = int(offset_distance*self.z.spum)
         offset_distance += self.z.position[p_sp]
