@@ -408,7 +408,7 @@ class HiSeq():
         return image_complete == 2
 
 
-    def obj_stack(self, n_frames, start = 60292, stop = 2621):
+    def obj_stack(self, n_frames = 232, start = 60292, stop = 2621):
         """Take an objective stack of images.
 
            Parameters:
@@ -425,6 +425,14 @@ class HiSeq():
         cam1 = self.cam1
         cam2 = self.cam2
 
+        # Make sure cameras are ready (status = 3)
+        while cam1.get_status() != 3:
+            cam1.stopAcquisition()
+            cam1.freeFrames()
+        while cam2.get_status() != 3:
+            cam2.stopAcquisition()
+            cam2.freeFrames()
+
         #Switch Camera to Area mode
         cam1.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
         cam2.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
@@ -438,12 +446,10 @@ class HiSeq():
         cam1.allocFrame(n_frames)
         cam2.allocFrame(n_frames)
 
-        cam1.status()
-        cam2.status()
 
         # Position objective stage
         obj.set_velocity(5) # mm/s
-        obj.move(start_pos)
+        obj.move(start)
 
         # Set up objective to move and trigger
         obj.set_velocity(0.42) #mm/s
@@ -463,7 +469,7 @@ class HiSeq():
         while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
            now = time.time()
            if now - start_time > 10:
-               print('Imageing took too long.')
+               print('Imaging took too long.')
                break
 
         # Close laser shutters
@@ -478,14 +484,14 @@ class HiSeq():
             print('Cam1 images not taken')
             image_complete = False
         else:
-            cam1.saveFocus(self.image_path)
+            cam1_filesize = cam1.saveFocus(self.image_path)
             image_complete = True
         # Check if all frames were taken from camera 2 then save images
         if cam2.getFrameCount() != n_frames:
             print('Cam2 images not taken')
             image_complete = False
         else:
-            cam2.saveFocus(self.image_path)
+            cam2_filesize = cam2.saveFocus(self.image_path)
             image_complete = True
 
         cam1.freeFrames()
@@ -499,7 +505,14 @@ class HiSeq():
         cam1.captureSetup()
         cam2.captureSetup()
 
-        return image_complete
+
+
+        if image_complete is True:
+            filesize = np.hstack([cam1_filesize, cam2_filesize])
+            return filesize
+        else:
+            return image_complete
+
 
     def reset_stage(self):
         """Home ystage and sync with TDI through the FPGA."""
@@ -914,12 +927,11 @@ class HiSeq():
 
         return [x_center, y_center, x_initial, y_initial, n_tiles, n_frames]
 
-
-    def px_to_step(self, [row,col], x_initial, y_initial, scale):
+    def px_to_step(self, row_col, x_initial, y_initial, scale):
         '''Convert pixel coordinates in image to stage step position.
 
            Parameters:
-           [row, col] (int,int): Row and column pixel position in image.
+           row_col ([int,int]): Row and column pixel position in image.
            x_initial (int): Initial X-stage step position of image
            y_initial (int): Initial Y-stage step position of image
            scale (int): Scale factor of imaged
@@ -929,6 +941,7 @@ class HiSeq():
 
         '''
 
+        row = row_col[0], col = row_col[1]
         scale = scale*self.resolution
 
         x_step = (col - 1/2)*scale*self.x.spum + x_initial

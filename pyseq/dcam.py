@@ -453,8 +453,10 @@ class HamamatsuCamera():
            array: File size of each frame for each channel.
 
         '''
-        jpeg_size = np.zeros(shape = [self.newFrames, 2])
 
+
+        jpeg_size = np.zeros(shape = [self.getFrameCount(), 2])
+        z = 0
         for n in self.newFrames():
 
             # Lock the frame in the camera buffer & get address.
@@ -479,6 +481,8 @@ class HamamatsuCamera():
 
             # Get frame
             frame = hc_data.getData()
+            frame = np.reshape(frame, [self.frame_y, self.frame_x])
+            frame = frame.astype('uint8')
 
             # Split frame into 2 channels
             half_col = int(self.frame_x/2)
@@ -492,8 +496,9 @@ class HamamatsuCamera():
             imageio.imwrite(join(image_path,right_name), right_frame)
 
             # Get file size
-            jpeg_size[n,0] = getsize(join(image_path,left_name), left_frame)
-            jpeg_size[n,1] = getsize(join(image_path,right_name), right_frame)
+            jpeg_size[z,0] = getsize(join(image_path,left_name))
+            jpeg_size[z,1] = getsize(join(image_path,right_name))
+            z+=1
 
         return jpeg_size
 
