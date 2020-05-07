@@ -182,4 +182,4 @@ class OBJstage():
 
         self.command('ZMV ' + str(position))
 
-        return inistial
+        return initial
