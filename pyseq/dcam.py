@@ -454,7 +454,7 @@ class HamamatsuCamera():
 
         '''
         jpeg_size = np.zeros(shape = [self.newFrames, 2])
-        
+
         for n in self.newFrames():
 
             # Lock the frame in the camera buffer & get address.
@@ -945,7 +945,7 @@ class HamamatsuCamera():
                                                    ctypes.byref(f_count)),
                          "dcam_gettransferinfo")
 
-        return f_count.value
+        return int(f_count.value)
 
     ## Status
     #

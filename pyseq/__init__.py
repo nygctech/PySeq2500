@@ -407,91 +407,99 @@ class HiSeq():
 
         return image_complete == 2
 
-##########################################
-#### AUTOFOCUS WORK IN PROGRESS ##########
-##########################################
-##
-##    def zStackAutoFocus(self, n_frames):
-##        f = self.f
-##        obj = self.obj
-##        z = self.z
-##        cam1 = self.cam1
-##        cam2 = self.cam2
-##
-##        ##########################
-##        ## Setup Cameras #########
-##        ##########################
-##
-##        #Switch Camera to Area mode
-##        cam1.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-##        cam2.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-##        #Set line bundle height to 8
-##        cam1.setPropertyValue("sensor_mode_line_bundle_height", 8)
-##        cam2.setPropertyValue("sensor_mode_line_bundle_height", 8)
-##
-##        cam1.captureSetup()
-##        cam2.captureSetup()
-##
-##        cam1.allocFrame(n_frames)
-##        cam2.allocFrame(n_frames)
-##
-##        cam1.status()
-##        cam2.status()
-##
-##        # Position zstage
-##        z.move([21061 21061 21061])
-##
-##        # Position objective stage
-##        obj.set_velocity(5) # mm/s
-##        start_position = 60292
-##        obj.move(start_position)
-##
-##
-##        f.command('SWYZ_POS 1')
-##
-##
-##        # Set up objective to move and trigger
-##        obj.set_velocity(0.42) #mm/s
-##        obj.command('ZTRG ' + str(start_position))
-##        obj.command('ZYT 0 3')
-##
-##        # Start Camera
-##        cam1.startAcquisition()
-##        cam2.startAcquisition()
-##
-##        # Move stage
-##        stop_position = 2621
-##        obj.command('ZMV ' + str(stop_position))
-##        start_time = time.time()
-##        while obj.check_position() != stop_position:
-##            now = time.time()
-##            if now - start_time > 10:
-##                print('Objective stage took too long to move')
-##                break
-##
-##        # Save Images and reset
-##        cam1.stopAcquisition()
-##        date = time.strftime('%m-%d-%Y')
-##        cam1.saveImage('Z_AF'+'cam1_8exp_' +
-##                                              str(n_frames) + 'f_' +
-##                                              date)
-##
-##
-##        cam2.stopAcquisition()
-##        cam2.saveImage('Z_AF'+'cam2_8exp_' +
-##                                              str(n_frames) + 'f_' +
-##                                              date)
-##
-##        cam1.freeFrames()
-##        cam2.freeFrames()
-##
-##        #Switch Camera back to TDI
-##        cam1.setPropertyValue("sensor_mode", 4) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-##        cam2.setPropertyValue("sensor_mode", 4) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-##
-##        cam1.captureSetup()
-##        cam2.captureSetup()
 
+    def obj_stack(self, n_frames, start = 60292, stop = 2621):
+        """Take an objective stack of images.
+
+           Parameters:
+           n_frames: Number of images in the stack.
+
+           Returns:
+           bool: True if took correct number of frames.
+
+        """
+
+        f = self.f
+        obj = self.obj
+        z = self.z
+        cam1 = self.cam1
+        cam2 = self.cam2
+
+        #Switch Camera to Area mode
+        cam1.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        cam2.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        #Set line bundle height to 8
+        cam1.setPropertyValue("sensor_mode_line_bundle_height", 8)
+        cam2.setPropertyValue("sensor_mode_line_bundle_height", 8)
+
+        cam1.captureSetup()
+        cam2.captureSetup()
+
+        cam1.allocFrame(n_frames)
+        cam2.allocFrame(n_frames)
+
+        cam1.status()
+        cam2.status()
+
+        # Position objective stage
+        obj.set_velocity(5) # mm/s
+        obj.move(start_pos)
+
+        # Set up objective to move and trigger
+        obj.set_velocity(0.42) #mm/s
+        obj.set_focus_trigger(start)
+
+        # Open laser shutters
+        f.command('SWLSRSHUT 1')
+
+        # Start Cameras
+        cam1.startAcquisition()
+        cam2.startAcquisition()
+
+        obj.move_and_image(stop)
+
+        # Wait for imaging
+        start_time = time.time()
+        while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
+           now = time.time()
+           if now - start_time > 10:
+               print('Imageing took too long.')
+               break
+
+        # Close laser shutters
+        f.command('SWLSRSHUT 0')
+
+        # Stop cameras
+        cam1.stopAcquisition()
+        cam2.stopAcquisition()
+
+        # Check if received correct number of frames
+        if cam1.getFrameCount() != n_frames:
+            print('Cam1 images not taken')
+            image_complete = False
+        else:
+            cam1.saveFocus(self.image_path)
+            image_complete = True
+        # Check if all frames were taken from camera 2 then save images
+        if cam2.getFrameCount() != n_frames:
+            print('Cam2 images not taken')
+            image_complete = False
+        else:
+            cam2.saveFocus(self.image_path)
+            image_complete = True
+
+        cam1.freeFrames()
+        cam2.freeFrames()
+        obj.set_velocity(5) # mm/s
+
+        #Switch Camera back to TDI
+        cam1.setPropertyValue("sensor_mode", 4) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        cam2.setPropertyValue("sensor_mode", 4) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+
+        cam1.captureSetup()
+        cam2.captureSetup()
+
+        return image_complete
 
     def reset_stage(self):
         """Home ystage and sync with TDI through the FPGA."""

@@ -151,3 +151,35 @@ class OBJstage():
             self.command('ZSTEP ' + str(v))                                     # Set velocity
         else:
             print('Objective velocity out of range')
+
+    def set_focus_trigger(self, position):
+        """Set trigger for an objective stack to determine focus position.
+
+           Parameters:
+           position (int): Step position to start imaging.
+
+           Returns:
+           int: Current step position of the objective.
+
+        """
+
+        self.command('ZTRG ' + str(position))
+        self.command('ZYT 0 3')
+
+        return self.check_position
+
+    def move_and_image(self, position):
+        """Start imaging an objective stack.
+
+           Parameters:
+           position (int): Step position to move the objective to.
+
+           Returns:
+           int: Initial step position of objective.
+
+        """
+        initial = self.check_position
+
+        self.command('ZMV ' + str(position))
+
+        return initial
