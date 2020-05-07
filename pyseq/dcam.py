@@ -30,6 +30,8 @@ import ctypes.util
 import numpy as np
 import imageio
 import warnings
+from os.path import join
+from os.path import getsize
 
 # Hamamatsu constants.
 DCAMCAP_EVENT_FRAMEREADY = int("0x0002", 0)
@@ -441,6 +443,59 @@ class HamamatsuCamera():
 
         self.message(str(self.frame_bytes*f) + ' bytes saved from camera ' + str(self.camera_id))
 
+    def saveFocus(self, image_path):
+        '''Save focus stack frames as jpeg and return file size.
+
+           Parameters:
+           image_path (path): Directory to save images.
+
+           Returns:
+           array: File size of each frame for each channel.
+
+        '''
+        jpeg_size = np.zeros(shape = [self.newFrames, 2])
+        
+        for n in self.newFrames():
+
+            # Lock the frame in the camera buffer & get address.
+            data_address = ctypes.c_void_p(0)
+            row_bytes = ctypes.c_int32(0)
+            self.checkStatus(dcam.dcam_lockdata(self.camera_handle,
+                                                ctypes.byref(data_address),
+                                                ctypes.byref(row_bytes),
+                                                ctypes.c_int32(n)),
+                             "dcam_lockdata")
+
+            # Create storage for the frame & copy into this storage.
+            hc_data = HCamData(self.frame_bytes)
+            hc_data.copyData(data_address)
+
+            # Unlock the frame.
+            #
+            # According to the documentation, this would be done automatically
+            # on the next call to lockdata, but we do this anyway.
+            self.checkStatus(dcam.dcam_unlockdata(self.camera_handle),
+                             "dcam_unlockdata")
+
+            # Get frame
+            frame = hc_data.getData()
+
+            # Split frame into 2 channels
+            half_col = int(self.frame_x/2)
+            left_frame = frame[:,0:half_col]
+            right_frame = frame[:,half_col:self.frame_x]
+
+            # Save frames as jpeg
+            left_name = str(self.left_emission)+'_'+str(n)+'.jpeg'
+            imageio.imwrite(join(image_path,left_name), left_frame)
+            right_name = str(self.right_emission)+'_'+str(n)+'.jpeg'
+            imageio.imwrite(join(image_path,right_name), right_frame)
+
+            # Get file size
+            jpeg_size[n,0] = getsize(join(image_path,left_name), left_frame)
+            jpeg_size[n,1] = getsize(join(image_path,right_name), right_frame)
+
+        return jpeg_size
 
 
     ## getModelInfo

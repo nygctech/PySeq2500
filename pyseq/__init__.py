@@ -505,9 +505,75 @@ class HiSeq():
     def move_stage_out(self):
         """Move stage out for loading/unloading flowcells."""
 
+        self.z.move([0,0,0])
         self.x.move(self.x.home)
         self.y.move(self.y.min_y)
 
+
+    def autolevel(self, focal_points, obj_focus):
+        """Tilt the stage motors so the focus points are on a level plane
+
+           Parameters:
+           focal_points [int, int, int]: List of focus points.
+
+           Returns:
+           [int, int, int]: Z stage positions for a level plane.
+
+        """
+
+        # Find point closest to midpoint of imaging plane
+        obj_step_distance = abs(obj_focus - focal_points[:,2])
+        min_obj_step_distance = np.min(obj_step_distance)
+        p_ip = np.where(obj_step_distance == min_obj_step_distance)
+        offset_distance = obj_focus - focal_points[p_ip,2]
+
+        # Convert stage step position microns
+        focal_points[:,0] = focal_points[:,0]/self.x.spum
+        focal_points[:,1] = focal_points[:,1]/self.y.spum
+        focal_points[:,2] = focal_points[:,2]/self.obj.spum
+        offset_distance = offset_distance/self.obj.spum
+
+        # Find normal vector of imaging plane
+        u_ip = focal_points[1,:] - focal_points[0,:]
+        v_ip = focal_points[2,:] - focal_points[0,:]
+        n_ip = np.cross(u_ip, v_ip)
+
+        # Imaging plane correction
+        correction = [0, 0, n_ip[2]] - n_ip
+
+        # Find normal vector of stage plane
+        stage_points = np.array(self.z.get_motor_points())
+        stage_points[:,0] = stage_points[:,0] / self.x.spum
+        stage_points[:,1] = stage_points[:,1] / self.y.spum
+        stage_points[:,2] = stage_points[:,2] / self.z.spum
+        u_sp = stage_points[1,:] - stage_points[0,:]
+        v_sp = stage_points[2,:] - stage_points[0,:]
+        n_sp = np.cross(u_sp, v_sp)
+
+        # Pick reference motor
+        if correction[0] >= 0:
+            p_sp = 0 # right motor
+        elif correction[1] >= 0:
+            p_sp = 2 # left back motors
+        else:
+            p_sp = 1 # left front motor
+
+        # Target normal of level stage plane
+        n_tp = n_sp + correction
+
+        # Solve system equations for level plane
+        A = np.array([[v_sp[1]-u_sp[1], -v_sp[1], u_sp[1]],
+                      [u_sp[0]-v_sp[0], v_sp[0], u_sp[0]],
+                      [0, 0, 0]])
+        A[2, p_sp] = 1
+        offset_distance = int(offset_distance*self.z.spum)
+        offset_distance += self.z.position[p_sp]
+        B = np.array([n_tp[0], n_tp[1], offset_distance])
+        z_pos = np.linalg.solve(A,B)
+
+        self.z.move(z_pos)
+
+        return z_pos
 
     def zstack(self, n_Zplanes, n_frames, image_name=None):
         """Take a zstack/tile of images.
@@ -697,6 +763,7 @@ class HiSeq():
 
            Returns matrix of [obj position, focus value]
            Will be updated in future.
+
         """
         #Initialize
         y_pos = self.y.position
@@ -838,6 +905,30 @@ class HiSeq():
 
 
         return [x_center, y_center, x_initial, y_initial, n_tiles, n_frames]
+
+
+    def px_to_step(self, [row,col], x_initial, y_initial, scale):
+        '''Convert pixel coordinates in image to stage step position.
+
+           Parameters:
+           [row, col] (int,int): Row and column pixel position in image.
+           x_initial (int): Initial X-stage step position of image
+           y_initial (int): Initial Y-stage step position of image
+           scale (int): Scale factor of imaged
+
+           Returns:
+           [int, int]: X-stage and Y-stage step position respectively.
+
+        '''
+
+        scale = scale*self.resolution
+
+        x_step = (col - 1/2)*scale*self.x.spum + x_initial
+
+        trigger_offset = -80000
+        y_step = (row - 1/2)*scale*self.y.spum + y_initial + trigger_offset
+
+        return [x_step, y_step]
 
 
     def optimize_filter(self, nframes, color, nbins = 256,
@@ -990,10 +1081,12 @@ def find_focus(X, Y):
         center  = int(popt_guass[1])
         #error  = perr_gauss[1]
     except:
-        center = None
-        #perr_gauss = None
+        if Ynorm[0] > Ynorm[-1]:
+            center = -1
+        else:
+            center = 1
 
-    # Return center and error
+    # Return center
     return center
 
 
