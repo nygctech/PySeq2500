@@ -370,11 +370,11 @@ class HiSeq():
         ################################
         # Close laser shutter
         f.command('SWLSRSHUT 0')
-        
+
         # Stop Cameras
         cam1.stopAcquisition()
         cam2.stopAcquisition()
-        
+
         # Check if all frames were taken from camera 1 then save images
         if cam1.getFrameCount() != n_frames:
             print('Cam1 frames: ', cam1.getFrameCount())
@@ -412,10 +412,13 @@ class HiSeq():
         """Take an objective stack of images.
 
            Parameters:
-           n_frames: Number of images in the stack.
+           n_frames (int): Number of images in the stack.
+           start (int): Objective step to start imaging.
+           stop (int): Objective step to stop imaging
 
            Returns:
-           bool: True if took correct number of frames.
+           array: File size of images at each objective position (row) and
+                  each channel (col).
 
         """
 
@@ -467,6 +470,7 @@ class HiSeq():
         # Wait for imaging
         start_time = time.time()
         while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
+           print(obj.check_position(),  cam1.getFrameCount())
            now = time.time()
            if now - start_time > 10:
                print('Imaging took too long.')
@@ -532,10 +536,11 @@ class HiSeq():
 
 
     def autolevel(self, focal_points, obj_focus):
-        """Tilt the stage motors so the focus points are on a level plane
+        """Tilt the stage motors so the focal points are on a level plane.
 
            Parameters:
            focal_points [int, int, int]: List of focus points.
+           obj_focus: Objective step of the level plane.
 
            Returns:
            [int, int, int]: Z stage positions for a level plane.
@@ -1084,6 +1089,7 @@ def find_focus(X, Y):
 
        Returns:
        int: Center position of gaussian peak = to optimal focus.
+
     """
 
     Ynorm = Y - np.min(Y)

@@ -764,6 +764,7 @@ def autofocus(n_tiles, n_frames):
             obj_range =
             # Take objective stack
             jpeg_size = hs.objstack()
+            jpeg_size = np.sum(jpeg_size, axis = 1)
             # Find position that is most in focus
             focus_steps.append(pyseq.find_focus(obj_range, jpeg_size))
             counter += 1
@@ -776,7 +777,7 @@ def autofocus(n_tiles, n_frames):
                     in_range = True
 
     # level the stage so focus is at obj_focus
-    obj_focus = 32000
+    obj_focus = 31500
     z_pos = hs.auto_level(focal_points, obj_focus)
 
     stop = time.time()
