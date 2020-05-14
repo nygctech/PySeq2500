@@ -467,7 +467,7 @@ class HiSeq():
         cam1.startAcquisition()
         cam2.startAcquisition()
 
-        obj.move_and_image(stop)
+        obj.move(stop)
 
         # Wait for imaging
         start_time = time.time()
