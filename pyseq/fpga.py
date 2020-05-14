@@ -142,7 +142,8 @@ class FPGA():
         """Arm the y stage triggers for TDI imaging.
 
            **Parameters:**
-           - y_pos (int) = The initial y position of the image.
+           - n_triggers: Number of triggers to send to the cameras.
+           - y_pos (int): The initial y position of the image.
 
         """
         self.command('TDIYARM3 ' + str(n_triggers) + ' ' +
