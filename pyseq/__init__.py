@@ -410,7 +410,7 @@ class HiSeq():
         return image_complete == 2
 
 
-    def obj_stack(self, n_frames = 232, start = 60292, stop = 2621):
+    def obj_stack(self, n_frames = 232):
         """Take an objective stack of images.
 
            Parameters:
@@ -454,11 +454,11 @@ class HiSeq():
 
         # Position objective stage
         obj.set_velocity(5) # mm/s
-        obj.move(start)
+        obj.move(obj.focus_start)
 
-        # Set up objective to move and trigger
+        # Set up objective to trigger as soon as it moves
         obj.set_velocity(0.42) #mm/s
-        obj.set_focus_trigger(start)
+        obj.set_focus_trigger(obj.focus_start)
 
         # Open laser shutters
         f.command('SWLSRSHUT 1')
@@ -467,7 +467,7 @@ class HiSeq():
         cam1.startAcquisition()
         cam2.startAcquisition()
 
-        obj.move(stop)
+        obj.move(obj.focus_stop)
 
         # Wait for imaging
         start_time = time.time()

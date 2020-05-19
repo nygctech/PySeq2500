@@ -53,10 +53,12 @@ class OBJstage():
         self.spum = 262                                                         #steps per um
         self.max_v = 5                                                          #mm/s
         self.min_v = 0                                                          #mm/s
-        self.v = None
+        self.vel = None                                                         #mm/s
         self.suffix = '\n'
         self.position = None
         self.logger = logger
+        obj.focus_start = 2621                                                  # focus start step
+        obj.focus_stop = 60292                                                  # focus stop step
 
 
     def initialize(self):

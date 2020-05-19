@@ -2,17 +2,14 @@
 
 from . import image
 import numpy as np
+from scipy.optimize import least_squares
 
-def focus(hs, x_initial, y_initial, n_tiles, n_frames, AorB, section, cycle):
+def rough_focus(hs, x_initial, y_initial, n_tiles, n_frames, image_name):
     hs.x.move(x_initial)
     hs.y.move(y_initial)
     hs.obj.move(17500)
     # Move to rough focus position
     hs.z.move([21500, 21500, 21500])
-    # Create rough focus image name
-    image_name = AorB
-    image_name = image_name + '_' + 'R' + str(section)
-    image_name = image_name + '_' + 'c' + cycle
     # Take rough focus image
     hs.scan(n_tiles, 1, n_frames, image_name)
     channels = [str(hs.cam1.left_emission),
@@ -51,10 +48,175 @@ def focus(hs, x_initial, y_initial, n_tiles, n_frames, AorB, section, cycle):
     ordered_stage_point[1,:] = stage_points[m1,:]
     stage_points = np.delete(stage_points,m0,0)
 
+    return(ordered_stage_points)
+
+def format_focus(hs, focus1, focus2):
+    '''Return valid and normalized focus frame file sizes.
+
+       Parameters:
+       - focus1 (array): JPEG file sizes from both channels of camera 1.
+       - focus2 (array): JPEG file sizes from both channels of camera 2.
+
+       Returns:
+       - array: Valid and normalized focue frame file sizes.
+
+    '''
+    # Calculate steps per frame
+    # hs.obj.v TODO store velocity in mm/s
+    #hs.obj.spum = 262 # steps/um
+    # frame_interval = hs.cam1.get_interval() # s/frame TODO
+
+    if len(focus1) != len(focus2):
+        print('Number of focus frame mismatch')
+    else:
+        n_frames = len(focus1)
+
+    if hs.cam1.get_interval() != hs.cam2.get_interval():
+        print('Frame interval mismatch')
+    else:
+        frame_interval = hs.cam1.get_interval()
+
+    spf = hs.obj.vel*1000*hs.obj.spum*frame_interval # steps/frame
+
+    # Remove frames after objective stops moving
+    #obj_start = 60292
+    #obj_stop = 2621
+    _frames = range(n_frames)
+    objsteps = hs.obj.focus_start + np.array(_frames)*spf
+    objsteps = objsteps[objsteps < hs.obj.focus_stop]
+
+    # Remove first 16 frames
+    objsteps = objsteps[16:]
+
+    # Number of formatted frames
+    n_f_frames = len(objsteps)
+
+    #formatted focus data
+    f_fd = np.empty(shape = (n_f_frames,))
+
+    _size = focus1[16:n_f_frames+16,:] + focus1[16:n_f_frames+16,:]
+    _size = _size / np.sum(_size)
+    f_fd[:,0] = obj_steps
+    f_fd[:,1] = _size
+
+    return f_fd
+
+def _gaussian(x, *args):
+    """Gaussian function for curve fitting."""
+
+    if len(args) == 1:
+      args = args[0]
+
+    n_peaks = int(len(args)/3)
 
 
-    print(ordered_stage_points)
+    if len(args) - n_peaks*3 != 0:
+      print('Unequal number of parameters')
+    else:
+      for i in range(n_peaks):
+        amp = args[0:n_peaks]
+        cen = args[n_peaks:n_peaks*2]
+        sigma = args[n_peaks*2:n_peaks*3]
 
+      g_sum = 0
+      for i in range(len(amp)):
+          g_sum += amp[i]*(1/(sigma[i]*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen[i])/sigma[i])**2)))
+
+      return g_sum
+
+def fun_peaks(*args):
+    """Gaussian residual function for curve fitting."""
+
+    if len(args) == 1:
+      args = args[0]
+
+    n_peaks = int(len(args)/3)
+
+    if len(args) - n_peaks*3 != 0:
+      print('Unequal number of parameters')
+    else:
+      for i in range(n_peaks):
+        amp = args[0:n_peaks]
+        cen = args[n_peaks:n_peaks*2]
+        sigma = args[n_peaks*2:n_peaks*3]
+
+      g_sum = 0
+      for i in range(len(amp)):
+          g_sum += amp[i]*(1/(sigma[i]*np.sqrt(2*np.pi)))*np.exp(-0.5*(((xfun-cen[i])/sigma[i])**2))
+
+      return yfun-g_sum
+
+def fit_mixed_gaussian(hs, data):
+    '''Fit focus data & return optimal objective focus step.
+
+       Focus objective step vs frame JPEG file size is fit to a mixed gaussian
+       model. The optimal objective focus step is returned at step of the max
+       JPEG file size of the fit.
+
+       Parameters:
+       - data (array nx2): Focus data where the 1st column are the objetive
+                           steps and the 2 column are the valid and normalized
+                           focus frame JPEG file size.
+
+       Returns:
+       int: The optimal focus objective step. If 1 or -1 is returned, the z
+            stage needs to be moved in the +ive or -ive direction to find an
+            optimal focus.
+            
+    '''
+#hs_nyquist_obj = 235 #steps
+    # initialize values
+    max_peaks = 3
+    peaks = 1
+    #
+    amp = []; amp_lb = []; amp_ub = []
+    cen = []; cen_lb = []; cen_ub = []
+    sigma = []; sigma_lb = []; sigma_ub = []
+    y = data[:,1]
+    error = 1
+    tolerance = 1e-4
+    xfun = data[:,0]; yfun = data[:,1]
+
+    # Add peaks until fit reached threshold
+    while peaks <= max_peaks and error > tolerance:
+        # set initial guesses
+        max_y = np.max(y)
+        amp.append(max_y*10000)
+        index = np.argmax(y)
+        y = np.delete(y, index)
+        index = np.where(data[:,1] == max_y)[0][0]
+        cen.append(data[index,0])
+        sigma.append(np.sum(data[:,1]**2)**0.5*10000)
+        p0 = np.array([amp, cen, sigma])
+        p0 = p0.flatten()
+        # set bounds
+        amp_lb.append(0); amp_ub.append(np.inf)
+        cen_lb.append(np.min(data[:,0])); cen_ub.append(np.max(data[:,0]))
+        sigma_lb.append(0); sigma_ub.append(np.inf)
+        low_bounds = np.array([amp_lb, cen_lb, sigma_lb])
+        up_bounds = np.array([amp_ub, cen_ub, sigma_ub])
+        low_bounds = low_bounds.flatten()
+        up_bounds = up_bounds.flatten()
+        # Optimize parameters
+        results = least_squares(fun_peaks, p0, bounds = (low_bounds, up_bounds))
+        if not results.success:
+            print(results.message)
+        else:
+            error = np.sum(results.fun**2)
+
+
+        if results.success and error < tolerance:
+            _objsteps = range(hs.obj.obj_start, hs.obj.obj_start,
+                              int(hs.obj.nyquist_obj/2))
+            _focus = _gaussian(_objsteps, results.x)
+            optobjstep = int(_objsteps[np.argmax(_focus)])}]
+            return optobjstep
+        else:
+            if peaks == max_peaks:
+                print('No good fit try moving z stage')
+                # TODO find direction to move zstage
+
+        return optobjstep
 
 def get_image_df(dir, image_name = None):
   '''Get dataframe of images.
