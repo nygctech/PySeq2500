@@ -101,7 +101,7 @@ def format_focus(hs, focus1, focus2):
 
     return f_fd
 
-def _gaussian(x, *args):
+def gaussian(x, *args):
     """Gaussian function for curve fitting."""
 
     if len(args) == 1:
@@ -124,7 +124,7 @@ def _gaussian(x, *args):
 
       return g_sum
 
-def fun_peaks(*args):
+def res_gaussian(*args):
     """Gaussian residual function for curve fitting."""
 
     if len(args) == 1:
@@ -162,13 +162,13 @@ def fit_mixed_gaussian(hs, data):
        int: The optimal focus objective step. If 1 or -1 is returned, the z
             stage needs to be moved in the +ive or -ive direction to find an
             optimal focus.
-            
+
     '''
-#hs_nyquist_obj = 235 #steps
+
     # initialize values
     max_peaks = 3
     peaks = 1
-    #
+    # Initialize varibles
     amp = []; amp_lb = []; amp_ub = []
     cen = []; cen_lb = []; cen_ub = []
     sigma = []; sigma_lb = []; sigma_ub = []
@@ -189,16 +189,18 @@ def fit_mixed_gaussian(hs, data):
         sigma.append(np.sum(data[:,1]**2)**0.5*10000)
         p0 = np.array([amp, cen, sigma])
         p0 = p0.flatten()
+
         # set bounds
         amp_lb.append(0); amp_ub.append(np.inf)
         cen_lb.append(np.min(data[:,0])); cen_ub.append(np.max(data[:,0]))
         sigma_lb.append(0); sigma_ub.append(np.inf)
-        low_bounds = np.array([amp_lb, cen_lb, sigma_lb])
+        lo_bounds = np.array([amp_lb, cen_lb, sigma_lb])
         up_bounds = np.array([amp_ub, cen_ub, sigma_ub])
-        low_bounds = low_bounds.flatten()
+        lo_bounds = lo_bounds.flatten()
         up_bounds = up_bounds.flatten()
+
         # Optimize parameters
-        results = least_squares(fun_peaks, p0, bounds = (low_bounds, up_bounds))
+        results = least_squares(res_gaussian, p0, bounds=(lo_bounds,up_bounds))
         if not results.success:
             print(results.message)
         else:
@@ -208,8 +210,8 @@ def fit_mixed_gaussian(hs, data):
         if results.success and error < tolerance:
             _objsteps = range(hs.obj.obj_start, hs.obj.obj_start,
                               int(hs.obj.nyquist_obj/2))
-            _focus = _gaussian(_objsteps, results.x)
-            optobjstep = int(_objsteps[np.argmax(_focus)])}]
+            _focus = gaussian(_objsteps, results.x)
+            optobjstep = int(_objsteps[np.argmax(_focus)])]
             return optobjstep
         else:
             if peaks == max_peaks:

@@ -514,8 +514,9 @@ class HiSeq():
 
 
         if image_complete is True:
-            filesize = np.hstack([cam1_filesize, cam2_filesize])
-            return filesize
+            opt_step = focus.fit_mixed_gaussian(self, cam1_filesize,
+                                                      cam2_filesize)
+            return opt_step
         else:
             return image_complete
 
