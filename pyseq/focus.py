@@ -94,7 +94,7 @@ def format_focus(hs, focus1, focus2):
     #formatted focus data
     f_fd = np.empty(shape = (n_f_frames,))
 
-    _size = focus1[16:n_f_frames+16,:] + focus1[16:n_f_frames+16,:]
+    _size = np.sum(focus1[16:n_f_frames+16,:] + focus1[16:n_f_frames+16,:], 1)
     _size = _size / np.sum(_size)
     f_fd[:,0] = obj_steps
     f_fd[:,1] = _size
@@ -216,9 +216,10 @@ def fit_mixed_gaussian(hs, data):
         else:
             if peaks == max_peaks:
                 print('No good fit try moving z stage')
-                # TODO find direction to move zstage
+                optobjstep = hs.focus_direction
+                hs.focus_direction = optobjstep * -1
 
-        return optobjstep
+    return optobjstep
 
 def get_image_df(dir, image_name = None):
   '''Get dataframe of images.

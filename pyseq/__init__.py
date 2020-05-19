@@ -155,6 +155,7 @@ class HiSeq():
         self.bundle_height = 128
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
+        self.focus_direction = -1                                               # direction to move z stage if focus not found
 
 
 
@@ -419,9 +420,10 @@ class HiSeq():
            - stop (int): Objective step to stop imaging
 
            Returns:
-           - array: File size of images at each objective position (row) and
-                    each channel (col).
-
+           - array: N x 2 array where the column 1 is the objective step the
+                    frame was taken and column 2 is the file size of the frame
+                    summed over all channels
+                    
         """
 
         f = self.f
@@ -502,6 +504,12 @@ class HiSeq():
 
         cam1.freeFrames()
         cam2.freeFrames()
+
+        if image_complete:
+            f_filesize = focus.format_focus(self, cam1_filesize, cam2_filesize)
+        else:
+            f_filesize = 0
+
         obj.set_velocity(5) # mm/s
 
         #Switch Camera back to TDI
@@ -511,14 +519,8 @@ class HiSeq():
         cam1.captureSetup()
         cam2.captureSetup()
 
+        return f_filesize
 
-
-        if image_complete is True:
-            opt_step = focus.fit_mixed_gaussian(self, cam1_filesize,
-                                                      cam2_filesize)
-            return opt_step
-        else:
-            return image_complete
 
 
     def reset_stage(self):
