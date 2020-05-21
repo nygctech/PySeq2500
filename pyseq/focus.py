@@ -1,6 +1,5 @@
 #!/usr/bin/python
-
-from . import image
+import pandas as pd
 import numpy as np
 from scipy.optimize import least_squares
 
@@ -37,7 +36,7 @@ def rough_focus(hs, x_initial, y_initial, n_tiles, n_frames, image_name):
         stage_points[i-1,:]= hs.px_to_step(focus_point, x_initial, y_initial,
                                            scale)
 
-    # Reorder stage points to match z stage motore indice
+    # Reorder stage points to match z stage motor indice
     ordered_stage_points = np.zeros(shape=[3,2])
 
     m0 = np.where(stage_points[:,0] == np.min(stage_points[:,0]))[0][0]
@@ -211,7 +210,7 @@ def fit_mixed_gaussian(hs, data):
             _objsteps = range(hs.obj.obj_start, hs.obj.obj_start,
                               int(hs.obj.nyquist_obj/2))
             _focus = gaussian(_objsteps, results.x)
-            optobjstep = int(_objsteps[np.argmax(_focus)])]
+            optobjstep = int(_objsteps[np.argmax(_focus)])
             return optobjstep
         else:
             if peaks == max_peaks:
@@ -222,7 +221,7 @@ def fit_mixed_gaussian(hs, data):
     return optobjstep
 
 def get_image_df(dir, image_name = None):
-  '''Get dataframe of images.
+    '''Get dataframe of images.
 
     Parameters:
     dir (path): Directory where images are stored.
@@ -231,7 +230,7 @@ def get_image_df(dir, image_name = None):
     Return
     dataframe: Dataframe of image metadata with image names as index.
 
-  '''
+    '''
 
     all_names = os.listdir(dir)
     if image_name is None:
@@ -261,10 +260,10 @@ def get_image_df(dir, image_name = None):
       metadata.loc[name] = meta
 
 
-  metadata.sort_values(by=['flowcell', 'specimen', 'section', 'cycle', 'channel',
+    metadata.sort_values(by=['flowcell', 'specimen', 'section', 'cycle', 'channel',
                            'o','x'])
 
-  return metadata
+    return metadata
 
 
 
@@ -292,7 +291,7 @@ def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
     im = io.imread(path.join(dir,name))
     im = im[64:]                                                                # Remove whiteband artifact
 
-    if scaled = True:
+    if scaled:
         # Scale images so they are ~ 256 kb
         if scale_factor is None:
             size = stat(path.join(dir,name)).st_size

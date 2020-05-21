@@ -57,9 +57,10 @@ class OBJstage():
         self.suffix = '\n'
         self.position = None
         self.logger = logger
-        obj.focus_start = 2621                                                  # focus start step
-        obj.focus_stop = 60292                                                  # focus stop step
-
+        self.focus_start = 2621                                                  # focus start step
+        self.focus_stop = 60292                                                  # focus stop step
+        self.focus_rough = int((self.focus_stop - self.focus_start)/2 +
+                                self.focus_start)
 
     def initialize(self):
         """Initialize the objective stage."""

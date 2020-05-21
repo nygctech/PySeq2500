@@ -8,14 +8,14 @@ from scipy import stats
 from skimage.transform import downscale_local_mean
 from skimage.util import img_as_ubyte
 from skimage import io
-from skimge.exposure import match_histograms
+from skimage.exposure import match_histograms
 from skimage.segmentation import clear_border
 from skimage.measure import label, regionprops, find_contours
 from skimage.morphology import closing, square
+from skimage.filters import sobel
 
 
-
-def get_image_df(dir, image_name = None):
+def get_image_df(im_path, image_name = None):
   '''Get dataframe of images.
 
      Dataframe columns: channel, flowcell, section, cycle, x, o.
@@ -35,31 +35,33 @@ def get_image_df(dir, image_name = None):
 
   '''
 
-    all_names = os.listdir(dir)
-    if image_name is None:
-      image_names = all_names
-    else:
-      image_names = [name for name in all_names if image_name in name]
+  all_names = listdir(im_path)
+  if image_name is None:
+    im_names = all_names
+    image_names = [name for name in im_names if '.tiff' in name]
+  else:
+    im_names = [name for name in all_names if image_name in name]
+    image_names = [name for name in im_names if '.tiff' in name]
 
-    # Dataframe for metdata
-    metadata = pd.DataFrame(columns = ('channel','flowcell','section',
-                                       'cycle','x','o'))
+  # Dataframe for metdata
+  metadata = pd.DataFrame(columns = ('channel','flowcell','section',
+                                     'cycle','x','o'))
 
-    # Extract metadata
-    for name in image_names:
+  # Extract metadata
+  for name in image_names:
 
-      meta = name[:-5].split('_')
+    meta = name[:-5].split('_')
 
-      # Convert channels to int
-      meta[0] = int(meta[0])
-      # Remove c from cycle
-      meta[3] = int(meta[4][1:])
-      # Remove x from xposition
-      meta[4] = int(meta[5][1:])
-      # Remove o from objective position
-      meta[5] = int(meta[6][1:])
+    # Convert channels to int
+    meta[0] = int(meta[0])
+    # Remove c from cycle
+    meta[3] = int(meta[4][1:])
+    # Remove x from xposition
+    meta[4] = int(meta[5][1:])
+    # Remove o from objective position
+    meta[5] = int(meta[6][1:])
 
-      metadata.loc[name] = meta
+    metadata.loc[name] = meta
 
 
   metadata.sort_values(by=['flowcell', 'section', 'cycle', 'channel',
@@ -69,13 +71,12 @@ def get_image_df(dir, image_name = None):
 
 
 
-def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
+def norm_and_stitch(im_path, df_x, overlap = 0, scaled = False):
   '''Normalize and stitch scans.
 
      Images are normalized by matching histogram to first strip in first image.
      The scale factor of the stitched image is saved in the first pixel
-     (row = 0, column = 0).
-
+     (row = 0, column = 0
 
      Parameters:
      - dir (path): Directory where image scans are stored.
@@ -95,15 +96,16 @@ def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
   ref = None
   scale_factor = None
   for name in df_x.index:
-    im = io.imread(path.join(dir,name))
+    im = io.imread(path.join(im_path,name))
     im = im[64:]                                                                # Remove whiteband artifact
 
-    if scaled = True:
+    if scaled:
         # Scale images so they are ~ 256 kb
         if scale_factor is None :
-            size = stat(path.join(dir,name)).st_size
+            size = stat(path.join(im_path,name)).st_size
             scale_factor = (2**(log2(size)-18))**0.5
             scale_factor = round(log2(scale_factor))
+            print(scale_factor)
 
         im = downscale_local_mean(im, (scale_factor, scale_factor))
     else:
@@ -117,8 +119,8 @@ def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
 
       if ref is None:
         # Make first strip reference for histogram matching
-        ref = sub_im
-        plane = sub_im
+        ref = im[:,7*x_px:8*x_px]
+        plane = match_histograms(sub_im, ref)
       else:
         sub_im = match_histograms(sub_im, ref)
         plane = np.append(plane, sub_im, axis = 1)
@@ -130,20 +132,20 @@ def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
   return plane
 
 
- def avg_images(images):
-     '''Average pixel values in images
+def avg_images(images):
+    '''Average pixel values in images
 
-        First image is used as a reference.
-        All other image histograms are matched to the reference.
-        Then the images are averaged together.
+       First image is used as a reference.
+       All other image histograms are matched to the reference.
+       Then the images are averaged together.
 
-        Parameters:
-        - images (list): List of images to sum.
+       Parameters:
+       - images (list): List of images to sum.
 
-        Return:
-        - array: Numpy array of average image.
+       Return:
+       - array: Numpy array of average image.
 
-     '''
+    '''
 
     sum_im = None
     ref = None

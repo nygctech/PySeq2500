@@ -150,7 +150,7 @@ class HiSeq():
         self.bg_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\PySeq2500V2\\calibration\\' # path save background calibration images, WILL REMOVE IN FUTURE
         self.fc_origin = {'A':[17571,-180000],
                           'B':[43310,-180000]}
-        self.line_width = 0.769                                                 #mm
+        self.tile_width = 0.769                                                 #mm
         self.resolution = 0.375                                                 #um/px
         self.bundle_height = 128
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
@@ -347,7 +347,7 @@ class HiSeq():
         #
         #TODO check trigger y values are reasonable
         n_triggers = n_frames * self.bundle_height
-        end_y_pos = y_pos - n_triggers - 300000
+        end_y_pos = int(y_pos - n_triggers*self.resolution*y.spum - 300000)
         f.TDIYPOS(y_pos)
         f.TDIYARM3(n_triggers, y_pos)
         #print('Trigger armed, Imaging starting')
@@ -632,15 +632,16 @@ class HiSeq():
             image_name = time.strftime('%Y%m%d_%H%M%S')
 
         y_pos = self.y.position
+        obj_pos = self.obj.position
 
         start = time.time()
 
         for n in range(n_Zplanes):
-            image_name = image_name + '_' + str(self.obj.position)
+            im_name = image_name + '_o' + str(self.obj.position)
             image_complete = False
 
             while not image_complete:
-                image_complete = self.take_picture(n_frames, image_name)
+                image_complete = self.take_picture(n_frames, im_name)
                 if image_complete:
                     self.obj.move(self.obj.position + self.nyquist_obj)
                     self.y.move(y_pos)
@@ -650,6 +651,7 @@ class HiSeq():
                     self.reset_stage()
                     self.y.move(y_pos)
 
+        self.obj.move(obj_pos)
         stop = time.time()
 
         return stop-start
@@ -678,8 +680,8 @@ class HiSeq():
         start = time.time()
 
         for tile in range(n_tiles):
-            image_name = image_name + '_' + str(self.x.position)
-            stack_time = self.zstack(n_Zplanes, n_frames, image_name)           # Take a zstack
+            im_name = image_name + '_x' + str(self.x.position)
+            stack_time = self.zstack(n_Zplanes, n_frames, im_name)           # Take a zstack
             self.x.move(self.x.position + 315)                                  # Move to next x position
 
         stop = time.time()
