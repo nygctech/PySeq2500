@@ -155,6 +155,7 @@ class HiSeq():
         self.bundle_height = 128
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
+        self.focus_direction = -1                                               # direction to move z stage if focus not found
 
 
 
@@ -279,9 +280,9 @@ class HiSeq():
            The section to be imaged should already be in position and
            optical settings should already be set.
 
-           The final size of the image is 2048 x n_frames*self.bundle_height px
-           in size. The images and metadata are stored in the self.image_path
-           directory.
+           The final size of the image is 2048 px wide and n_frames *
+           self.bundle_height px long. The images and metadata are stored in the
+           self.image_path directory.
 
            **Parameters:**
            - n_frames (int): Number of frames in the images.
@@ -324,9 +325,11 @@ class HiSeq():
         while cam1.get_status() != 3:
             cam1.stopAcquisition()
             cam1.freeFrames()
+            cam1.captureSetup()
         while cam2.get_status() != 3:
             cam2.stopAcquisition()
             cam2.freeFrames()
+            cam1.captureSetup()
         # Set bundle height
         cam1.setPropertyValue("sensor_mode_line_bundle_height",
                                self.bundle_height)
@@ -408,18 +411,19 @@ class HiSeq():
         return image_complete == 2
 
 
-    def obj_stack(self, n_frames = 232, start = 60292, stop = 2621):
+    def obj_stack(self, n_frames = 232):
         """Take an objective stack of images.
 
            Parameters:
-           n_frames (int): Number of images in the stack.
-           start (int): Objective step to start imaging.
-           stop (int): Objective step to stop imaging
+           - n_frames (int): Number of images in the stack.
+           - start (int): Objective step to start imaging.
+           - stop (int): Objective step to stop imaging
 
            Returns:
-           array: File size of images at each objective position (row) and
-                  each channel (col).
-
+           - array: N x 2 array where the column 1 is the objective step the
+                    frame was taken and column 2 is the file size of the frame
+                    summed over all channels
+                    
         """
 
         f = self.f
@@ -452,11 +456,11 @@ class HiSeq():
 
         # Position objective stage
         obj.set_velocity(5) # mm/s
-        obj.move(start)
+        obj.move(obj.focus_start)
 
-        # Set up objective to move and trigger
+        # Set up objective to trigger as soon as it moves
         obj.set_velocity(0.42) #mm/s
-        obj.set_focus_trigger(start)
+        obj.set_focus_trigger(obj.focus_start)
 
         # Open laser shutters
         f.command('SWLSRSHUT 1')
@@ -465,7 +469,7 @@ class HiSeq():
         cam1.startAcquisition()
         cam2.startAcquisition()
 
-        obj.move_and_image(stop)
+        obj.move(obj.focus_stop)
 
         # Wait for imaging
         start_time = time.time()
@@ -505,6 +509,12 @@ class HiSeq():
 
         cam1.freeFrames()
         cam2.freeFrames()
+
+        if image_complete:
+            f_filesize = focus.format_focus(self, cam1_filesize, cam2_filesize)
+        else:
+            f_filesize = 0
+
         obj.set_velocity(5) # mm/s
 
         #Switch Camera back to TDI
@@ -514,13 +524,8 @@ class HiSeq():
         cam1.captureSetup()
         cam2.captureSetup()
 
+        return f_filesize
 
-
-        if image_complete is True:
-            filesize = np.hstack([cam1_filesize, cam2_filesize])
-            return filesize
-        else:
-            return image_complete
 
 
     def reset_stage(self):
@@ -544,11 +549,11 @@ class HiSeq():
         """Tilt the stage motors so the focal points are on a level plane.
 
            Parameters:
-           focal_points [int, int, int]: List of focus points.
-           obj_focus: Objective step of the level plane.
+           - focal_points [int, int, int]: List of focus points.
+           - obj_focus: Objective step of the level plane.
 
            Returns:
-           [int, int, int]: Z stage positions for a level plane.
+           - [int, int, int]: Z stage positions for a level plane.
 
         """
 
@@ -672,7 +677,7 @@ class HiSeq():
 
         start = time.time()
 
-        for n_X in range(n_tiles):
+        for tile in range(n_tiles):
             image_name = image_name + '_' + str(self.x.position)
             stack_time = self.zstack(n_Zplanes, n_frames, image_name)           # Take a zstack
             self.x.move(self.x.position + 315)                                  # Move to next x position
@@ -904,6 +909,10 @@ class HiSeq():
                 imaging details to scan the entire section. See table
                 above for details.
         """
+        LLx = box[0]
+        LLy = box[1]
+        URx = box[2]
+        URy = box[3]
 
         # Number of scans
         n_tiles = ceil((LLx - URx)/self.tile_width)

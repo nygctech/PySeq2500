@@ -956,6 +956,15 @@ class HamamatsuCamera():
 
         return int(f_count.value)
 
+    ## query
+    #
+    # Get the frame interval (seconds per frame)
+    def getFrameInterval(self):
+        [interval, prop_type] = self.getPropertyValue('internal_frame_interval')
+
+        return float(interval)
+        
+
     ## Status
     #
     # Get the status of the camera

@@ -27,11 +27,11 @@ def get_image_df(dir, image_name = None):
      * o: Objective stage position of the image.
 
      Parameters:
-     dir (path): Directory where images are stored.
-     image_name (str): Name common to all images.
+     - dir (path): Directory where images are stored.
+     - image_name (str): Name common to all images.
 
-     Return
-     dataframe: Image meta data with image names as index.
+     Returns:
+     - dataframe: Image meta data with image names as index.
 
   '''
 
@@ -77,13 +77,13 @@ def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
      (row = 0, column = 0).
 
 
-     Parameters
-     dir (path): Directory where image scans are stored.
-     df_x (df): Dataframe of metadata of image scans to stitch.
-     scaled (bool): If True autoscale images to ~2^18 bytes, if False do not scale.
+     Parameters:
+     - dir (path): Directory where image scans are stored.
+     - df_x (df): Dataframe of metadata of image scans to stitch.
+     - scaled (bool): If True autoscale images to ~2^18 bytes, if False do not scale.
 
      Return:
-     array: Normalized, stitched, and downscaled image as numpy array.
+     - array: Normalized, stitched, and downscaled image as numpy array.
 
      TODO:
      * stich images with an overlap
@@ -137,11 +137,11 @@ def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
         All other image histograms are matched to the reference.
         Then the images are averaged together.
 
-        Parameters
-        images (list): List of images to sum.
+        Parameters:
+        - images (list): List of images to sum.
 
         Return:
-        array: Numpy array of average image.
+        - array: Numpy array of average image.
 
      '''
 
@@ -164,13 +164,13 @@ def get_roi(im, psat = 98, sq_size = 3):
     '''Get region of interest.
 
        Parameters:
-       im (array): Image as a numpy array.
-       psat (int): Cut off percentile for saturated pixels.
-       sq_size (int): Size of square to remove small artifacts in segmented
-       image.
+       - im (array): Image as a numpy array.
+       - psat (int): Cut off percentile for saturated pixels.
+       - sq_size (int): Size of square to remove small artifacts in segmented
+                        image.
 
-       Returns
-       array: Binary image as numpy array with region of interest as 1.
+       Returns:
+       - array: Binary image as numpy array with region of interest as 1.
 
     '''
 
@@ -214,11 +214,11 @@ def get_focus_pos(roi):
     '''Get focus positions.
 
        Parameters:
-       roi (array): Binary array of region of intereste
+       - roi (array): Binary array of region of intereste
 
        Returns
-       array: Coordinates of 4 focus pixels, 1st 3 points are edge positions,
-       the last point is the centroid.
+       - array: Coordinates of 4 focus pixels, 1st 3 points are edge positions,
+                the last point is the centroid.
 
     '''
 
@@ -263,13 +263,13 @@ def shift_focus(fpoint, center, scale):
     '''Shift focus points towards the center.
 
        Parameters:
-       fpoint (int,int): Pixel row and column coordinates of a focal point.
-       center (int, int): Pixel row and column coordinates of the center point.
-       scale (float): Scale to shift a focal point towards the center.
+       - fpoint (int,int): Pixel row and column coordinates of a focal point.
+       - center (int, int): Pixel row and column coordinates of the center point.
+       - scale (float): Scale to shift a focal point towards the center.
 
        Returns
-       [int,int]: Pixel row and column coordinates of focal point shifted
-       towards center.
+       - [int,int]: Pixel row and column coordinates of focal point shifted
+                    towards center.
 
     '''
 

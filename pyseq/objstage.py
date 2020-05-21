@@ -38,12 +38,12 @@ class OBJstage():
         """The constructor for the objective stage.
 
            Parameters:
-           fpga (fpga object): The Illumina HiSeq 2500 System :: FPGA.
-           logger (log, optional): The log file to write communication with the
-                objective stage to.
+           - fpga (fpga object): The Illumina HiSeq 2500 System :: FPGA.
+           - logger (log, optional): The log file to write communication with
+                                     the objective stage to.
 
            Returns:
-           objective stage object: A objective stage object to control the
+           - objective stage object: A objective stage object to control the
                 position of the objective.
         """
 
@@ -53,10 +53,12 @@ class OBJstage():
         self.spum = 262                                                         #steps per um
         self.max_v = 5                                                          #mm/s
         self.min_v = 0                                                          #mm/s
-        self.v = None
+        self.vel = None                                                         #mm/s
         self.suffix = '\n'
         self.position = None
         self.logger = logger
+        obj.focus_start = 2621                                                  # focus start step
+        obj.focus_stop = 60292                                                  # focus stop step
 
 
     def initialize(self):
@@ -72,10 +74,11 @@ class OBJstage():
         """Send a command to the objective stage and return the response.
 
            Parameters:
-           text (str): A command to send to the objective stage.
+           - text (str): A command to send to the objective stage.
 
            Returns:
-           str: The response from the objective stage.
+           - str: The response from the objective stage.
+
         """
 
         text = text + self.suffix
@@ -97,7 +100,8 @@ class OBJstage():
            objective will not move and a warning message is printed.
 
            Parameters:
-           position (int): The step position to move the objective to.
+           - position (int): The step position to move the objective to.
+
         """
 
         if position >= self.min_z and position <= self.max_z:
@@ -119,7 +123,7 @@ class OBJstage():
            read, None is returned.
 
            Returns:
-           int: The absolution position of the objective steps.
+           - int: The absolution position of the objective steps.
         """
 
         try:
@@ -141,7 +145,7 @@ class OBJstage():
            printed.
 
            Parameters:
-           v (float): The velocity for the objective to move at in mm/s.
+           - v (float): The velocity for the objective to move at in mm/s.
         """
 
         if v > self.min_v and v <= self.max_v:
@@ -156,10 +160,10 @@ class OBJstage():
         """Set trigger for an objective stack to determine focus position.
 
            Parameters:
-           position (int): Step position to start imaging.
+           - position (int): Step position to start imaging.
 
            Returns:
-           int: Current step position of the objective.
+           - int: Current step position of the objective.
 
         """
 
@@ -167,19 +171,3 @@ class OBJstage():
         self.command('ZYT 0 3')
 
         return self.check_position
-
-    def move_and_image(self, position):
-        """Start imaging an objective stack.
-
-           Parameters:
-           position (int): Step position to move the objective to.
-
-           Returns:
-           int: Initial step position of objective.
-
-        """
-        initial = self.check_position
-
-        self.command('ZMV ' + str(position))
-
-        return initial
