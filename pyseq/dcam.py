@@ -438,8 +438,11 @@ class HamamatsuCamera():
         if self.right_emission is None:
             self.right_emission = 'Right'
 
-        imageio.imwrite(image_path+str(self.left_emission)+'_'+image_name+'.tiff', left_image)
-        imageio.imwrite(image_path+str(self.right_emission)+'_'+image_name+'.tiff', right_image)
+        left_name = str(self.left_emission)+'_'+image_name+'.tiff'
+        right_name = str(self.right_emission)+'_'+image_name+'.tiff'
+        
+        imageio.imwrite(join(image_path,left_name), left_image)
+        imageio.imwrite(join(image_path,right_name), right_image)
 
         self.message(str(self.frame_bytes*f) + ' bytes saved from camera ' + str(self.camera_id))
 
@@ -482,6 +485,7 @@ class HamamatsuCamera():
             # Get frame
             frame = hc_data.getData()
             frame = np.reshape(frame, [self.frame_y, self.frame_x])
+            frame = frame[14:30,:]
             frame = frame.astype('uint8')
 
             # Split frame into 2 channels

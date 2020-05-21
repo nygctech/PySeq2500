@@ -207,7 +207,7 @@ class HiSeq():
 
         #Initialize X Stage before Y Stage!
         print('Initializing X & Y stages')
-        self.x.initialize()
+        #self.x.initialize()
         #TODO, make sure x stage is in correct place.
         self.x.initialize() # Do it twice to make sure its centered!
         self.y.initialize()
@@ -215,12 +215,12 @@ class HiSeq():
         self.lasers['green'].initialize()
         self.lasers['red'].initialize()
         print('Initializing pumps and valves')
-        self.p['A'].initialize()
-        self.p['B'].initialize()
-        self.v10['A'].initialize()
-        self.v10['B'].initialize()
-        self.v24['A'].initialize()
-        self.v24['B'].initialize()
+##        self.p['A'].initialize()
+##        self.p['B'].initialize()
+##        self.v10['A'].initialize()
+##        self.v10['B'].initialize()
+##        self.v24['A'].initialize()
+##        self.v24['B'].initialize()
         print('Initializing FPGA')
         self.f.initialize()
 
@@ -469,12 +469,17 @@ class HiSeq():
 
         # Wait for imaging
         start_time = time.time()
+        frame_time = []
         while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
-           print(obj.check_position(),  cam1.getFrameCount())
+           frame_time.append([time.time()-start_time,  cam1.getFrameCount(), obj.check_position()])
            now = time.time()
            if now - start_time > 10:
                print('Imaging took too long.')
                break
+
+        with open('frame_time.txt','w') as filehandle:
+            for i in frame_time:
+                filehandle.write(str(i[0]) + ', ' + str(i[1]) + ', ' + str(i[2]) + '\n')
 
         # Close laser shutters
         f.command('SWLSRSHUT 0')
