@@ -226,6 +226,8 @@ class HamamatsuCamera():
         self.right_emission = None
         self.status = None
         self.logger = logger
+        self.tdi_exposure = 0.002568533333333333                                # TDI exposure time in s
+        self.area_exposure = 0.005025378                                        # AREA exposure time in s
 
         # Open the camera.
         self.camera_handle = ctypes.c_void_p(0)
@@ -440,7 +442,7 @@ class HamamatsuCamera():
 
         left_name = str(self.left_emission)+'_'+image_name+'.tiff'
         right_name = str(self.right_emission)+'_'+image_name+'.tiff'
-        
+
         imageio.imwrite(join(image_path,left_name), left_image)
         imageio.imwrite(join(image_path,right_name), right_image)
 
@@ -963,7 +965,7 @@ class HamamatsuCamera():
         [interval, prop_type] = self.getPropertyValue('internal_frame_interval')
 
         return float(interval)
-        
+
 
     ## Status
     #
@@ -1080,7 +1082,43 @@ class HamamatsuCamera():
 
         self.message(c_buf.value)
 
+    def setTDI(self):
+        'Switch camera to TDI imaging mode, return True is successful'
 
+        success = True
+        self.setPropertyValue("exposure_time", self.tdi_exposure
+        if self.setPropertyValue("binning", 1)  !=  1:
+            success = False
+        if self.setPropertyValue("sensor_mode", 4) != 4                         #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+            success = False
+        if self.setPropertyValue("contrast_gain", 0) != 0                       #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+            success = False
+        #self.cam1.setPropertyValue("trigger_mode", 1)                          #Normal
+        #self.cam1.setPropertyValue("trigger_polarity", 1)                      #Negative
+        #self.cam1.setPropertyValue("trigger_connector", 1)                     #Interface
+        #self.cam1.setPropertyValue("trigger_source", 2)                        #1 = internal, 2=external
+        #self.cam1.setPropertyValue("subarray_mode", 1)                         #1 = OFF, 2 = ON
+        if success:
+            self.sensor_mode = 'TDI'
+
+        return success
+
+    def setAREA(self):
+        'Switch camera to AREA imaging mode, return True is successful'
+
+        success = True
+        self.setPropertyValue("exposure_time", self.tdi_exposure)
+        if self.setPropertyValue("binning", 1)  !=  1:
+            success = False
+        if self.setPropertyValue("sensor_mode", 1) != 1                         #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+            success = False
+        if self.setPropertyValue("contrast_gain", 0) != 0
+            success = False
+
+        if success:
+            self.sensor_mode = 'AREA'
+
+        return success
 
 ## HamamatsuCameraMR
 #

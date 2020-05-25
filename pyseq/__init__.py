@@ -175,30 +175,30 @@ class HiSeq():
 
         # Initialize camera 1
         print('Initializing camera 1...')
-        self.cam1.setPropertyValue("exposure_time", 40.0)
-        self.cam1.setPropertyValue("binning", 1)
-        self.cam1.setPropertyValue("sensor_mode", 4)                            #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-        self.cam1.setPropertyValue("trigger_mode", 1)                           #Normal
-        self.cam1.setPropertyValue("trigger_polarity", 1)                       #Negative
-        self.cam1.setPropertyValue("trigger_connector", 1)                      #Interface
-        self.cam1.setPropertyValue("trigger_source", 2)                         #1 = internal, 2=external
-        self.cam1.setPropertyValue("contrast_gain", 0)
-        self.cam1.setPropertyValue("subarray_mode", 1)                          #1 = OFF, 2 = ON
-
+        # self.cam1.setPropertyValue("exposure_time", 40.0)
+        # self.cam1.setPropertyValue("binning", 1)
+        # self.cam1.setPropertyValue("sensor_mode", 4)                            #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        # self.cam1.setPropertyValue("trigger_mode", 1)                           #Normal
+        # self.cam1.setPropertyValue("trigger_polarity", 1)                       #Negative
+        # self.cam1.setPropertyValue("trigger_connector", 1)                      #Interface
+        # self.cam1.setPropertyValue("trigger_source", 2)                         #1 = internal, 2=external
+        # self.cam1.setPropertyValue("contrast_gain", 0)
+        # self.cam1.setPropertyValue("subarray_mode", 1)                          #1 = OFF, 2 = ON
+        self.cam1.setTDI()
         self.cam1.captureSetup()
         self.cam1.get_status()
 
         # Initialize Camera 2
         print('Initializing camera 2...')
-        self.cam2.setPropertyValue("exposure_time", 40.0)
-        self.cam2.setPropertyValue("binning", 1)
-        self.cam2.setPropertyValue("sensor_mode", 4)                            #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-        self.cam2.setPropertyValue("trigger_mode", 1)                           #Normal
-        self.cam2.setPropertyValue("trigger_polarity", 1)                       #Negative
-        self.cam2.setPropertyValue("trigger_connector", 1)                      #Interface
-        self.cam2.setPropertyValue("trigger_source", 2)                         #1 = internal, 2=external
-        self.cam2.setPropertyValue("contrast_gain", 0)
-
+        # self.cam2.setPropertyValue("exposure_time", 40.0)
+        # self.cam2.setPropertyValue("binning", 1)
+        # self.cam2.setPropertyValue("sensor_mode", 4)                            #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        # self.cam2.setPropertyValue("trigger_mode", 1)                           #Normal
+        # self.cam2.setPropertyValue("trigger_polarity", 1)                       #Negative
+        # self.cam2.setPropertyValue("trigger_connector", 1)                      #Interface
+        # self.cam2.setPropertyValue("trigger_source", 2)                         #1 = internal, 2=external
+        # self.cam2.setPropertyValue("contrast_gain", 0)
+        self.cam1.setTDI()
         self.cam2.captureSetup()
         self.cam2.get_status()
 
@@ -423,7 +423,7 @@ class HiSeq():
            - array: N x 2 array where the column 1 is the objective step the
                     frame was taken and column 2 is the file size of the frame
                     summed over all channels
-                    
+
         """
 
         f = self.f
