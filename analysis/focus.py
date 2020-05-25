@@ -1,28 +1,37 @@
 #!/usr/bin/python
 import pandas as pd
 import numpy as np
+import image
 from scipy.optimize import least_squares
 
-def rough_focus(hs, x_initial, y_initial, n_tiles, n_frames, image_name):
-    hs.x.move(x_initial)
-    hs.y.move(y_initial)
-    hs.obj.move(17500)
+def rough_focus(hs, n_tiles, n_frames):
+    '''Image section at preset positions and return scaled image scan.'''
+
+    image_name = 'RoughScan'
+    obj_pos = int((hs.obj.stop - hs.obj.start)/2 + hs.obj.start)
+    hs.obj.move(obj_pos)
     # Move to rough focus position
-    hs.z.move([21500, 21500, 21500])
+    z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
+    hs.z.move(z_pos)
     # Take rough focus image
     hs.scan(n_tiles, 1, n_frames, image_name)
-    channels = [str(hs.cam1.left_emission),
-                str(hs.cam1.right_emission),
-                str(hs.cam2.left_emission),
-                str(hs.cam2.right_emission)]
     rough_ims = []
     # Stitch rough focus image
-    for ch in channels:
-        df_x = image.get_image_df(hs.image_path, ch+'_'+image_name)
-        rough_ims.append(norm_and_stitch(hs.image_path, df_x, scaled = True))
-    scale = rough_ims[0][0][0]
+    for ch in hs.channels:
+        df_x = image.get_rough_df(hs.image_path, ch+'_'+image_name)
+        df_x = df_x.drop('X1', axis = 1)
+        df_x = df_x.rename(columns = {'X0':'ch', 'X2':'x', 'X3':'o'})
+        df_x.x = df_x.x.astype('uint16')
+        plane, scale_factor = stitch(hs.image_path, df_x, scaled = True)
+        rough_ims.append(normalize(plane, scale_factor))
+
+    return rough_ims
+
+def find_focus_points(rough_ims, scale):
+
+    #scale = rough_ims[0][0][0]
     # Combine channels
-    avg_im = image.average_images(rough_ims)
+    avg_im = image.avg_images(rough_ims)
     # Find region of interest
     roi = image.get_roi(avg_im)
     # Find focus points
@@ -49,15 +58,14 @@ def rough_focus(hs, x_initial, y_initial, n_tiles, n_frames, image_name):
 
     return(ordered_stage_points)
 
-def format_focus(hs, focus1, focus2):
+def format_focus(hs, focus):
     '''Return valid and normalized focus frame file sizes.
 
        Parameters:
-       - focus1 (array): JPEG file sizes from both channels of camera 1.
-       - focus2 (array): JPEG file sizes from both channels of camera 2.
+       - focus (array): JPEG file sizes from N channels of cameras.
 
        Returns:
-       - array: Valid and normalized focue frame file sizes.
+       - array: Valid and normalized focus frame file sizes.
 
     '''
     # Calculate steps per frame
@@ -101,7 +109,7 @@ def format_focus(hs, focus1, focus2):
     return f_fd
 
 def gaussian(x, *args):
-    """Gaussian function for curve fitting."""
+    '''Gaussian function for curve fitting.'''
 
     if len(args) == 1:
       args = args[0]
@@ -124,7 +132,7 @@ def gaussian(x, *args):
       return g_sum
 
 def res_gaussian(*args):
-    """Gaussian residual function for curve fitting."""
+    '''Gaussian residual function for curve fitting.'''
 
     if len(args) == 1:
       args = args[0]
@@ -153,7 +161,7 @@ def fit_mixed_gaussian(hs, data):
        JPEG file size of the fit.
 
        Parameters:
-       - data (array nx2): Focus data where the 1st column are the objetive
+       - data (array nx2): Focus data where the 1st column are the objective
                            steps and the 2 column are the valid and normalized
                            focus frame JPEG file size.
 
@@ -221,7 +229,7 @@ def fit_mixed_gaussian(hs, data):
     return optobjstep
 
 def get_image_df(dir, image_name = None):
-    '''Get dataframe of images.
+    '''Get dataframe of rough focus images.
 
     Parameters:
     dir (path): Directory where images are stored.
@@ -229,41 +237,155 @@ def get_image_df(dir, image_name = None):
 
     Return
     dataframe: Dataframe of image metadata with image names as index.
-
     '''
 
     all_names = os.listdir(dir)
     if image_name is None:
-      image_names = all_names
+      image_names = [name for name in all_names if '.tiff' in name]
     else:
-      image_names = [name for name in all_names if image_name in name]
+      im_names = [name for name in all_names if image_name in name]
+      image_names = [name for name in im_names if '.tiff' in name]
 
     # Dataframe for metdata
-    metadata = pd.DataFrame(columns = ('channel','flowcell','specimen',
-                                       'section','cycle','x','o'))
+    n_cols = len(image_names[0][:-5].split('_'))
+    col_names = []
+    for i in n_cols:
+        col_names.appen('X'+str(i))
+    metadata = pd.DataFrame(columns = (col_names))
 
     # Extract metadata
     for name in image_names:
 
       meta = name[:-5].split('_')
-
-      # Convert channels to int
-      meta[0] = int(meta[0])
-      # Remove c from cycle
-      meta[4] = int(meta[4][1:])
-      # Remove x from xposition
-      meta[5] = int(meta[5][1:])
-      # Remove o from objective position
-      meta[6] = int(meta[6][1:])
-
-
       metadata.loc[name] = meta
 
-
-    metadata.sort_values(by=['flowcell', 'specimen', 'section', 'cycle', 'channel',
-                           'o','x'])
-
     return metadata
+
+
+# def get_image_df(dir, image_name = None):
+#     '''Get dataframe of images.
+#
+#     Parameters:
+#     dir (path): Directory where images are stored.
+#     image_name (str): Name common to all images.
+#
+#     Return
+#     dataframe: Dataframe of image metadata with image names as index.
+#
+#     '''
+#
+#     all_names = os.listdir(dir)
+#     if image_name is None:
+#       image_names = [name for name in all_names if '.tiff' in name]
+#     else:
+#       im_names = [name for name in all_names if image_name in name]
+#       image_names = [name for name in im_names if '.tiff' in name]
+#
+#     # Dataframe for metdata
+#     metadata = pd.DataFrame(columns = ('channel','flowcell','specimen',
+#                                        'section','cycle','x','o'))
+#
+#     # Extract metadata
+#     for name in image_names:
+#
+#       meta = name[:-5].split('_')
+#
+#       # Convert channels to int
+#       meta[0] = int(meta[0])
+#       # Remove c from cycle
+#       meta[4] = int(meta[4][1:])
+#       # Remove x from xposition
+#       meta[5] = int(meta[5][1:])
+#       # Remove o from objective position
+#       meta[6] = int(meta[6][1:])
+#
+#
+#       metadata.loc[name] = meta
+#
+#
+#     metadata.sort_values(by=['flowcell', 'specimen', 'section', 'cycle', 'channel',
+#                            'o','x'])
+#
+#     return metadata
+
+def stitch(dir, df_x, overlap = 0, scaled = False):
+    '''Stitch together scans.
+
+     Parameters
+     dir (path): Directory where image scans are stored.
+     df_x (df): Dataframe of metadata of image scans to stitch.
+     scaled (bool): True to autoscale images to ~256 Kb, False to not scale.
+
+     Returns
+     image: Stitched and scaled image.
+
+    '''
+
+    df_x.sort_values(by=['x'])
+    scale_factor = None
+    plane = None
+    for name in df_x.index:
+        im = io.imread(path.join(dir,name))
+        im = im[64:]                                                            # Remove whiteband artifact
+
+        if scaled:
+            # Scale images so they are ~ 512 kb
+            if scale_factor is None:
+                size = stat(path.join(dir,name)).st_size
+                scale_factor = (2**(log2(size)-19))**0.5
+                scale_factor = round(log2(scale_factor))
+                scale_factor = 2**scale_factor
+
+            im = downscale_local_mean(im, (scale_factor, scale_factor))
+
+        # Append scans together
+        if plane is None:
+            plane = im
+        else:
+            plane = np.append(plane, im, axis = 1)
+
+    plane = plane.astype('uint16')
+
+    return plane, scale_factor
+
+def normalize(im, scale_factor):
+    '''Normalize scans.
+
+     Images are normalized by matching histogram to strip with most contrast.
+
+
+     Parameters
+     im (array): Image as array
+     scale_factor (int): Downscale factor of image
+
+     Returns
+     image: Normalized image.
+
+    '''
+    x_px = int(2048/scale_factor/8)
+    n_strips = int(im.shape[1]/x_px)
+    strip_contrast = np.empty(shape=(1,n_strips))
+    col_contrast = np.max(im, axis = 0) - np.min(im, axis = 0)
+
+    # Find reference strip with max contrast
+    for i in range(n_strips):
+        strip_contrast[i] = np.mean(col_contrast[0,(i)*x_px:(i+1)*x_px])
+    ref_strip = np.argmax(strip_contrast)
+    ref = im[:,(i)*x_px:(i+1)*x_px]
+
+    plane = None
+    for i in range(n_strips):
+      sub_im = im[:,(i)*x_px:(i+1)*x_px]
+      sub_im = exposure.match_histograms(sub_im, ref)
+      if plane is None:
+        plane = sub_im
+      else:
+        plane = np.append(plane, sub_im, axis = 1)
+
+    plane = plane.astype('uint8')
+    plane = img_as_ubyte(plane)
+
+    return plane
 
 
 
@@ -319,25 +441,25 @@ def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
 
   return plane
 
-ch = '558' , '610'
-o = 30117
-x = 12344
-scale_factor = 16
+# ch = '558' , '610'
+# o = 30117
+# x = 12344
+# scale_factor = 16
 
 
 
-# Dummy class to hold image data
-class image():
-  def __init__(self, data):
-    self.image = data
-    self.elev_map = None
-    self.markers = None
-    self.segmentation = None
-    self.roi = None
-
-# Data frame for images with metadata
-df_imgs_ch = pd.DataFrame(columns = ('channel','flowcell','specimen','section',
-                                     'cycle','o','image'))
+# # Dummy class to hold image data
+# class image():
+#   def __init__(self, data):
+#     self.image = data
+#     self.elev_map = None
+#     self.markers = None
+#     self.segmentation = None
+#     self.roi = None
+#
+# # Data frame for images with metadata
+# df_imgs_ch = pd.DataFrame(columns = ('channel','flowcell','specimen','section',
+#                                      'cycle','o','image'))
 
 # Stitch all images
 # In this dataset there are images from cycle 1 from the 10Ab_mouse_4i experiment
@@ -345,46 +467,46 @@ df_imgs_ch = pd.DataFrame(columns = ('channel','flowcell','specimen','section',
 # There are 3 objective positions at 28237, 30117, and 31762
 # At each objective position there are 4 scans as x pos = 11714, 12029, 12344, and 12659
 
-for ch in set(metadata.channel):
-  #ch = 558
-  df_ch = metadata[metadata.channel == ch]
-  for o in set(df_ch.o):
-    #o = 30117
-    df_o = df_ch[df_ch.o == o]
-    df_x = df_o.sort_values(by = ['x'])
-    meta = [*df_x.iloc[0]]
-
-    title = 'cy'+str(meta[4])+'_ch'+str(ch)+'_o'+str(o)
-    meta[5] = meta[6]                                                           # Move objective data
-    meta[6] = image(norm_and_stitch(fn, df_x, scale_factor))
-    df_imgs_ch.loc[title] = meta
-
-# Show all images
-i =0
-dim = df_imgs_ch.iloc[0].image.image.shape
-n_images = df_imgs_ch.shape[0]
-if n_images == 1:
-  fig, ax = plt.subplots(figsize=(8, 6))
-  for index, row in df_imgs_ch.iterrows():
-    ax.imshow(row['image'].image, cmap='Spectral')
-    ax.set_title(index)
-    ax.axis('off')
-elif n_images > 1:
-  fig, ax = plt.subplots(1,len(df_imgs_ch), figsize=(dim[0]/10, dim[1]/10*len(df_imgs_ch)))
-  for index, row in df_imgs_ch.iterrows():
-    ax[i].imshow(row['image'].image,cmap='Spectral')
-    ax[i].set_title(index)
-    ax[i].axis('off')
-    i +=1
-
-
-    # Make background 0, assume background is most frequent px value
-    p_back = stats.mode(im, axis=None)
-    imsize = im.shape
-    p_back = p_back[0]
-
-    # Make saturated pixels 0
-    #p_back, p_sat = np.percentile(im, (10,98))
-    p_sat = np.percentile(im, (98,))
-    im[im < p_back] = 0
-    im[im > p_sat] = 0
+# for ch in set(metadata.channel):
+#   #ch = 558
+#   df_ch = metadata[metadata.channel == ch]
+#   for o in set(df_ch.o):
+#     #o = 30117
+#     df_o = df_ch[df_ch.o == o]
+#     df_x = df_o.sort_values(by = ['x'])
+#     meta = [*df_x.iloc[0]]
+#
+#     title = 'cy'+str(meta[4])+'_ch'+str(ch)+'_o'+str(o)
+#     meta[5] = meta[6]                                                           # Move objective data
+#     meta[6] = image(norm_and_stitch(fn, df_x, scale_factor))
+#     df_imgs_ch.loc[title] = meta
+#
+# # Show all images
+# i =0
+# dim = df_imgs_ch.iloc[0].image.image.shape
+# n_images = df_imgs_ch.shape[0]
+# if n_images == 1:
+#   fig, ax = plt.subplots(figsize=(8, 6))
+#   for index, row in df_imgs_ch.iterrows():
+#     ax.imshow(row['image'].image, cmap='Spectral')
+#     ax.set_title(index)
+#     ax.axis('off')
+# elif n_images > 1:
+#   fig, ax = plt.subplots(1,len(df_imgs_ch), figsize=(dim[0]/10, dim[1]/10*len(df_imgs_ch)))
+#   for index, row in df_imgs_ch.iterrows():
+#     ax[i].imshow(row['image'].image,cmap='Spectral')
+#     ax[i].set_title(index)
+#     ax[i].axis('off')
+#     i +=1
+#
+#
+#     # Make background 0, assume background is most frequent px value
+#     p_back = stats.mode(im, axis=None)
+#     imsize = im.shape
+#     p_back = p_back[0]
+#
+#     # Make saturated pixels 0
+#     #p_back, p_sat = np.percentile(im, (10,98))
+#     p_sat = np.percentile(im, (98,))
+#     im[im < p_back] = 0
+#     im[im > p_sat] = 0

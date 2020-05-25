@@ -228,6 +228,7 @@ class HamamatsuCamera():
         self.logger = logger
         self.tdi_exposure = 0.002568533333333333                                # TDI exposure time in s
         self.area_exposure = 0.005025378                                        # AREA exposure time in s
+        self.sensor_mode = None
 
         # Open the camera.
         self.camera_handle = ctypes.c_void_p(0)

@@ -11,7 +11,7 @@ from skimage import io
 from skimage.exposure import match_histograms
 from skimage.segmentation import clear_border
 from skimage.measure import label, regionprops, find_contours
-from skimage.morphology import closing, square
+from skimage.morphology import closing, square, watershed
 from skimage.filters import sobel
 
 
@@ -132,7 +132,7 @@ def norm_and_stitch(im_path, df_x, overlap = 0, scaled = False):
   return plane
 
 
-def avg_images(images):
+def avg_images(images, per_sat = 99):
     '''Average pixel values in images
 
        First image is used as a reference.
@@ -149,20 +149,49 @@ def avg_images(images):
 
     sum_im = None
     ref = None
+
+    # Select image with largest constrast as reference
+    contrast = np.empty(shape= (len(images),))
+    i = 0
     for im in images:
-        if ref is None:
-            ref = im
+        contrast[i] = np.max(im) - np.min(im)
+        print(np.min(im))
+        p_back = stats.mode(im, axis = None)
+        p_back = p_back[0]
+        i += 1
+    ref = images[np.argmax(contrast)]
+
+    i = 0
+    for im in images:
+
+
+
+        # Make background 0, assume background is most frequent px value
+        p_back = stats.mode(im, axis=None)
+        p_back = p_back[0]
+
+        #im = match_histograms(im, ref)
+        print(np.max(im)/contrast[i])
+        i += 1
+
+        # Make saturated pixels 0
+        p_sat = np.percentile(im, (per_sat,))
+        im[im < p_back] = 0
+        im[im > p_sat] = 0
+
+
 
         if sum_im is None:
             sum_im = im
         else:
-            im = match_histograms(im, ref)
-            sum_im = np.add(sum_im,im)
+            sum_im = np.add(sum_im, im)
 
     sum_im = sum_im/(len(im))
     sum_im = sum_im.astype('uint8')
 
-def get_roi(im, psat = 98, sq_size = 3):
+    return sum_im
+
+def get_roi(im, per_sat = 98, sq_size = 3):
     '''Get region of interest.
 
        Parameters:
@@ -176,25 +205,17 @@ def get_roi(im, psat = 98, sq_size = 3):
 
     '''
 
-    # Make background 0, assume background is most frequent px value
-    p_back = stats.mode(im, axis=None)
-    im[im <= p_back[0]] = 0
-
-    # Make saturated pixels 0
-    p_sat = np.percentile(im, (psat,))
-    im[im > p_sat] = 0
-
     # Make elevation map
     elev_map = sobel(im)
 
     # Get markers
     markers = np.zeros_like(im)
-    p_sign = np.percentile(im, (98,))
+    p_sign = np.percentile(im, (per_sat,))
     markers[im == 0] = 1
     markers[im > p_sign] = 2
 
     # Get segmented image
-    im = morphology.watershed(elev_map, markers)
+    im = watershed(elev_map, markers)
 
     # remove border objects
     im = clear_border(im)

@@ -156,7 +156,7 @@ class HiSeq():
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
         self.focus_direction = -1                                               # direction to move z stage if focus not found
-
+        self.channels = None
 
 
     def initializeCams(self, Logger=None):
@@ -201,7 +201,10 @@ class HiSeq():
         self.cam1.setTDI()
         self.cam2.captureSetup()
         self.cam2.get_status()
-
+        self.channels =[str(hs.cam1.left_emission),
+                        str(hs.cam1.right_emission),
+                        str(hs.cam2.left_emission),
+                        str(hs.cam2.right_emission)]
 
     def initializeInstruments(self):
         """Initialize x,y,z, & obj stages, pumps, valves, optics, and FPGA."""
@@ -322,6 +325,10 @@ class HiSeq():
 
 
         # Make sure cameras are ready (status = 3)
+        if cam1.sensor_mode != 'TDI':
+            cam1.set_TDI()
+        if cam2.sensor_mode != 'TDI':
+            cam2.set_TDI()
         while cam1.get_status() != 3:
             cam1.stopAcquisition()
             cam1.freeFrames()
@@ -433,6 +440,10 @@ class HiSeq():
         cam2 = self.cam2
 
         # Make sure cameras are ready (status = 3)
+        if cam1.sensor_mode != 'AREA':
+            cam1.set_AREA()
+        if cam2.sensor_mode != 'AREA':
+            cam2.set_AREA()
         while cam1.get_status() != 3:
             cam1.stopAcquisition()
             cam1.freeFrames()
@@ -511,18 +522,11 @@ class HiSeq():
         cam2.freeFrames()
 
         if image_complete:
-            f_filesize = focus.format_focus(self, cam1_filesize, cam2_filesize)
+            f_filesize = np.concatenate((cam1_filesize,cam2_filesize), axis = 1)
         else:
             f_filesize = 0
 
         obj.set_velocity(5) # mm/s
-
-        #Switch Camera back to TDI
-        cam1.setPropertyValue("sensor_mode", 4) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-        cam2.setPropertyValue("sensor_mode", 4) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-
-        cam1.captureSetup()
-        cam2.captureSetup()
 
         return f_filesize
 

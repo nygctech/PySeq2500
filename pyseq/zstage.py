@@ -64,8 +64,9 @@ class Zstage():
         self.motors = ['1','2','3']
         self.logger = logger
         self.tolerance = 2
-        self.xstep = [0, 50000, 50000]
-        self.ystep = [2000000, 2000000, 6000000]
+        self.xstep = [0, 50000, 50000]                                          # x step position of motors
+        self.ystep = [2000000, 2000000, 6000000]                                # y step position of motors
+        self.focus_pos = 21500                                                  # rough focus position
 
 
     def initialize(self):
@@ -131,7 +132,6 @@ class Zstage():
                     ' and ' + str(self.max_z))
 
         return self.check_position()                                            # Check position
-
 
     # Check if Zstage motors are stopped and return their position
     def check_position(self):
