@@ -5,6 +5,7 @@ import pandas as pd
 from math import log2
 from os import listdir, stat, path
 from scipy import stats
+from scipy.spatial.distance import cdist
 from skimage.transform import downscale_local_mean
 from skimage.util import img_as_ubyte
 from skimage import io
@@ -155,39 +156,37 @@ def avg_images(images, per_sat = 99):
     i = 0
     for im in images:
         contrast[i] = np.max(im) - np.min(im)
-        print(np.min(im))
-        p_back = stats.mode(im, axis = None)
-        p_back = p_back[0]
         i += 1
     ref = images[np.argmax(contrast)]
 
-    i = 0
+    #average images with a signal
+    counter = 0
     for im in images:
-
-
+        _im = np.copy(im)
 
         # Make background 0, assume background is most frequent px value
-        p_back = stats.mode(im, axis=None)
+        p_back = stats.mode(_im, axis=None)
         p_back = p_back[0]
+        signal = (np.max(_im)-p_back)/(p_back-np.min(_im))
+        if signal >= 0.5:
 
-        #im = match_histograms(im, ref)
-        print(np.max(im)/contrast[i])
-        i += 1
+            counter += 1
 
-        # Make saturated pixels 0
-        p_sat = np.percentile(im, (per_sat,))
-        im[im < p_back] = 0
-        im[im > p_sat] = 0
+            im = match_histograms(im, ref)
 
+            # Make saturated pixels 0
+            p_sat = np.percentile(_im, (per_sat,))
+            _im[_im < p_back] = 0
+            _im[_im > p_sat] = 0
 
+            if sum_im is None:
+                sum_im = _im
+            else:
+                sum_im = np.add(sum_im, _im)
 
-        if sum_im is None:
-            sum_im = im
-        else:
-            sum_im = np.add(sum_im, im)
-
-    sum_im = sum_im/(len(im))
-    sum_im = sum_im.astype('uint8')
+        if sum_im is not None:
+            sum_im = sum_im/counter
+            sum_im = sum_im.astype('uint8')
 
     return sum_im
 
@@ -229,6 +228,7 @@ def get_roi(im, per_sat = 98, sq_size = 3):
     # Create region of interest binary image
     roi = np.zeros_like(im)
     roi[labeled == roi_id[0]] = 1
+    roi = roi.astype('uint8')
 
     return roi
 
@@ -247,7 +247,7 @@ def get_focus_pos(roi):
 
     # Get properties of region of interest
     roi_props = regionprops(roi)
-    center = props[0].centroid
+    center = roi_props[0].centroid
 
     # Get edge of region of interest
     contour = find_contours(roi, 0.5)
