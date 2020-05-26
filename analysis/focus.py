@@ -3,12 +3,20 @@ import pandas as pd
 import numpy as np
 import image
 from scipy.optimize import least_squares
+import os
+from skimage import io
+from os import path, listdir, stat
+from scipy import stats
+from math import log2
+from skimage.exposure import match_histograms
+from skimage.util import img_as_ubyte
+
 
 def rough_focus(hs, n_tiles, n_frames):
     '''Image section at preset positions and return scaled image scan.'''
 
     image_name = 'RoughScan'
-    obj_pos = int((hs.obj.stop - hs.obj.start)/2 + hs.obj.start)
+    obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
     hs.obj.move(obj_pos)
     # Move to rough focus position
     z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
@@ -18,16 +26,19 @@ def rough_focus(hs, n_tiles, n_frames):
     rough_ims = []
     # Stitch rough focus image
     for ch in hs.channels:
-        df_x = image.get_rough_df(hs.image_path, ch+'_'+image_name)
+        df_x = get_image_df(hs.image_path, ch+'_'+image_name)
         df_x = df_x.drop('X1', axis = 1)
         df_x = df_x.rename(columns = {'X0':'ch', 'X2':'x', 'X3':'o'})
-        df_x.x = df_x.x.astype('uint16')
+        for i in range(len(df_x.x)):
+            df_x.x[i] = int(df_x.x[i][1:])
+            df_x.o[i] = int(df_x.o[i][1:])
+            df_x.ch[i] = int(df_x.ch[i])
         plane, scale_factor = stitch(hs.image_path, df_x, scaled = True)
         rough_ims.append(normalize(plane, scale_factor))
 
     return rough_ims
 
-def find_focus_points(rough_ims, scale):
+def find_focus_points(rough_ims, scale, hs):
 
     #scale = rough_ims[0][0][0]
     # Combine channels
@@ -35,7 +46,8 @@ def find_focus_points(rough_ims, scale):
     # Find region of interest
     roi = image.get_roi(avg_im)
     # Find focus points
-    focus_points = get_focus_points(roi)
+    focus_points = image.get_focus_pos(roi)
+    
     # Shift focus points towards center
     stage_points = np.zeros(shape=[3,2])
     for i in range(1,4):
@@ -45,16 +57,16 @@ def find_focus_points(rough_ims, scale):
         stage_points[i-1,:]= hs.px_to_step(focus_point, x_initial, y_initial,
                                            scale)
 
-    # Reorder stage points to match z stage motor indice
-    ordered_stage_points = np.zeros(shape=[3,2])
-
-    m0 = np.where(stage_points[:,0] == np.min(stage_points[:,0]))[0][0]
-    ordered_stage_point[0,:] = stage_points[m0,:]
-    stage_points = np.delete(stage_points,m0,0)
-
-    m1 = np.where(stage_points[:,1] == np.min(stage_points[:,1]))[0][0]
-    ordered_stage_point[1,:] = stage_points[m1,:]
-    stage_points = np.delete(stage_points,m0,0)
+##    # Reorder stage points to match z stage motor indice
+##    ordered_stage_points = np.zeros(shape=[3,2])
+##
+##    m0 = np.where(stage_points[:,0] == np.min(stage_points[:,0]))[0][0]
+##    ordered_stage_point[0,:] = stage_points[m0,:]
+##    stage_points = np.delete(stage_points,m0,0)
+##
+##    m1 = np.where(stage_points[:,1] == np.min(stage_points[:,1]))[0][0]
+##    ordered_stage_point[1,:] = stage_points[m1,:]
+##    stage_points = np.delete(stage_points,m0,0)
 
     return(ordered_stage_points)
 
@@ -73,21 +85,22 @@ def format_focus(hs, focus):
     #hs.obj.spum = 262 # steps/um
     # frame_interval = hs.cam1.get_interval() # s/frame TODO
 
-    if len(focus1) != len(focus2):
-        print('Number of focus frame mismatch')
-    else:
-        n_frames = len(focus1)
+##    if len(focus1) != len(focus2):
+##        print('Number of focus frame mismatch')
+##    else:
+##        n_frames = len(focus1)
 
-    if hs.cam1.get_interval() != hs.cam2.get_interval():
+    if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
         print('Frame interval mismatch')
     else:
-        frame_interval = hs.cam1.get_interval()
+        frame_interval = hs.cam1.getFrameInterval()
 
     spf = hs.obj.vel*1000*hs.obj.spum*frame_interval # steps/frame
 
     # Remove frames after objective stops moving
     #obj_start = 60292
     #obj_stop = 2621
+    n_frames = len(focus)
     _frames = range(n_frames)
     objsteps = hs.obj.focus_start + np.array(_frames)*spf
     objsteps = objsteps[objsteps < hs.obj.focus_stop]
@@ -99,11 +112,11 @@ def format_focus(hs, focus):
     n_f_frames = len(objsteps)
 
     #formatted focus data
-    f_fd = np.empty(shape = (n_f_frames,))
+    f_fd = np.empty(shape = (n_f_frames,2))
 
-    _size = np.sum(focus1[16:n_f_frames+16,:] + focus1[16:n_f_frames+16,:], 1)
+    _size = np.sum(focus[16:n_f_frames+16,:] + focus[16:n_f_frames+16,:], 1)
     _size = _size / np.sum(_size)
-    f_fd[:,0] = obj_steps
+    f_fd[:,0] = objsteps
     f_fd[:,1] = _size
 
     return f_fd
@@ -131,9 +144,9 @@ def gaussian(x, *args):
 
       return g_sum
 
-def res_gaussian(*args):
+def res_gaussian(args, xfun, yfun):
     '''Gaussian residual function for curve fitting.'''
-
+    
     if len(args) == 1:
       args = args[0]
 
@@ -207,7 +220,7 @@ def fit_mixed_gaussian(hs, data):
         up_bounds = up_bounds.flatten()
 
         # Optimize parameters
-        results = least_squares(res_gaussian, p0, bounds=(lo_bounds,up_bounds))
+        results = least_squares(res_gaussian, p0, bounds=(lo_bounds,up_bounds), args=(data[:,0],data[:,1]))
         if not results.success:
             print(results.message)
         else:
@@ -215,8 +228,8 @@ def fit_mixed_gaussian(hs, data):
 
 
         if results.success and error < tolerance:
-            _objsteps = range(hs.obj.obj_start, hs.obj.obj_start,
-                              int(hs.obj.nyquist_obj/2))
+            _objsteps = range(hs.obj.focus_start, hs.obj.focus_stop,
+                              int(hs.nyquist_obj/2))
             _focus = gaussian(_objsteps, results.x)
             optobjstep = int(_objsteps[np.argmax(_focus)])
             return optobjstep
@@ -228,7 +241,7 @@ def fit_mixed_gaussian(hs, data):
 
     return optobjstep
 
-def get_image_df(dir, image_name = None):
+def get_image_df(image_path, image_name = None):
     '''Get dataframe of rough focus images.
 
     Parameters:
@@ -239,7 +252,7 @@ def get_image_df(dir, image_name = None):
     dataframe: Dataframe of image metadata with image names as index.
     '''
 
-    all_names = os.listdir(dir)
+    all_names = os.listdir(image_path)
     if image_name is None:
       image_names = [name for name in all_names if '.tiff' in name]
     else:
@@ -249,8 +262,8 @@ def get_image_df(dir, image_name = None):
     # Dataframe for metdata
     n_cols = len(image_names[0][:-5].split('_'))
     col_names = []
-    for i in n_cols:
-        col_names.appen('X'+str(i))
+    for i in range(n_cols):
+        col_names.append('X'+str(i))
     metadata = pd.DataFrame(columns = (col_names))
 
     # Extract metadata
@@ -364,19 +377,19 @@ def normalize(im, scale_factor):
     '''
     x_px = int(2048/scale_factor/8)
     n_strips = int(im.shape[1]/x_px)
-    strip_contrast = np.empty(shape=(1,n_strips))
+    strip_contrast = np.empty(shape=(n_strips,))
     col_contrast = np.max(im, axis = 0) - np.min(im, axis = 0)
 
     # Find reference strip with max contrast
     for i in range(n_strips):
-        strip_contrast[i] = np.mean(col_contrast[0,(i)*x_px:(i+1)*x_px])
+        strip_contrast[i] = np.mean(col_contrast[(i)*x_px:(i+1)*x_px])
     ref_strip = np.argmax(strip_contrast)
-    ref = im[:,(i)*x_px:(i+1)*x_px]
+    ref = im[:,(ref_strip)*x_px:(ref_strip+1)*x_px]
 
     plane = None
     for i in range(n_strips):
       sub_im = im[:,(i)*x_px:(i+1)*x_px]
-      sub_im = exposure.match_histograms(sub_im, ref)
+      sub_im = match_histograms(sub_im, ref)
       if plane is None:
         plane = sub_im
       else:
@@ -433,7 +446,7 @@ def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
         ref = sub_im
         plane = sub_im
       else:
-        sub_im = exposure.match_histograms(sub_im, ref)
+        sub_im = match_histograms(sub_im, ref)
         plane = np.append(plane, sub_im, axis = 1)
 
   plane = plane.astype('uint8')

@@ -131,9 +131,9 @@ def norm_and_stitch(im_path, df_x, overlap = 0, scaled = False):
   plane[0,0] = scale_factor
 
   return plane
+from skimage.util import img_as_ubyte
 
-
-def avg_images(images, per_sat = 99):
+def avg_images(images, per_sat = 99.5):
     '''Average pixel values in images
 
        First image is used as a reference.
@@ -167,12 +167,15 @@ def avg_images(images, per_sat = 99):
         # Make background 0, assume background is most frequent px value
         p_back = stats.mode(_im, axis=None)
         p_back = p_back[0]
-        signal = (np.max(_im)-p_back)/(p_back-np.min(_im))
-        if signal >= 0.5:
-
+        p_min = np.min(_im)
+        if p_min == p_back:
+          signal = np.max(_im)/p_back
+        else:
+          signal = (np.max(_im)-p_back)/(p_back-np.min(_im))
+        if signal >= 10:
             counter += 1
 
-            im = match_histograms(im, ref)
+            _im = match_histograms(_im, ref)
 
             # Make saturated pixels 0
             p_sat = np.percentile(_im, (per_sat,))
@@ -229,7 +232,7 @@ def get_roi(im, per_sat = 98, sq_size = 3):
     roi = np.zeros_like(im)
     roi[labeled == roi_id[0]] = 1
     roi = roi.astype('uint8')
-
+    
     return roi
 
 
@@ -259,26 +262,29 @@ def get_focus_pos(roi):
     max_ind = np.unravel_index(np.argmax(dist, axis=None), dist.shape)
     max_ind = [*max_ind]
 
+    print(max_ind)
     # Find 3rd point along edge that maximizes distance
     dist2 = np.append(dist[max_ind[0],:],dist[max_ind[1],:])
     dist2 = np.reshape(dist2, (2,contour.shape[0]))
     dist2 = np.sum(dist2, axis = 0)
     max_ind.append(np.argmax(dist2))
 
-    # Reorder stage points to match z stage motor index
-    focus_pos = np.zeros(shape=[3,2])
-    # Motor position 0
-    m0 = np.where(pos[:,0] == np.min(pos[:,0]))[0][0]
-    focus_pos[0,:] = pos[m0,:]
-    pos = np.delete(pos,m0,0)
-    # Motor position 1
-    m1 = np.where(pos[:,1] == np.min(pos[:,1]))[0][0]
-    focus_pos[1,:] = pos[m1,:]
-    pos = np.delete(pos,m1,0)
-    # Motor position 2
-    focus_pos[2,:] = pos[0,:]
-    # Center position
-    focus_pos[3,:] = props[0].centroid
+##    # Reorder stage points to match z stage motor index
+##    focus_pos = np.zeros(shape=[3,2])
+##    # Motor position 0
+##    m0 = np.where(pos[:,0] == np.min(pos[:,0]))[0][0]
+##    focus_pos[0,:] = pos[m0,:]
+##    pos = np.delete(pos,m0,0)
+##    # Motor position 1
+##    m1 = np.where(pos[:,1] == np.min(pos[:,1]))[0][0]
+##    focus_pos[1,:] = pos[m1,:]
+##    pos = np.delete(pos,m1,0)
+##    # Motor position 2
+##    focus_pos[2,:] = pos[0,:]
+##    # Center position
+    focus_pos = contour[max_ind,:]
+    center = np.array(center, type ='uint16')
+    focus_pos = np.append(focus_pos, center, axis =0)
 
     return focus_pos
 

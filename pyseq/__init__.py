@@ -201,10 +201,10 @@ class HiSeq():
         self.cam1.setTDI()
         self.cam2.captureSetup()
         self.cam2.get_status()
-        self.channels =[str(hs.cam1.left_emission),
-                        str(hs.cam1.right_emission),
-                        str(hs.cam2.left_emission),
-                        str(hs.cam2.right_emission)]
+        self.channels =[str(self.cam1.left_emission),
+                        str(self.cam1.right_emission),
+                        str(self.cam2.left_emission),
+                        str(self.cam2.right_emission)]
 
     def initializeInstruments(self):
         """Initialize x,y,z, & obj stages, pumps, valves, optics, and FPGA."""
@@ -326,9 +326,9 @@ class HiSeq():
 
         # Make sure cameras are ready (status = 3)
         if cam1.sensor_mode != 'TDI':
-            cam1.set_TDI()
+            cam1.setTDI()
         if cam2.sensor_mode != 'TDI':
-            cam2.set_TDI()
+            cam2.setTDI()
         while cam1.get_status() != 3:
             cam1.stopAcquisition()
             cam1.freeFrames()
@@ -441,15 +441,17 @@ class HiSeq():
 
         # Make sure cameras are ready (status = 3)
         if cam1.sensor_mode != 'AREA':
-            cam1.set_AREA()
+            cam1.setAREA()
         if cam2.sensor_mode != 'AREA':
-            cam2.set_AREA()
+            cam2.setAREA()
         while cam1.get_status() != 3:
             cam1.stopAcquisition()
             cam1.freeFrames()
+            cam1.captureSetup()
         while cam2.get_status() != 3:
             cam2.stopAcquisition()
             cam2.freeFrames()
+            cam2.captureSetup()
 
         #Switch Camera to Area mode
         cam1.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
@@ -952,7 +954,7 @@ class HiSeq():
 
         return [x_center, y_center, x_initial, y_initial, n_tiles, n_frames]
 
-    def px_to_step(self, row_col, x_initial, y_initial, scale):
+    def px_to_step(self, row, col, x_initial, y_initial, scale):
         '''Convert pixel coordinates in image to stage step position.
 
            Parameters:
@@ -965,11 +967,12 @@ class HiSeq():
            [int, int]: X-stage and Y-stage step position respectively.
 
         '''
-
-        row = row_col[0], col = row_col[1]
+##        print(row_col)
+##        row = row_col[0]
+##        col = row_col[1]
         scale = scale*self.resolution
 
-        x_step = (col - 1/2)*scale*self.x.spum + x_initial
+        x_step = int((col - 1/2)*scale*self.x.spum + x_initial)
 
         trigger_offset = -80000
         y_step = (row - 1/2)*scale*self.y.spum + y_initial + trigger_offset
