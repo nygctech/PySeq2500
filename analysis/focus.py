@@ -47,7 +47,7 @@ def find_focus_points(rough_ims, scale, hs):
     roi = image.get_roi(avg_im)
     # Find focus points
     focus_points = image.get_focus_pos(roi)
-    
+
     # Shift focus points towards center
     stage_points = np.zeros(shape=[3,2])
     for i in range(1,4):
@@ -146,7 +146,7 @@ def gaussian(x, *args):
 
 def res_gaussian(args, xfun, yfun):
     '''Gaussian residual function for curve fitting.'''
-    
+
     if len(args) == 1:
       args = args[0]
 
@@ -260,10 +260,16 @@ def get_image_df(image_path, image_name = None):
       image_names = [name for name in im_names if '.tiff' in name]
 
     # Dataframe for metdata
-    n_cols = len(image_names[0][:-5].split('_'))
+    cols = len(image_names[0][:-5].split('_'))
     col_names = []
-    for i in range(n_cols):
-        col_names.append('X'+str(i))
+    i = 0
+    for c in cols:
+        try:
+            int(c[0])
+            col_names.appen('X' + str(i))
+        else:
+            col_names.append(c[0])
+        i += 1
     metadata = pd.DataFrame(columns = (col_names))
 
     # Extract metadata

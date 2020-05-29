@@ -441,8 +441,8 @@ class HamamatsuCamera():
         if self.right_emission is None:
             self.right_emission = 'Right'
 
-        left_name = str(self.left_emission)+'_'+image_name+'.tiff'
-        right_name = str(self.right_emission)+'_'+image_name+'.tiff'
+        left_name = 'c' + str(self.left_emission)+'_'+image_name+'.tiff'
+        right_name = 'c' + str(self.right_emission)+'_'+image_name+'.tiff'
 
         imageio.imwrite(join(image_path,left_name), left_image)
         imageio.imwrite(join(image_path,right_name), right_image)
@@ -1091,7 +1091,7 @@ class HamamatsuCamera():
             success = False
         if self.setPropertyValue("sensor_mode", 4) != 4:                        #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
             success = False
-        if self.setPropertyValue("contrast_gain", 0) != 0:                      
+        if self.setPropertyValue("contrast_gain", 0) != 0:
             success = False
         self.setPropertyValue("exposure_time", self.tdi_exposure)
         #self.cam1.setPropertyValue("trigger_mode", 1)                          #Normal
@@ -1103,7 +1103,7 @@ class HamamatsuCamera():
             self.sensor_mode = 'TDI'
 
         self.captureSetup()
-        
+
         return success
 
     def setAREA(self):

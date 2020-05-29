@@ -875,8 +875,8 @@ def IMAG(fc, n_Zplanes):
             #obj_stop = hs.obj.position + 10
 
         image_name = AorB
-        image_name = image_name + '_' + str(section)
-        image_name = image_name + '_' + 'c' + cycle
+        image_name = image_name + '_s' + str(section)
+        image_name = image_name + '_r' + cycle
 
         # Scan section on flowcell
         hs.y.move(y_initial)
