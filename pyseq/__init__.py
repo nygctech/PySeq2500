@@ -270,9 +270,12 @@ class HiSeq():
                      'laser1 ' + str(self.lasers['green'].get_power()) + '\n' +
                      'laser2 ' + str(self.lasers['red'].get_power()) + '\n' +
                      'ex filters ' + str(self.optics.ex) + '\n' +
-                     'em filter in ' + str(self.optics.em_in)
+                     'em filter in ' + str(self.optics.em_in) + '\n' +
+                     'mode 1 ' + str(self.cam1.sensor_mode) + '\n' +
+                     'mode 2 ' + str(self.cam2.sensor_mode) + '\n' +
+                     'interval 1 ' + str(self.cam1.getFrameInterval()) + '\n' +
+                     'interval 2 ' + str(self.cam2.getFrameInterval()) + '\n'
                      )
-                     #TODO write number of frames actually take
 
         return meta_f
 
@@ -403,8 +406,15 @@ class HiSeq():
             image_complete += True
         # Print out info pulses = triggers, not sure with CLINES is
         if image_complete:
+            response  = self.cam1.getFrameCount()
+            meta_f.write('frame count 1 ' + str(response) +'\n')
+            response  = self.cam2.getFrameCount()
+            meta_f.write('frame count 2 ' + str(response) +'\n')
             response = f.command('TDICLINES')
+            meta_f.write('clines ' + str(response) + '\n')
             response = f.command('TDIPULSES')
+            meta_f.write('pulses ' + str(response) +'\n')
+            
         # Free up frames/memory
         cam1.freeFrames()
         cam2.freeFrames()
