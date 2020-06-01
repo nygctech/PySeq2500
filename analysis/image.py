@@ -232,7 +232,7 @@ def get_roi(im, per_sat = 98, sq_size = 3):
     roi = np.zeros_like(im)
     roi[labeled == roi_id[0]] = 1
     roi = roi.astype('uint8')
-    
+
     return roi
 
 
@@ -256,11 +256,15 @@ def get_focus_pos(roi):
     contour = find_contours(roi, 0.5)
     contour = np.array(contour[0], dtype = 'int')
     contour = np.unique(contour, axis = 0)
+    n_points = contour.shape[0]
+    if n_points > 1000:
+        sample_ind = np.random.choice(np.arange(n_points), size = 1000)
+        contour = contour[sample_ind,:]
 
     # Find 2 points along edge the maximize distance
     dist = cdist(contour, contour)
-    max_ind = np.unravel_index(np.argmax(dist, axis=None), dist.shape)
-    max_ind = [*max_ind]
+    max_ind = np.unravel_index(np.argmax(dist, axis=None), dist.shape)          #returns tuple
+    max_ind = [*max_ind]                                                        #converts into list
 
     print(max_ind)
     # Find 3rd point along edge that maximizes distance
@@ -283,7 +287,8 @@ def get_focus_pos(roi):
 ##    focus_pos[2,:] = pos[0,:]
 ##    # Center position
     focus_pos = contour[max_ind,:]
-    center = np.array(center, type ='uint16')
+    center = np.array(center, type ='int')
+    center = np.reshape(center, (1,2))
     focus_pos = np.append(focus_pos, center, axis =0)
 
     return focus_pos
