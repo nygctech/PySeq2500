@@ -198,7 +198,7 @@ class HiSeq():
         # self.cam2.setPropertyValue("trigger_connector", 1)                      #Interface
         # self.cam2.setPropertyValue("trigger_source", 2)                         #1 = internal, 2=external
         # self.cam2.setPropertyValue("contrast_gain", 0)
-        self.cam1.setTDI()
+        self.cam2.setTDI()
         self.cam2.captureSetup()
         self.cam2.get_status()
         self.channels =[str(self.cam1.left_emission),
@@ -414,7 +414,7 @@ class HiSeq():
             meta_f.write('clines ' + str(response) + '\n')
             response = f.command('TDIPULSES')
             meta_f.write('pulses ' + str(response) +'\n')
-            
+
         # Free up frames/memory
         cam1.freeFrames()
         cam2.freeFrames()

@@ -1093,16 +1093,19 @@ class HamamatsuCamera():
             success = False
         if self.setPropertyValue("contrast_gain", 0) != 0:
             success = False
-        self.setPropertyValue("exposure_time", self.tdi_exposure)
-        #self.cam1.setPropertyValue("trigger_mode", 1)                          #Normal
-        #self.cam1.setPropertyValue("trigger_polarity", 1)                      #Negative
-        #self.cam1.setPropertyValue("trigger_connector", 1)                     #Interface
-        #self.cam1.setPropertyValue("trigger_source", 2)                        #1 = internal, 2=external
-        #self.cam1.setPropertyValue("subarray_mode", 1)                         #1 = OFF, 2 = ON
+        #self.setPropertyValue("exposure_time", self.tdi_exposure)
+        self.setPropertyValue("trigger_mode", 1)                                #Normal
+        self.setPropertyValue("trigger_polarity", 1)                            #Negative
+        self.setPropertyValue("trigger_connector", 1)                           #Interface
+        self.setPropertyValue("trigger_source", 2)                              #1 = internal, 2=external
+        self.setPropertyValue("subarray_mode", 1)                               #1 = OFF, 2 = ON
         if success:
             self.sensor_mode = 'TDI'
 
         self.captureSetup()
+
+        exp_time = self.getPropertyValue('exposure_time')
+        self.message('Exposure time is ' + str(exp_time) + ' s')
 
         return success
 
