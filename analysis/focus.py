@@ -10,11 +10,12 @@ from scipy import stats
 from math import log2
 from skimage.exposure import match_histograms
 from skimage.util import img_as_ubyte
-
+from skimage.transform import downscale_local_mean
 
 def rough_focus(hs, n_tiles, n_frames):
     '''Image section at preset positions and return scaled image scan.'''
-
+    x_initial = hs.x.position
+    y_initial = hs.y.position
     image_name = 'RoughScan'
     obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
     hs.obj.move(obj_pos)
@@ -23,40 +24,47 @@ def rough_focus(hs, n_tiles, n_frames):
     hs.z.move(z_pos)
     # Take rough focus image
     hs.scan(n_tiles, 1, n_frames, image_name)
+    hs.y.move(y_initial)
+    hs.x.move(x_initial)
     rough_ims = []
     # Stitch rough focus image
     for ch in hs.channels:
-        df_x = get_image_df(hs.image_path, ch+'_'+image_name)
-        df_x = df_x.drop('X1', axis = 1)
-        df_x = df_x.rename(columns = {'X0':'ch', 'X2':'x', 'X3':'o'})
-        for i in range(len(df_x.x)):
-            df_x.x[i] = int(df_x.x[i][1:])
-            df_x.o[i] = int(df_x.o[i][1:])
-            df_x.ch[i] = int(df_x.ch[i])
+        df_x = get_image_df(hs.image_path, 'c'+str(ch)+'_'+image_name)
+        df_x = df_x.drop('R', axis = 1)
+        #df_x = df_x.rename(columns = {'X0':'ch', 'X2':'x', 'X3':'o'})
+        # for i in range(len(df_x.x)):
+        #     df_x.x[i] = int(df_x.x[i][1:])
+        #     df_x.o[i] = int(df_x.o[i][1:])
+        #     df_x.c[i] = int(df_x.c[i][1:])
         plane, scale_factor = stitch(hs.image_path, df_x, scaled = True)
         rough_ims.append(normalize(plane, scale_factor))
 
     return rough_ims
 
 def find_focus_points(rough_ims, scale, hs):
-
+    x_initial = hs.x.position
+    y_initial = hs.y.position
     #scale = rough_ims[0][0][0]
     # Combine channels
     avg_im = image.avg_images(rough_ims)
     # Find region of interest
     roi = image.get_roi(avg_im)
-    # Find focus points
-    focus_points = image.get_focus_pos(roi)
+    roi_shape = roi.shape
+    roi_f = np.sum(roi)/(roi_shape[0]*roi_shape[1])
+    if roi_f > = 0.1
+        # Find focus points
+        focus_points = image.get_focus_pos(roi)
 
-    # Shift focus points towards center
-    stage_points = np.zeros(shape=[3,2])
-    for i in range(1,4):
-        focus_point = image.shift_focus(focus_points[i,:],
-                                        focus_points[0,:],
-                                        2048/2/scale)
-        stage_points[i-1,:]= hs.px_to_step(focus_point, x_initial, y_initial,
-                                           scale)
-
+        # Shift focus points towards center
+        stage_points = np.zeros(shape=[3,2])
+        for i in range(1,4):
+            focus_point = image.shift_focus(focus_points[i,:],
+                                            focus_points[0,:],
+                                            2048/2/scale)
+            stage_points[i-1,:]= hs.px_to_step(focus_point, x_initial, y_initial,
+                                               scale)
+    else:
+        print('Roi could not be found')
 ##    # Reorder stage points to match z stage motor indice
 ##    ordered_stage_points = np.zeros(shape=[3,2])
 ##
@@ -260,22 +268,43 @@ def get_image_df(image_path, image_name = None):
       image_names = [name for name in im_names if '.tiff' in name]
 
     # Dataframe for metdata
-    cols = len(image_names[0][:-5].split('_'))
+    cols = image_names[0][:-5].split('_')
+    col_int = []
     col_names = []
     i = 0
     for c in cols:
+    # Get column names and test if it should be an integer
         try:
             int(c[0])
-            col_names.appen('X' + str(i))
-        else:
-            col_names.append(c[0])
+            col_names.append('X' + str(i))
+            col_int.append(1)
+        except:
+            if c in col_names:
+                col_names.append(c[0]+str(i))
+            else:
+                col_names.append(c[0])
+
+            try:
+                int(c[1:])
+                col_int.append(2)
+            except:
+                col_int.append(0)
+
         i += 1
+
     metadata = pd.DataFrame(columns = (col_names))
 
     # Extract metadata
     for name in image_names:
 
       meta = name[:-5].split('_')
+      for i in range(len(col_int)):
+          if col_int[i]:
+              try:
+                  meta[i] = int(meta[i][col_int[i]-1:])
+              except:
+                  print(name)
+
       metadata.loc[name] = meta
 
     return metadata

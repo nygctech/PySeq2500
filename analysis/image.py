@@ -266,7 +266,6 @@ def get_focus_pos(roi):
     max_ind = np.unravel_index(np.argmax(dist, axis=None), dist.shape)          #returns tuple
     max_ind = [*max_ind]                                                        #converts into list
 
-    print(max_ind)
     # Find 3rd point along edge that maximizes distance
     dist2 = np.append(dist[max_ind[0],:],dist[max_ind[1],:])
     dist2 = np.reshape(dist2, (2,contour.shape[0]))
@@ -287,7 +286,7 @@ def get_focus_pos(roi):
 ##    focus_pos[2,:] = pos[0,:]
 ##    # Center position
     focus_pos = contour[max_ind,:]
-    center = np.array(center, type ='int')
+    center = np.array(center, dtype ='int')
     center = np.reshape(center, (1,2))
     focus_pos = np.append(focus_pos, center, axis =0)
 
