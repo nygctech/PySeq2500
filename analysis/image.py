@@ -9,11 +9,12 @@ from scipy.spatial.distance import cdist
 from skimage.transform import downscale_local_mean
 from skimage.util import img_as_ubyte
 from skimage import io
-from skimage.exposure import match_histograms
+from skimage.exposure import match_histograms, histogram
 from skimage.segmentation import clear_border
 from skimage.measure import label, regionprops, find_contours
 from skimage.morphology import closing, square, watershed
 from skimage.filters import sobel
+
 
 
 def get_image_df(im_path, image_name = None):
@@ -133,7 +134,7 @@ def norm_and_stitch(im_path, df_x, overlap = 0, scaled = False):
   return plane
 from skimage.util import img_as_ubyte
 
-def avg_images(images, per_sat = 99.5):
+def avg_images(images, per_sat = 99.9):
     '''Average pixel values in images
 
        First image is used as a reference.
@@ -178,9 +179,11 @@ def avg_images(images, per_sat = 99.5):
             _im = match_histograms(_im, ref)
 
             # Make saturated pixels 0
+            p_back = stats.mode(_im, axis=None)
+            p_back = p_back[0]
             p_sat = np.percentile(_im, (per_sat,))
-            _im[_im < p_back] = 0
-            _im[_im > p_sat] = 0
+            #_im[_im < p_back] = 0
+            #_im[_im > p_sat] = 0
 
             if sum_im is None:
                 sum_im = _im
@@ -188,12 +191,12 @@ def avg_images(images, per_sat = 99.5):
                 sum_im = np.add(sum_im, _im)
 
         if sum_im is not None:
-            sum_im = sum_im/counter
+            #sum_im = sum_im/counter
             sum_im = sum_im.astype('uint8')
 
     return sum_im
 
-def get_roi(im, per_sat = 98, sq_size = 3):
+def get_roi(im, per_sat = 98, sq_size = 10):
     '''Get region of interest.
 
        Parameters:
@@ -213,11 +216,13 @@ def get_roi(im, per_sat = 98, sq_size = 3):
     # Get markers
     markers = np.zeros_like(im)
     p_sign = np.percentile(im, (per_sat,))
-    markers[im == 0] = 1
-    markers[im > p_sign] = 2
+    p_back = stats.mode(im, axis=None)
+    markers[im <= p_back[0]] = 1
+    #markers[im > p_sign] = 2
 
     # Get segmented image
-    im = watershed(elev_map, markers)
+    #im = watershed(elev_map, markers)
+    im = watershed(elev_map, compactness = 0.1)
 
     # remove border objects
     im = clear_border(im)
@@ -227,10 +232,23 @@ def get_roi(im, per_sat = 98, sq_size = 3):
     # label regions
     labeled = label(im)
     # choose largest region that is not backround
-    roi_id = stats.mode(labeled[labeled != 0], axis=None)
+    #roi_id = stats.mode(labeled[labeled != 0], axis=None)
+    #roi_id = stats.mode(labeled, axis=None)
     # Create region of interest binary image
     roi = np.zeros_like(im)
-    roi[labeled == roi_id[0]] = 1
+    #roi[labeled = roi_id[0]] = 1
+    roi_shape = roi.shape
+    n_px = roi_shape[0]*roi_shape[1]
+    label_hist, bins = histogram(labeled, normalize = True)
+    roi_labels = bins[label_hist <= 0.0001]
+    roi_labels = roi_labels[roi_labels != 0]
+    #roi[labeled == roi_labels] = 1
+    for i in roi_labels:
+##      print(label_hist[i])
+      roi[labeled == i] = 1
+##    for i in range(1,np.max(labeled)):
+##      if np.sum(labeled == i) > 0.1:
+##         roi[labeled == i] = 1
     roi = roi.astype('uint8')
 
     return roi

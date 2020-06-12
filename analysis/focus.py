@@ -51,7 +51,7 @@ def find_focus_points(rough_ims, scale, hs):
     roi = image.get_roi(avg_im)
     roi_shape = roi.shape
     roi_f = np.sum(roi)/(roi_shape[0]*roi_shape[1])
-    if roi_f > = 0.1
+    if roi_f >= 0.1:
         # Find focus points
         focus_points = image.get_focus_pos(roi)
 
@@ -63,8 +63,11 @@ def find_focus_points(rough_ims, scale, hs):
                                             2048/2/scale)
             stage_points[i-1,:]= hs.px_to_step(focus_point, x_initial, y_initial,
                                                scale)
+
+        return stage_points
     else:
         print('Roi could not be found')
+        return False
 ##    # Reorder stage points to match z stage motor indice
 ##    ordered_stage_points = np.zeros(shape=[3,2])
 ##
@@ -76,13 +79,11 @@ def find_focus_points(rough_ims, scale, hs):
 ##    ordered_stage_point[1,:] = stage_points[m1,:]
 ##    stage_points = np.delete(stage_points,m0,0)
 
-    return(ordered_stage_points)
-
-def format_focus(hs, focus):
+def format_focus(hs, frame_size):
     '''Return valid and normalized focus frame file sizes.
 
        Parameters:
-       - focus (array): JPEG file sizes from N channels of cameras.
+       - frame_size(array): JPEG file sizes from N channels of cameras.
 
        Returns:
        - array: Valid and normalized focus frame file sizes.
@@ -108,7 +109,7 @@ def format_focus(hs, focus):
     # Remove frames after objective stops moving
     #obj_start = 60292
     #obj_stop = 2621
-    n_frames = len(focus)
+    n_frames = len(frame_size)
     _frames = range(n_frames)
     objsteps = hs.obj.focus_start + np.array(_frames)*spf
     objsteps = objsteps[objsteps < hs.obj.focus_stop]
@@ -122,7 +123,7 @@ def format_focus(hs, focus):
     #formatted focus data
     f_fd = np.empty(shape = (n_f_frames,2))
 
-    _size = np.sum(focus[16:n_f_frames+16,:] + focus[16:n_f_frames+16,:], 1)
+    _size = np.sum(frame_size[16:n_f_frames+16,:] + frame_size[16:n_f_frames+16,:], 1)
     _size = _size / np.sum(_size)
     f_fd[:,0] = objsteps
     f_fd[:,1] = _size
