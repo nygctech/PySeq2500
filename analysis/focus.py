@@ -68,6 +68,7 @@ def find_focus_points(rough_ims, scale, hs):
     else:
         print('Roi could not be found')
         return False
+
 ##    # Reorder stage points to match z stage motor indice
 ##    ordered_stage_points = np.zeros(shape=[3,2])
 ##
@@ -78,6 +79,8 @@ def find_focus_points(rough_ims, scale, hs):
 ##    m1 = np.where(stage_points[:,1] == np.min(stage_points[:,1]))[0][0]
 ##    ordered_stage_point[1,:] = stage_points[m1,:]
 ##    stage_points = np.delete(stage_points,m0,0)
+
+
 
 def format_focus(hs, frame_size):
     '''Return valid and normalized focus frame file sizes.

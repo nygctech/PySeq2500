@@ -594,34 +594,39 @@ class HiSeq():
         correction = [0, 0, n_ip[2]] - n_ip
 
         # Find normal vector of stage plane
-        stage_points = np.array(self.z.get_motor_points())
-        stage_points[:,0] = stage_points[:,0] / self.x.spum
-        stage_points[:,1] = stage_points[:,1] / self.y.spum
-        stage_points[:,2] = stage_points[:,2] / self.z.spum
-        u_sp = stage_points[1,:] - stage_points[0,:]
-        v_sp = stage_points[2,:] - stage_points[0,:]
-        n_sp = np.cross(u_sp, v_sp)
+        mp = np.array(self.z.get_motor_points())
+        mp[:,0] = mp[:,0] / self.x.spum
+        mp[:,1] = mp[:,1] / self.y.spum
+        mp[:,2] = mp[:,2] / self.z.spum
+        u_mp = mp[1,:] - mp[0,:]
+        v_mp = mp[2,:] - mp[0,:]
+        n_mp = np.cross(u_sp, v_sp)
 
         # Pick reference motor
         if correction[0] >= 0:
-            p_sp = 0 # right motor
+            p_mp = 0 # right motor
         elif correction[1] >= 0:
-            p_sp = 2 # left back motors
+            p_mp = 2 # left back motors
         else:
-            p_sp = 1 # left front motor
+            p_mp = 1 # left front motor
 
         # Target normal of level stage plane
-        n_tp = n_sp + correction
+        n_tp = n_mp + correction
 
         # Solve system equations for level plane
-        A = np.array([[v_sp[1]-u_sp[1], -v_sp[1], u_sp[1]],
-                      [u_sp[0]-v_sp[0], v_sp[0], u_sp[0]],
-                      [0, 0, 0]])
+        # A = np.array([[v_mp[1]-u_mp[1], -v_mp[1], u_mp[1]],
+        #               [u_mp[0]-v_mp[0], v_mp[0], u_mp[0]],
+        #               [0, 0, 0]])
+        A = np.array([[mp[2,1]-mp[1,1], mp[0,1]-mp[2,1], mp[1,1]-mp[0,1]],
+                      [mp[1,0]-mp[2,0], mp[2,0]-mp[0,0], mp[0,0]-mp[1,0]],
+                      [0,0,0]])
         A[2, p_sp] = 1
-        offset_distance = int(offset_distance*self.z.spum)
-        offset_distance += self.z.position[p_sp]
+        #offset_distance = int(offset_distance*self.z.spum)
+        offset_distance += self.z.position[p_sp]/self.z.spum
         B = np.array([n_tp[0], n_tp[1], offset_distance])
         z_pos = np.linalg.solve(A,B)
+        z_pos = int(z_pos * self.z.spum)
+        z_pos = z_pos.astype('int')
 
         self.z.move(z_pos)
 
