@@ -133,12 +133,13 @@ def norm_and_stitch(im_path, df_x, overlap = 0, scaled = False):
   return plane
 from skimage.util import img_as_ubyte
 
-def avg_images(images, per_sat = 99.5):
+def sum_images(images):
     '''Average pixel values in images
 
-       First image is used as a reference.
-       All other image histograms are matched to the reference.
-       Then the images are averaged together.
+       Image with largest signal to noise used a reference.
+       Images without significant kurtosis are discarded.
+       Remaining image histograms are matched to the reference.
+       Then the images are summed together.
 
        Parameters:
        - images (list): List of images to sum.
@@ -151,45 +152,48 @@ def avg_images(images, per_sat = 99.5):
     sum_im = None
     ref = None
 
-    # Select image with largest constrast as reference
-    contrast = np.empty(shape= (len(images),))
+    # Select image with largest signal to noise as reference
+    SNR = np.array([])
     i = 0
     for im in images:
-        contrast[i] = np.max(im) - np.min(im)
+        kurt_z, pvalue = stats.kurtosistest(im, axis = None)
+        if kurt_z > 1.96:
+            SNR = np.append(SNR,stats.signaltonoise(im,axis=None))
+        else:
+            images.pop(i)
         i += 1
-    ref = images[np.argmax(contrast)]
+    ref_i = np.argmax(SNR)
+    ref = images[ref_i]
 
     #average images with a signal
-    counter = 0
+    i = 0
     for im in images:
-        _im = np.copy(im)
 
-        # Make background 0, assume background is most frequent px value
-        p_back = stats.mode(_im, axis=None)
-        p_back = p_back[0]
-        p_min = np.min(_im)
-        if p_min == p_back:
-          signal = np.max(_im)/p_back
+        # # Make background 0, assume background is most frequent px value
+        # p_back = stats.mode(_im, axis=None)
+        # p_back = p_back[0]
+        # p_min = np.min(_im)
+        # if p_min == p_back:
+        #   signal = np.max(_im)/p_back
+        # else:
+        #   signal = (np.max(_im)-p_back)/(p_back-np.min(_im))
+
+        if i != ref_i:
+            _im = match_histograms(im, ref)
+        i += 1
+        # # Make saturated pixels 0
+        # p_sat = np.percentile(_im, (per_sat,))
+        # _im[_im < p_back] = 0
+        # _im[_im > p_sat] = 0
+
+        if sum_im is None:
+            sum_im = _im
         else:
-          signal = (np.max(_im)-p_back)/(p_back-np.min(_im))
-        if signal >= 10:
-            counter += 1
+            sum_im = np.add(sum_im, _im)
 
-            _im = match_histograms(_im, ref)
-
-            # Make saturated pixels 0
-            p_sat = np.percentile(_im, (per_sat,))
-            _im[_im < p_back] = 0
-            _im[_im > p_sat] = 0
-
-            if sum_im is None:
-                sum_im = _im
-            else:
-                sum_im = np.add(sum_im, _im)
-
-        if sum_im is not None:
-            sum_im = sum_im/counter
-            sum_im = sum_im.astype('uint8')
+    # if sum_im is not None:
+    #     sum_im = sum_im/counter
+    #     sum_im = sum_im.astype('uint8')
 
     return sum_im
 

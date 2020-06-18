@@ -126,9 +126,9 @@ def format_focus(hs, focus):
 
     nrows, ncols = focus.shape
     for i in range(n_cols):
-        # test if there is peak in data and add if True
-        kurt = stats.kurtosis(focus[16:n_f_frames+16,i])
-        if kurt > 1.96:
+        # test if there is a tail in data and add if True
+        kurt_z, pvalue = stats.kurtosistest(focus[16:n_f_frames+16,i])
+        if kurt_z > 1.96:
             f_fd[:,1] = np.sum(f_fd[:,1],focus[16:n_f_frames+16,i] )
 
     # Normalize
@@ -137,7 +137,7 @@ def format_focus(hs, focus):
     else:
         f_fd[:,1] = f_fd[:,1] / np.sum(f_fd[:,1])
         return f_fd
- 
+
 
 def gaussian(x, *args):
     '''Gaussian function for curve fitting.'''
