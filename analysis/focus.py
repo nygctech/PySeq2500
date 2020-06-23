@@ -51,7 +51,7 @@ def find_focus_points(rough_ims, scale, hs):
     roi = image.get_roi(avg_im)
     roi_shape = roi.shape
     roi_f = np.sum(roi)/(roi_shape[0]*roi_shape[1])
-    if roi_f > = 0.1
+    if roi_f >= 0.1:
         # Find focus points
         focus_points = image.get_focus_pos(roi)
 
@@ -379,7 +379,7 @@ def stitch(dir, df_x, overlap = 0, scaled = False):
 
     '''
 
-    df_x.sort_values(by=['x'])
+    df_x = df_x.sort_values(by=['x'])
     scale_factor = None
     plane = None
     for name in df_x.index:
