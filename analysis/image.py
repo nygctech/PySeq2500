@@ -132,14 +132,15 @@ def norm_and_stitch(im_path, df_x, overlap = 0, scaled = False):
   plane[0,0] = scale_factor
 
   return plane
-from skimage.util import img_as_ubyte
 
-def avg_images(images, per_sat = 99.9):
-    '''Average pixel values in images
 
-       First image is used as a reference.
-       All other image histograms are matched to the reference.
-       Then the images are averaged together.
+def sum_images(images):
+    '''Sum pixel values over channel images.
+
+       Image with largest signal to noise used a reference.
+       Images without significant kurtosis are discarded.
+       Remaining image histograms are matched to the reference.
+       Then the images are summed together.
 
        Parameters:
        - images (list): List of images to sum.
@@ -152,49 +153,130 @@ def avg_images(images, per_sat = 99.9):
     sum_im = None
     ref = None
 
-    # Select image with largest constrast as reference
-    contrast = np.empty(shape= (len(images),))
+    # Select image with largest signal to noise as reference
+    SNR = np.array([])
     i = 0
     for im in images:
-        contrast[i] = np.max(im) - np.min(im)
-        i += 1
-    ref = images[np.argmax(contrast)]
-
-    #average images with a signal
-    counter = 0
-    for im in images:
-        _im = np.copy(im)
-
-        # Make background 0, assume background is most frequent px value
-        p_back = stats.mode(_im, axis=None)
-        p_back = p_back[0]
-        p_min = np.min(_im)
-        if p_min == p_back:
-          signal = np.max(_im)/p_back
+        kurt_z, pvalue = stats.kurtosistest(im, axis = None)
+        if kurt_z > 1.96:
+            SNR = np.append(SNR,np.mean(im)/np.std(im))
         else:
-          signal = (np.max(_im)-p_back)/(p_back-np.min(_im))
-        if signal >= 10:
-            counter += 1
+            # Remove images without signal
+            images.pop(i)
+        i += 1
+    ref_i = np.argmax(SNR)
+    ref = images[ref_i]
 
-            _im = match_histograms(_im, ref)
-
-            # Make saturated pixels 0
-            p_back = stats.mode(_im, axis=None)
-            p_back = p_back[0]
-            p_sat = np.percentile(_im, (per_sat,))
-            #_im[_im < p_back] = 0
-            #_im[_im > p_sat] = 0
-
-            if sum_im is None:
-                sum_im = _im
-            else:
-                sum_im = np.add(sum_im, _im)
-
-        if sum_im is not None:
-            #sum_im = sum_im/counter
-            sum_im = sum_im.astype('uint8')
+    # Sum images
+    i = 0
+    for im in images:
+        # Match histogram to reference image
+        if i != ref_i:
+            _im = match_histograms(im, ref)
+        i += 1
+        # Add add image
+        if sum_im is None:
+            sum_im = _im
+        else:
+            sum_im = np.add(sum_im, _im)
 
     return sum_im
+
+
+
+def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
+    '''Get potential points to focus on.
+
+       The top 1000 brightest pixels that are not saturate are found.
+       Then the focus field of views with the top min_n_markers contrast are
+       ordered based on the distance from each other, with the points farthest
+       away from each other being first.
+
+       Parameters:
+       - im (array): Summed image across all channels with signal
+       - scale (int): Factor at which the image is scaled down.
+       - min_n_markers (int): Minimum number of focus points desired.
+       - p_sat (float): Percentile to call pixels saturated
+
+       Returns:
+       - array: Row, Column list of ordered pixels to use as focus points
+
+    '''
+
+    px_rows, px_cols = im.shape
+    px_sat = np.percentile(sum_im, (p_sat))
+    px_score = np.reshape(stats.zscore(sum_im, axis = None), (px_rows, px_cols))
+
+    edge_width = int(2048/scale/2)
+
+
+    im_ = np.zeros_like(sum_im)
+    px_score_thresh = 3
+    while np.sum(im_ != 0) == 0:
+        # Get brightest pixels
+        im_[px_score > px_score_thresh] = sum_im[px_score > px_score_thresh]
+        # Remove "saturated" pixels
+        im_[im > px_sat] = 0
+        #Remove Edges
+        if edge_width < px_cols/2:
+          im_[0:edge_width,:] = 0
+          im_[:, px_cols-edge_width:px_cols] = 0
+          im_[px_rows-edge_width:px_rows, :] = 0
+          im_[:,0:edge_width] = 0
+
+         px_score_thresh -= 0.5
+
+    markers = np.argwhere(im_ != 0)
+
+
+    # Subset to 1000 points
+    if len(markers) > 1000:
+      rand_markers = np.random.choice(range(n_markers), size = 1000)
+      markers = markers[rand_markers,:]
+    n_markers = len(markers)
+
+    # Compute contrast
+    c_score = np.zeros_like(markers[:,1])
+    for row in range(n_markers):
+      mark = markers[row,:]
+      if edge_width < px_cols/2:
+        frame = im[mark[0],mark[1]-edge_width:mark[1]+edge_width]
+      else:
+        frame = im[mark[0],:]
+      c_score[row] = np.max(frame) - np.min(frame)
+
+
+    #resolution = 0.7
+    #marker_thresh = 3 + int((px_rows*px_cols*scale**2)**0.5*resolution/1000)*10
+    # Get theminimum number of markers needed with the highest contrast
+    p_top = (1 - min_n_markers/n_markers)*100
+    c_cutoff = np.percentile(c_score, p_top)
+    c_markers = markers[c_score >= c_cutoff,:]
+
+    # Compute distance matrix
+    dist = cdist(c_markers, c_markers)
+    max_ind = np.unravel_index(np.argmax(dist, axis=None), dist.shape)          #returns tuple
+
+    # Order marker points based on distance from each other
+    # Markers farthest from each other are first
+    n_markers = len(c_markers)
+    ord_points = np.zeros_like(c_markers)
+    ord_points[0,:] = c_markers[max_ind[0],:]
+    ord_points[1,:] = c_markers[max_ind[1],:]
+    _markers = np.copy(c_markers)
+    prev2 = max_ind[0]
+    prev1 = max_ind[1]
+    dist = np.delete(dist,[prev2,prev1],1)
+    _markers = np.delete(_markers,[prev2,prev1], axis=0)
+    for i in range(2,n_markers-2):
+      dist2 = np.append(dist[prev2,:],dist[prev1,:], axis =0)
+      ind = np.argmax(np.sum(dist2))
+      ord_points[i,:] = _markers[ind,:]
+      dist = np.delete(dist,ind,1)
+      _markers = np.delete(_markers,ind, axis=0)
+
+    return _markers
+
 
 def get_roi(im, per_sat = 98, sq_size = 10):
     '''Get region of interest.
@@ -309,6 +391,7 @@ def get_focus_pos(roi):
     focus_pos = np.append(focus_pos, center, axis =0)
 
     return focus_pos
+
 
 def shift_focus(fpoint, center, scale):
     '''Shift focus points towards the center.

@@ -124,14 +124,23 @@ def format_focus(hs, frame_size):
     n_f_frames = len(objsteps)
 
     #formatted focus data
-    f_fd = np.empty(shape = (n_f_frames,2))
-
-    _size = np.sum(frame_size[16:n_f_frames+16,:] + frame_size[16:n_f_frames+16,:], 1)
-    _size = _size / np.sum(_size)
+    f_fd = np.zeros(shape = (n_f_frames,2))
     f_fd[:,0] = objsteps
-    f_fd[:,1] = _size
 
-    return f_fd
+    nrows, ncols = focus.shape
+    for i in range(n_cols):
+        # test if there is a tail in data and add if True
+        kurt_z, pvalue = stats.kurtosistest(focus[16:n_f_frames+16,i])
+        if kurt_z > 1.96:
+            f_fd[:,1] = np.sum(f_fd[:,1],focus[16:n_f_frames+16,i] )
+
+    # Normalize
+    if np.sum(f_fd[:,1]) == 0:
+        return False
+    else:
+        f_fd[:,1] = f_fd[:,1] / np.sum(f_fd[:,1])
+        return f_fd
+
 
 def gaussian(x, *args):
     '''Gaussian function for curve fitting.'''
@@ -248,8 +257,8 @@ def fit_mixed_gaussian(hs, data):
         else:
             if peaks == max_peaks:
                 print('No good fit try moving z stage')
-                optobjstep = hs.focus_direction
-                hs.focus_direction = optobjstep * -1
+                optobjstep = False
+                #hs.focus_direction = optobjstep * -1
 
     return optobjstep
 
@@ -373,7 +382,7 @@ def stitch(dir, df_x, overlap = 0, scaled = False):
 
     '''
 
-    df_x.sort_values(by=['x'])
+    df_x = df_x.sort_values(by=['x'])
     scale_factor = None
     plane = None
     for name in df_x.index:
@@ -439,6 +448,107 @@ def normalize(im, scale_factor):
 
     return plane
 
+def get_image_plane(hs, n_tiles, n_frames ):
+    x_init = hs.x.position
+    y_init = hs.y.position
+    rough_ims, scale = rough_focus(hs, n_tiles, n_frames)
+    sum_im = image.sum_images(rough_ims)
+    min_n_markers = ((2048*n_tiles)**2 + (n_frames*hs.bundle_height)**2)**0.5   # image size in px
+    min_n_markers = 3 + int(min_n_markers/2/2048)
+    px_points = image.get_focus_points(im, scale, min_n_markers)
+    focus_points = np.array([])
+    i = 0
+    while len(focus_points) < min_n_markers:
+    # Take obj_stack at focus points until min_n_markers have been found
+        px_pt = px_points[i,:]
+        [x_pos, y_pos] = hs.px_to_step(px_pt, x_init, y_init, scale)
+        hs.y.move(y_pos)
+        hs.x.move(x_pos)
+        fs = hs.obj_stack()
+        f_fs = focus.format_focus(hs, fs)
+        if f_fs:
+            obj_pos = focus.fit_mixed_gaussian(hs, f_fs)
+            if obj_pos:
+                focus_points = np.append(focus_points,
+                                         [x_pos, y_pos, obj_pos], axis=0)
+        i += 1
+
+    # Convert stage step position microns
+    focal_points[:,0] = focal_points[:,0]/hs.x.spum
+    focal_points[:,1] = focal_points[:,1]/hs.y.spum
+    focal_points[:,2] = focal_points[:,2]/hs.obj.spum
+
+    centroid, normal = focus.fit_plane(focus_points)
+
+
+    return focal_points, normal
+
+def autolevel(hs, n_ip, centroid):
+
+    # Find normal vector of motor plane
+    mp = np.array(hs.z.get_motor_points())
+    mp[:,0] = mp[:,0] / self.x.spum
+    mp[:,1] = mp[:,1] / self.y.spum
+    mp[:,2] = mp[:,2] / self.z.spum
+    u_mp = mp[1,:] - mp[0,:]
+    v_mp = mp[2,:] - mp[0,:]
+    n_mp = np.cross(u_sp, v_sp)
+    n_mp = n_mp/np.linalg.norm(n_mp)
+
+    # Pick reference motor
+    if correction[0] >= 0:
+        p_mp = 0 # right motor
+    elif correction[1] >= 0:
+        p_mp = 2 # left back motors
+    else:
+        p_mp = 1 # left front motor
+
+    # Find objective position on imaging plane at reference motor
+    d_ip = -np.dot(n_ip,centroid)
+    obj_mp = -(n_ip[0]*mp[p_mp,0] + n_ip[1]*mp[p_mp,1] + d_ip)/n_ip[2]
+    mp[p_mp,2] = obj_mp
+    # Calculate plane correction
+    mag_mp = np.linalg.norm(mp[p_mp,:])
+    n_ip = n_ip * mag_m
+    correction = [0, 0, n_ip[2]] - n_ip
+    # Calculate target motor plane for a flat, level image plane
+    n_mp = n_mp * mag_mp
+    n_tp = n_mp + correction
+
+    # Move motor plane to preferred objective position
+    offset_distance = hs.im_obj_pos/hs.obj.spum - centroid[2]
+    offset_distance += hs.z.position[p_mp]/hs.z.spum
+    mp[p_mp,2] = offset_distance
+    #offset_distance = int(offset_distance*self.z.spum)
+
+    # Solve system equations for level plane
+    # A = np.array([[v_mp[1]-u_mp[1], -v_mp[1], u_mp[1]],
+    #               [u_mp[0]-v_mp[0], v_mp[0], u_mp[0]],
+    #               [0, 0, 0]])
+    # A = np.array([[mp[2,1]-mp[1,1], mp[0,1]-mp[2,1], mp[1,1]-mp[0,1]],
+    #               [mp[1,0]-mp[2,0], mp[2,0]-mp[0,0], mp[0,0]-mp[1,0]],
+    #               [0,0,0]])
+    # A[2, p_sp] = 1
+    # B = np.array([n_tp[0], n_tp[1], offset_distance])
+    # z_pos = np.linalg.solve(A,B)
+    # z_pos = int(z_pos * self.z.spum)
+    # z_pos = z_pos.astype('int')
+
+    # Solve for motor positions that move motor plane to the target plane
+    d_tp = -np.dot(n_tp/np.linalg.norm(n_tp), mp[p_mp,:])
+    z_pos = []
+    for i in range(3):
+        z_pos.append(int(-(n_tp[0]*mp[i,0] + n_tp[1]*mp[i,1] + d_ip)/n_tp[2]))
+
+    # Convert back to z step position
+    z_pos = np.array(z_pos)
+    z_pos = int(z_pos * hs.z.spum)
+    z_pos = z_pos.astype('int')
+    self.z.move(z_pos)
+
+    return z_pos
+
+
 
 
 def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
@@ -492,6 +602,28 @@ def norm_and_stitch(dir, df_x, overlap = 0, scaled = False):
   plane = img_as_ubyte(plane)
 
   return plane
+
+def planeFit(points):
+    '''
+
+    Code copied from https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
+
+    p, n = planeFit(points)
+
+    Given an array, points, of shape (d,...)
+    representing points in d-dimensional space,
+    fit an d-dimensional plane to the points.
+    Return a point, p, on the plane (the point-cloud centroid),
+    and the normal, n.
+    '''
+    import numpy as np
+    from numpy.linalg import svd
+    points = np.reshape(points, (np.shape(points)[0], -1)) # Collapse trialing dimensions
+    assert points.shape[0] <= points.shape[1], "There are only {} points in {} dimensions.".format(points.shape[1], points.shape[0])
+    ctr = points.mean(axis=1)
+    x = points - ctr[:,np.newaxis]
+    M = np.dot(x, x.T) # Could also use np.cov(x) here.
+    return ctr, svd(M)[0][:,-1]
 
 # ch = '558' , '610'
 # o = 30117
