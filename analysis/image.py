@@ -136,7 +136,6 @@ def norm_and_stitch(im_path, df_x, overlap = 0, scaled = False):
 
 def sum_images(images):
     '''Sum pixel values over channel images.
-
        Image with largest signal to noise used a reference.
        Images without significant kurtosis are discarded.
        Remaining image histograms are matched to the reference.
@@ -185,7 +184,6 @@ def sum_images(images):
     return sum_im
 
 
-
 def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
     '''Get potential points to focus on.
 
@@ -199,6 +197,7 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
        - scale (int): Factor at which the image is scaled down.
        - min_n_markers (int): Minimum number of focus points desired.
        - p_sat (float): Percentile to call pixels saturated
+
 
        Returns:
        - array: Row, Column list of ordered pixels to use as focus points

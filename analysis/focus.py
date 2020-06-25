@@ -139,10 +139,10 @@ def format_focus(hs, fs):
             print('Peak in channel ' + str(i))
             #f_fd[:,1] = f_fd[:,1] + fs[16:n_f_frames+16,i]
             f_fd[:,1] = f_fd[:,1] + fs[row:,i]
-
     # Normalize
     if np.sum(f_fd[:,1]) == 0:
         return np.array([])
+
     else:
         f_fd[:,1] = f_fd[:,1] / np.sum(f_fd[:,1])
         return f_fd
@@ -498,6 +498,7 @@ def get_image_plane(hs, px_points, min_n_markers, scale):
 
 
     return normal, centroid
+
 
 def autolevel(hs, n_ip, centroid):
 
