@@ -255,7 +255,7 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
     max_ind = np.unravel_index(np.argmax(dist, axis=None), dist.shape)          #returns tuple
 
     # Order marker points based on distance from each other
-    # Markers farhest from each other are first
+    # Markers farthest from each other are first
     n_markers = len(c_markers)
     ord_points = np.zeros_like(c_markers)
     ord_points[0,:] = c_markers[max_ind[0],:]
@@ -272,7 +272,7 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
       dist = np.delete(dist,ind,1)
       _markers = np.delete(_markers,ind, axis=0)
 
-     return _markers
+    return _markers
 
 
 def get_roi(im, per_sat = 98, sq_size = 3):
@@ -373,56 +373,6 @@ def get_focus_pos(roi):
     focus_pos = np.append(focus_pos, center, axis =0)
 
     return focus_pos
-
-def get_focus_pos2(im, scale, p_sat = 99.5):
-    '''Get focus positions.
-
-       Parameters:
-       - im (array): Image to find focus positions in
-       - scale (int): Scale of image reduction
-       - p_sat (float): Top percentile of pixels to call saturated
-
-       Returns
-       - array: Coordinates (row, col) of pixels of potential points to focus on.
-
-    '''
-
-    # Get brightest pixels
-    im_ = np.zeros_like(im)
-    px_score = np.reshape(zscore(im, axis = None), (px_rows, px_cols))
-    im_[px_score > 3] = im[px_score > 3]
-
-    #Remove Edges
-    px_rows, px_cols = im.shape
-    edge_width = int(2048/scale/2)                                              # Width of edge of image to ignore, and focus FOV
-    im_[0:edge_width,:] = 0
-    im_[:, px_cols-edge_width:px_cols] = 0
-    im_[px_rows-edge_width:px_rows, :] = 0
-    im_[:,0:edge_width] = 0
-
-    # Remove "saturated" pixels
-    px_sat = np.percentile(im, p_sat)
-    im_[im > px_sat] = 0
-    markers = np.argwhere(im_ != 0)
-
-    # Subset to 1000 points if needed
-    if len(markers) > 1000:
-      rand_markers = np.random.choice(range(n_markers), size = 1000)
-      markers = markers[rand_markers,:]
-
-    # Get contrast score of markers
-    c_score = np.zeros_like(markers[:,1])
-    n_markers = len(markers)
-
-    for row in range(n_markers):
-      mark = markers[row,:]
-      frame = im[mark[0],mark[1]-pixels:mark[1]+pixels]
-      c_score[row] = np.max(frame) - np.min(frame)
-
-    c_score = zscore(c_score)
-
-    # Return high contrast markers
-    return markers[c_score >= 3,:]
 
 
 def shift_focus(fpoint, center, scale):
