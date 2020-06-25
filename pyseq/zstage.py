@@ -64,8 +64,8 @@ class Zstage():
         self.motors = ['1','2','3']
         self.logger = logger
         self.tolerance = 2
-        self.xstep = [0, 50000, 50000]                                          # x step position of motors
-        self.ystep = [2000000, 2000000, 6000000]                                # y step position of motors
+        self.xstep = [-10060, -10060, 44990]                                          # x step position of motors
+        self.ystep = [-2580000, 5695000, 4070000]                                # y step position of motors
         self.focus_pos = 21500                                                  # rough focus position
 
 
