@@ -969,7 +969,7 @@ class HiSeq():
 
         return [x_center, y_center, x_initial, y_initial, n_tiles, n_frames]
 
-    def px_to_step(self, row, col, x_initial, y_initial, scale):
+    def px_to_step(self, row_col, x_initial, y_initial, scale):
         '''Convert pixel coordinates in image to stage step position.
 
            Parameters:
@@ -982,9 +982,9 @@ class HiSeq():
            [int, int]: X-stage and Y-stage step position respectively.
 
         '''
-##        print(row_col)
-##        row = row_col[0]
-##        col = row_col[1]
+        print(row_col)
+        row = row_col[0]
+        col = row_col[1]
         scale = scale*self.resolution
 
         x_step = int((col - 1/2)*scale*self.x.spum + x_initial)

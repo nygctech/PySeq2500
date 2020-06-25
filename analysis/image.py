@@ -173,6 +173,8 @@ def sum_images(images):
         # Match histogram to reference image
         if i != ref_i:
             _im = match_histograms(im, ref)
+        else:
+            _im = im
         i += 1
         # Add add image
         if sum_im is None:
@@ -204,17 +206,16 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
     '''
 
     px_rows, px_cols = im.shape
-    px_sat = np.percentile(sum_im, (p_sat))
-    px_score = np.reshape(stats.zscore(sum_im, axis = None), (px_rows, px_cols))
+    px_sat = np.percentile(im, p_sat)
+    px_score = np.reshape(stats.zscore(im, axis = None), (px_rows, px_cols))
 
     edge_width = int(2048/scale/2)
 
-
-    im_ = np.zeros_like(sum_im)
+    im_ = np.zeros_like(im)
     px_score_thresh = 3
     while np.sum(im_ != 0) == 0:
         # Get brightest pixels
-        im_[px_score > px_score_thresh] = sum_im[px_score > px_score_thresh]
+        im_[px_score > px_score_thresh] = im[px_score > px_score_thresh]
         # Remove "saturated" pixels
         im_[im > px_sat] = 0
         #Remove Edges
@@ -224,16 +225,17 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
           im_[px_rows-edge_width:px_rows, :] = 0
           im_[:,0:edge_width] = 0
 
-         px_score_thresh -= 0.5
+          px_score_thresh -= 0.5
 
     markers = np.argwhere(im_ != 0)
 
 
     # Subset to 1000 points
-    if len(markers) > 1000:
+    n_markers = len(markers)
+    if n_markers > 1000:
       rand_markers = np.random.choice(range(n_markers), size = 1000)
       markers = markers[rand_markers,:]
-    n_markers = len(markers)
+      n_markers = 1000
 
     # Compute contrast
     c_score = np.zeros_like(markers[:,1])
@@ -248,7 +250,7 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
 
     #resolution = 0.7
     #marker_thresh = 3 + int((px_rows*px_cols*scale**2)**0.5*resolution/1000)*10
-    # Get theminimum number of markers needed with the highest contrast
+    # Get the minimum number of markers needed with the highest contrast
     p_top = (1 - min_n_markers/n_markers)*100
     c_cutoff = np.percentile(c_score, p_top)
     c_markers = markers[c_score >= c_cutoff,:]
@@ -268,14 +270,14 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
     prev1 = max_ind[1]
     dist = np.delete(dist,[prev2,prev1],1)
     _markers = np.delete(_markers,[prev2,prev1], axis=0)
-    for i in range(2,n_markers-2):
+    for i in range(2,n_markers):
       dist2 = np.append(dist[prev2,:],dist[prev1,:], axis =0)
       ind = np.argmax(np.sum(dist2))
       ord_points[i,:] = _markers[ind,:]
       dist = np.delete(dist,ind,1)
       _markers = np.delete(_markers,ind, axis=0)
 
-    return _markers
+    return ord_points
 
 
 def get_roi(im, per_sat = 98, sq_size = 10):

@@ -39,7 +39,7 @@ def rough_focus(hs, n_tiles, n_frames):
         plane, scale_factor = stitch(hs.image_path, df_x, scaled = True)
         rough_ims.append(normalize(plane, scale_factor))
 
-    return rough_ims
+    return rough_ims, scale_factor
 
 def find_focus_points(rough_ims, scale, hs):
     x_initial = hs.x.position
@@ -82,7 +82,7 @@ def find_focus_points(rough_ims, scale, hs):
 
 
 
-def format_focus(hs, frame_size):
+def format_focus(hs, fs):
     '''Return valid and normalized focus frame file sizes.
 
        Parameters:
@@ -107,36 +107,42 @@ def format_focus(hs, frame_size):
     else:
         frame_interval = hs.cam1.getFrameInterval()
 
-    spf = hs.obj.vel*1000*hs.obj.spum*frame_interval # steps/frame
+    spf = hs.obj_vel*1000*hs.obj.spum*frame_interval # steps/frame
 
     # Remove frames after objective stops moving
     #obj_start = 60292
     #obj_stop = 2621
-    n_frames = len(frame_size)
-    _frames = range(n_frames)
-    objsteps = hs.obj.focus_start + np.array(_frames)*spf
-    objsteps = objsteps[objsteps < hs.obj.focus_stop]
-
+    n_rows, n_cols = fs.shape
+    #_frames = range(n_rows)
+    #objsteps = hs.obj.focus_start + np.array(_frames)*spf
+    #objsteps = objsteps[objsteps < hs.obj.focus_stop]
+    n_f_frames = int((hs.obj.focus_stop-hs.obj.focus_start)/spf)
+    objsteps = hs.obj.focus_start + np.array(range(n_f_frames))*spf
+    objsteps = np.flip(objsteps)
+    row = n_rows-n_f_frames
+    
     # Remove first 16 frames
-    objsteps = objsteps[16:]
+    #objsteps = objsteps[16:]
 
     # Number of formatted frames
-    n_f_frames = len(objsteps)
+    #n_f_frames = len(objsteps)
 
     #formatted focus data
     f_fd = np.zeros(shape = (n_f_frames,2))
     f_fd[:,0] = objsteps
 
-    nrows, ncols = focus.shape
     for i in range(n_cols):
         # test if there is a tail in data and add if True
-        kurt_z, pvalue = stats.kurtosistest(focus[16:n_f_frames+16,i])
+        #kurt_z, pvalue = stats.kurtosistest(fs[16:n_f_frames+16,i])
+        kurt_z, pvalue = stats.kurtosistest(fs[row:,i])
         if kurt_z > 1.96:
-            f_fd[:,1] = np.sum(f_fd[:,1],focus[16:n_f_frames+16,i] )
+            print('Peak in channel ' + str(i))
+            #f_fd[:,1] = f_fd[:,1] + fs[16:n_f_frames+16,i]
+            f_fd[:,1] = f_fd[:,1] + fs[row:,i]
 
     # Normalize
     if np.sum(f_fd[:,1]) == 0:
-        return False
+        return np.array([])
     else:
         f_fd[:,1] = f_fd[:,1] / np.sum(f_fd[:,1])
         return f_fd
@@ -208,7 +214,6 @@ def fit_mixed_gaussian(hs, data):
 
     # initialize values
     max_peaks = 3
-    peaks = 1
     # Initialize varibles
     amp = []; amp_lb = []; amp_ub = []
     cen = []; cen_lb = []; cen_ub = []
@@ -219,7 +224,7 @@ def fit_mixed_gaussian(hs, data):
     xfun = data[:,0]; yfun = data[:,1]
 
     # Add peaks until fit reached threshold
-    while peaks <= max_peaks and error > tolerance:
+    while len(amp) <= max_peaks and error > tolerance:
         # set initial guesses
         max_y = np.max(y)
         amp.append(max_y*10000)
@@ -248,17 +253,17 @@ def fit_mixed_gaussian(hs, data):
             error = np.sum(results.fun**2)
 
 
-        if results.success and error < tolerance:
-            _objsteps = range(hs.obj.focus_start, hs.obj.focus_stop,
-                              int(hs.nyquist_obj/2))
-            _focus = gaussian(_objsteps, results.x)
-            optobjstep = int(_objsteps[np.argmax(_focus)])
-            return optobjstep
-        else:
-            if peaks == max_peaks:
-                print('No good fit try moving z stage')
-                optobjstep = False
-                #hs.focus_direction = optobjstep * -1
+    if results.success and error < tolerance:
+        _objsteps = range(hs.obj.focus_start, hs.obj.focus_stop,
+                          int(hs.nyquist_obj/4))
+        _focus = gaussian(_objsteps, results.x)
+        optobjstep = int(_objsteps[np.argmax(_focus)])
+    else:
+        optobjstep = False
+        #if peaks == max_peaks:
+            #print('No good fit try moving z stage')
+            #optobjstep = False
+            #hs.focus_direction = optobjstep * -1
 
     return optobjstep
 
@@ -448,40 +453,51 @@ def normalize(im, scale_factor):
 
     return plane
 
-def get_image_plane(hs, n_tiles, n_frames ):
+def get_image_plane(hs, px_points, min_n_markers, scale):
     x_init = hs.x.position
     y_init = hs.y.position
-    rough_ims, scale = rough_focus(hs, n_tiles, n_frames)
-    sum_im = image.sum_images(rough_ims)
-    min_n_markers = ((2048*n_tiles)**2 + (n_frames*hs.bundle_height)**2)**0.5   # image size in px
-    min_n_markers = 3 + int(min_n_markers/2/2048)
-    px_points = image.get_focus_points(im, scale, min_n_markers)
+    #rough_ims, scale = rough_focus(hs, n_tiles, n_frames)
+    #sum_im = image.sum_images(rough_ims)
+    #min_n_markers = ((2048*n_tiles)**2 + (n_frames*hs.bundle_height)**2)**0.5   # image size in px
+    #min_n_markers = 3 + int(min_n_markers/2/2048)
+    #px_points = image.get_focus_points(im, scale, min_n_markers)
     focus_points = np.array([])
     i = 0
-    while len(focus_points) < min_n_markers:
+    n_points = 0
+    while n_points < min_n_markers:
     # Take obj_stack at focus points until min_n_markers have been found
         px_pt = px_points[i,:]
-        [x_pos, y_pos] = hs.px_to_step(px_pt, x_init, y_init, scale)
+        print(px_pt)
+        [x_pos, y_pos] = hs.px_to_step(px_pt[0], px_pt[1], x_init, y_init, scale)
         hs.y.move(y_pos)
         hs.x.move(x_pos)
+        print('Imaging point ' + str(i))
         fs = hs.obj_stack()
-        f_fs = focus.format_focus(hs, fs)
-        if f_fs:
-            obj_pos = focus.fit_mixed_gaussian(hs, f_fs)
+        np.savetxt(path.join(hs.image_path,'point_'+str(i)+'.txt'),fs,delimiter = ',')
+        f_fs = format_focus(hs, fs)
+        if f_fs.size > 0:
+            obj_pos = fit_mixed_gaussian(hs, f_fs)
             if obj_pos:
-                focus_points = np.append(focus_points,
-                                         [x_pos, y_pos, obj_pos], axis=0)
+                print('obj pos: ' +str(obj_pos))
+                focus_points = np.append(focus_points, [x_pos, y_pos, obj_pos])
+            else:
+                print('No objective focus position')
+        else:
+            print('No focus peak')
         i += 1
+        n_points = int(focus_points.size/3)
 
+    np.savetxt(path.join(hs.image_path,'focus_points.txt'),focus_points,delimiter = ',')
+    focus_points = np.reshape(focus_points, (min_n_markers,3))
     # Convert stage step position microns
-    focal_points[:,0] = focal_points[:,0]/hs.x.spum
-    focal_points[:,1] = focal_points[:,1]/hs.y.spum
-    focal_points[:,2] = focal_points[:,2]/hs.obj.spum
+    focus_points[:,0] = focus_points[:,0]/hs.x.spum
+    focus_points[:,1] = focus_points[:,1]/hs.y.spum
+    focus_points[:,2] = focus_points[:,2]/hs.obj.spum
 
-    centroid, normal = focus.fit_plane(focus_points)
+    centroid, normal = planeFit(focus_points)
 
 
-    return focal_points, normal
+    return normal, centroid
 
 def autolevel(hs, n_ip, centroid):
 
@@ -492,7 +508,7 @@ def autolevel(hs, n_ip, centroid):
     mp[:,2] = mp[:,2] / self.z.spum
     u_mp = mp[1,:] - mp[0,:]
     v_mp = mp[2,:] - mp[0,:]
-    n_mp = np.cross(u_sp, v_sp)
+    n_mp = np.cross(u_mp, v_mp)
     n_mp = n_mp/np.linalg.norm(n_mp)
 
     # Pick reference motor
@@ -509,7 +525,7 @@ def autolevel(hs, n_ip, centroid):
     mp[p_mp,2] = obj_mp
     # Calculate plane correction
     mag_mp = np.linalg.norm(mp[p_mp,:])
-    n_ip = n_ip * mag_m
+    n_ip = n_ip * mag_mp
     correction = [0, 0, n_ip[2]] - n_ip
     # Calculate target motor plane for a flat, level image plane
     n_mp = n_mp * mag_mp
@@ -538,11 +554,11 @@ def autolevel(hs, n_ip, centroid):
     d_tp = -np.dot(n_tp/np.linalg.norm(n_tp), mp[p_mp,:])
     z_pos = []
     for i in range(3):
-        z_pos.append(int(-(n_tp[0]*mp[i,0] + n_tp[1]*mp[i,1] + d_ip)/n_tp[2]))
+        z_pos.append(int(-(n_tp[0]*mp[i,0] + n_tp[1]*mp[i,1] + d_tp)/n_tp[2]))
 
     # Convert back to z step position
     z_pos = np.array(z_pos)
-    z_pos = int(z_pos * hs.z.spum)
+    z_pos = z_pos * hs.z.spum
     z_pos = z_pos.astype('int')
     self.z.move(z_pos)
 

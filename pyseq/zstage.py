@@ -176,30 +176,30 @@ class Zstage():
 
         return self.position                                                    # Return position
 
-        def in_position(self, position):
-            """Return True if all motors are in position, False if not.
+    def in_position(self, position):
+        """Return True if all motors are in position, False if not.
 
-               **Parameters:**
-               - position ([int,int,int]): List of motor positions to test.
+           **Parameters:**
+           - position ([int,int,int]): List of motor positions to test.
 
-               **Returns:**
-               - bool: True if all motors are in position, False if not.
+           **Returns:**
+           - bool: True if all motors are in position, False if not.
 
-            """
+        """
 
-            for i in range(3):
-                if abs(position[i]-self.position[i]) <= self.tolerance:
-                    in_pos = True
-                else:
-                    in_pos = False
+        for i in range(3):
+            if abs(position[i]-self.position[i]) <= self.tolerance:
+                in_pos = True
+            else:
+                in_pos = False
 
-            return in_pos
+        return in_pos
 
-        def get_motor_points(self):
-            """Return stage step coordinates tilt motors."""
+    def get_motor_points(self):
+        """Return stage step coordinates tilt motors."""
 
-            points = [[self.xstep[0], self.ystep[0], self.position[0]],
-                      [self.xstep[1], self.ystep[1], self.position[1]],
-                      [self.xstep[2], self.ystep[2], self.position[2]]]
+        points = [[self.xstep[0], self.ystep[0], self.position[0]],
+                  [self.xstep[1], self.ystep[1], self.position[1]],
+                  [self.xstep[2], self.ystep[2], self.position[2]]]
 
-            return points
+        return points
