@@ -445,18 +445,35 @@ def normalize(im, scale_factor):
 
     return plane
 
-def get_image_plane(hs, n_tiles, n_frames ):
+def get_image_plane(hs, px_points, n_markers, scale):
+    '''Return points and unit normal that define the imaging plane.
+
+         Loop through candidate focus px_points, and take an objective stack at
+         each position until n_markers with an optimal objective position have
+         been found.
+
+
+         Parameters
+         px_points (2xN array): Row x Column position of candidate focal points
+         n_markers (int): Number of focus markers to find
+         scale (int): Scale of image px_points were found
+
+         Returns
+         2xn_markers array, 3x1 array: X-stage, Y-stage step of focal position,
+                                       Unit normal of imaging plane
+
+    '''
     x_init = hs.x.position
     y_init = hs.y.position
-    rough_ims, scale = rough_focus(hs, n_tiles, n_frames)
-    sum_im = image.sum_images(rough_ims)
-    min_n_markers = ((2048*n_tiles)**2 + (n_frames*hs.bundle_height)**2)**0.5   # image size in px
-    min_n_markers = 3 + int(min_n_markers/2/2048)
-    px_points = image.get_focus_points(im, scale, min_n_markers)
-    focus_points = np.array([])
+    #rough_ims, scale = rough_focus(hs, n_tiles, n_frames)
+    #sum_im = image.sum_images(rough_ims)
+    #min_n_markers = ((2048*n_tiles)**2 + (n_frames*hs.bundle_height)**2)**0.5   # image size in px
+    #min_n_markers = 3 + int(min_n_markers/2/2048)
+    #px_points = image.get_focus_points(im, scale, min_n_markers)
+    #focus_points = np.array([])
     i = 0
-    while len(focus_points) < min_n_markers:
-    # Take obj_stack at focus points until min_n_markers have been found
+    while len(focus_points) < n_markers:
+    # Take obj_stack at focus points until n_markers have been found
         px_pt = px_points[i,:]
         [x_pos, y_pos] = hs.px_to_step(px_pt, x_init, y_init, scale)
         hs.y.move(y_pos)
