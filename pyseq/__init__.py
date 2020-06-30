@@ -910,15 +910,17 @@ class HiSeq():
            section is converted into stage and imaging details to scan the
            entire section.
 
-           =====  ========   ===========
-           index  value      description
-           =====  ========   ===========
-           0      x_center   The xstage center position of the section.
-           1      y_center   The ystage center position of the section.
-           2      x_initial  Initial xstage position to scan the section.
-           3      y_initial  Initial ystage position to scan the section.
-           4      n_tiles    Number of tiles to scan the entire section.
-           5      n_frames   Number of frames to scan the entire section.
+           ========   ===========
+             key      description
+           ========   ===========
+           x_center   The xstage center position of the section.
+           y_center   The ystage center position of the section.
+           x_initial  Initial xstage position to scan the section.
+           y_initial  Initial ystage position to scan the section.
+           x_final    Last xstage position of the section scan
+           y_final    Last ystage position of the section scan
+           n_tiles    Number of tiles to scan the entire section.
+           n_frames   Number of frames to scan the entire section.
 
            Parameters:
            AorB (str): Flowcell A or B.
@@ -928,17 +930,20 @@ class HiSeq():
                 Left and UR=Upper Right corner using the slide ruler.
 
            Returns:
-           [int, int, int, int, int, int]: List of stage positioning and
-                imaging details to scan the entire section. See table
-                above for details.
+           dict: Dictionary of stage positioning and
+                 imaging details to scan the entire section. See table
+                 above for details.
         """
+
+        pos = {}
+
         LLx = box[0]
         LLy = box[1]
         URx = box[2]
         URy = box[3]
 
         # Number of scans
-        n_tiles = ceil((LLx - URx)/self.tile_width)
+        pos['n_tiles'] = ceil((LLx - URx)/self.tile_width)
 
         # X center of scan
         x_center = self.fc_origin[AorB][0]
@@ -948,10 +953,10 @@ class HiSeq():
 
         # initial X of scan
         x_initial = x_center - n_tiles*self.tile_width*1000*self.x.spum/2
-        x_initial = int(x_initial)
+        pos['x_initial'] = int(x_initial)
 
         # initial Y of scan
-        y_initial = int(self.fc_origin[AorB][1] + LLy*1000*self.y.spum)
+        pos['y_initial'] = int(self.fc_origin[AorB][1] + LLy*1000*self.y.spum)
 
         # Y center of scan
         y_length = (LLy - URy)*1000
@@ -960,14 +965,19 @@ class HiSeq():
 
         # Number of frames
         n_frames = y_length/self.bundle_height/self.resolution
-        n_frames = ceil(n_frames + 10)
+        pos['n_frames'] = ceil(n_frames + 10)
 
         # Adjust x and y center so focus will image (32 frames, 128 bundle) in center of section
         x_center -= int(self.tile_width*1000*self.x.spum/2)
+        pos['x_center'] = x_center
         y_center += int(32*self.bundle_height/2*self.resolution*self.y.spum)
+        pos['y_center'] = y_center
 
+        # Calculate final x & y stage positions of scan
+        pos['y_final'] = y_initial - y_length*self.y.spum
+        pos['x_final'] = x_initial + 315*self.tile_width
 
-        return [x_center, y_center, x_initial, y_initial, n_tiles, n_frames]
+        return pos
 
     def px_to_step(self, row_col, x_initial, y_initial, scale):
         '''Convert pixel coordinates in image to stage step position.
