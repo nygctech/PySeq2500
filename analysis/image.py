@@ -276,6 +276,9 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
       dist = np.delete(dist,ind,1)
       _markers = np.delete(_markers,ind, axis=0)
 
+
+    ord_points[:,0] = px_rows - ord_points[:,0]
+
     return ord_points
 
 
