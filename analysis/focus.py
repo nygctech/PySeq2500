@@ -463,19 +463,20 @@ def get_image_plane(hs, px_points, n_markers, scale):
                                        Unit normal of imaging plane
 
     '''
-    x_init = hs.x.position
-    y_init = hs.y.position
+    pos_dict['x_initial'] = hs.x.position
+    pos_dict['y_initial'] = hs.y.position
     #rough_ims, scale = rough_focus(hs, n_tiles, n_frames)
     #sum_im = image.sum_images(rough_ims)
-    #min_n_markers = ((2048*n_tiles)**2 + (n_frames*hs.bundle_height)**2)**0.5   # image size in px
-    #min_n_markers = 3 + int(min_n_markers/2/2048)
-    #px_points = image.get_focus_points(im, scale, min_n_markers)
-    #focus_points = np.array([])
+    #n_markers = ((2048*n_tiles)**2 + (n_frames*hs.bundle_height)**2)**0.5   # image size in px
+    #n_markers = 3 + int(min_n_markers/2/2048)
+    #px_points = image.get_focus_points(im, scale, n_markers*10)
+    focus_points = np.empty(shape=(n_markers,3))
     i = 0
-    while len(focus_points) < n_markers:
+    n_obj = 0
+    while n_obj < n_markers:
     # Take obj_stack at focus points until n_markers have been found
         px_pt = px_points[i,:]
-        [x_pos, y_pos] = hs.px_to_step(px_pt, x_init, y_init, scale)
+        [x_pos, y_pos] = hs.px_to_step(px_pt, pos_dict, scale)
         hs.y.move(y_pos)
         hs.x.move(x_pos)
         fs = hs.obj_stack()
@@ -483,9 +484,10 @@ def get_image_plane(hs, px_points, n_markers, scale):
         if f_fs:
             obj_pos = focus.fit_mixed_gaussian(hs, f_fs)
             if obj_pos:
-                focus_points = np.append(focus_points,
-                                         [x_pos, y_pos, obj_pos], axis=0)
+                focus_points[n_obj,:] = [x_pos, y_pos, obj_pos]
+                n_obj += 1
         i += 1
+
 
     # Convert stage step position microns
     focal_points[:,0] = focal_points[:,0]/hs.x.spum
@@ -495,8 +497,7 @@ def get_image_plane(hs, px_points, n_markers, scale):
     centroid, normal = focus.fit_plane(focus_points)
     normal[2] = abs(normal[2])
 
-
-    return focal_points, normal
+    return focal_points, normal, centroid
 
 def autolevel(hs, n_ip, centroid):
 
@@ -520,7 +521,7 @@ def autolevel(hs, n_ip, centroid):
         p_mp = 1 # left front motor
 
     # Find objective position on imaging plane at reference motor
-    d_ip = -np.dot(n_ip,centroid)
+    d_ip = -np.dot(n_ip, centroid)
     obj_mp = -(n_ip[0]*mp[p_mp,0] + n_ip[1]*mp[p_mp,1] + d_ip)/n_ip[2]
     mp[p_mp,2] = obj_mp
     # Calculate plane correction

@@ -979,13 +979,12 @@ class HiSeq():
 
         return pos
 
-    def px_to_step(self, row, col, x_initial, y_initial, scale):
+    def px_to_step(self, row, col, pos_dict, scale):
         '''Convert pixel coordinates in image to stage step position.
 
            Parameters:
            row_col ([int,int]): Row and column pixel position in image.
-           x_initial (int): Initial X-stage step position of image
-           y_initial (int): Initial Y-stage step position of image
+           pos_dict (dict): Dictionary of position data
            scale (int): Scale factor of imaged
 
            Returns:
@@ -996,13 +995,15 @@ class HiSeq():
         #row = row_col[0]
         #col = row_col[1]
         scale = scale*self.resolution
+        x_init = pos_dict['x_initial']
+        y_init = pos_dict['y_initial']
 
         x_step = col*scale*self.x.spum
         x_step = int(x_init + x_step - 315/2)
 
         trigger_offset = -80000
         y_step = row*scale*self.y.spum
-        y_step = int(y_initial + trigger_offset - y_step + 64*self.y.spum/2)
+        y_step = int(y_init + trigger_offset - y_step + 64*self.y.spum/2)
 
         return [x_step, y_step]
 
