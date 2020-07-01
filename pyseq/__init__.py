@@ -943,7 +943,8 @@ class HiSeq():
         URy = box[3]
 
         # Number of scans
-        pos['n_tiles'] = ceil((LLx - URx)/self.tile_width)
+        n_tiles = ceil((LLx - URx)/self.tile_width)
+        pos['n_tiles'] = n_tiles
 
         # X center of scan
         x_center = self.fc_origin[AorB][0]
@@ -952,11 +953,12 @@ class HiSeq():
         x_center = int(x_center)
 
         # initial X of scan
-        x_initial = x_center - n_tiles*self.tile_width*1000*self.x.spum/2
-        pos['x_initial'] = int(x_initial)
+        x_initial = int(x_center - n_tiles*self.tile_width*1000*self.x.spum/2)
+        pos['x_initial'] = x_initial
 
         # initial Y of scan
-        pos['y_initial'] = int(self.fc_origin[AorB][1] + LLy*1000*self.y.spum)
+        y_initial = int(self.fc_origin[AorB][1] + LLy*1000*self.y.spum)
+        pos['y_initial'] = y_initial
 
         # Y center of scan
         y_length = (LLy - URy)*1000
@@ -974,8 +976,8 @@ class HiSeq():
         pos['y_center'] = y_center
 
         # Calculate final x & y stage positions of scan
-        pos['y_final'] = y_initial - y_length*self.y.spum
-        pos['x_final'] = x_initial + 315*self.tile_width
+        pos['y_final'] = int(y_initial - y_length*self.y.spum)
+        pos['x_final'] = int(x_initial + 315*self.tile_width)
 
         return pos
 

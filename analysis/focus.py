@@ -104,8 +104,10 @@ def format_focus(hs, focus):
     else:
         frame_interval = hs.cam1.getFrameInterval()
 
-    spf = hs.obj.vel*1000*hs.obj.spum*frame_interval # steps/frame
-
+    # fix obj.vel
+    #spf = hs.obj.vel*1000*hs.obj.spum*frame_interval # steps/frame
+    spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
+    
     # Remove frames after objective stops moving
     #obj_start = 60292
     #obj_stop = 2621
@@ -115,7 +117,7 @@ def format_focus(hs, focus):
     objsteps = objsteps[objsteps < hs.obj.focus_stop]
 
     # Remove first 16 frames
-    objsteps = objsteps[16:]
+    #objsteps = objsteps[16:]
 
     # Number of formatted frames
     n_f_frames = len(objsteps)
@@ -125,11 +127,13 @@ def format_focus(hs, focus):
     f_fd[:,0] = objsteps
 
     nrows, ncols = focus.shape
-    for i in range(n_cols):
+    focus = np.flip(focus, axis = 0)
+    for i in range(ncols):
         # test if there is a tail in data and add if True
-        kurt_z, pvalue = stats.kurtosistest(focus[16:n_f_frames+16,i])
+        kurt_z, pvalue = stats.kurtosistest(focus[0:n_f_frames,i])
         if kurt_z > 1.96:
-            f_fd[:,1] = np.sum(f_fd[:,1],focus[16:n_f_frames+16,i] )
+            print('signal in channel ' +str(i))
+            f_fd[:,1] = f_fd[:,1] + focus[0:n_f_frames,i]
 
     # Normalize
     if np.sum(f_fd[:,1]) == 0:
@@ -445,7 +449,7 @@ def normalize(im, scale_factor):
 
     return plane
 
-def get_image_plane(hs, px_points, n_markers, scale):
+def get_image_plane(hs, px_points, n_markers, scale, pos_dict):
     '''Return points and unit normal that define the imaging plane.
 
          Loop through candidate focus px_points, and take an objective stack at
@@ -463,8 +467,8 @@ def get_image_plane(hs, px_points, n_markers, scale):
                                        Unit normal of imaging plane
 
     '''
-    pos_dict['x_initial'] = hs.x.position
-    pos_dict['y_initial'] = hs.y.position
+    #pos_dict= {'x_initial':hs.x.position,
+    #           'y_initial':hs.y.position,
     #rough_ims, scale = rough_focus(hs, n_tiles, n_frames)
     #sum_im = image.sum_images(rough_ims)
     #n_markers = ((2048*n_tiles)**2 + (n_frames*hs.bundle_height)**2)**0.5   # image size in px
@@ -476,14 +480,15 @@ def get_image_plane(hs, px_points, n_markers, scale):
     while n_obj < n_markers:
     # Take obj_stack at focus points until n_markers have been found
         px_pt = px_points[i,:]
-        [x_pos, y_pos] = hs.px_to_step(px_pt, pos_dict, scale)
+        [x_pos, y_pos] = hs.px_to_step(px_pt[0], px_pt[1], pos_dict, scale)
         hs.y.move(y_pos)
         hs.x.move(x_pos)
         fs = hs.obj_stack()
-        f_fs = focus.format_focus(hs, fs)
-        if f_fs:
-            obj_pos = focus.fit_mixed_gaussian(hs, f_fs)
+        f_fs = format_focus(hs, fs)
+        if f_fs is not False:
+            obj_pos = fit_mixed_gaussian(hs, f_fs)
             if obj_pos:
+                print('Found point ' + str(n_obj))
                 focus_points[n_obj,:] = [x_pos, y_pos, obj_pos]
                 n_obj += 1
         i += 1
@@ -494,7 +499,7 @@ def get_image_plane(hs, px_points, n_markers, scale):
     focal_points[:,1] = focal_points[:,1]/hs.y.spum
     focal_points[:,2] = focal_points[:,2]/hs.obj.spum
 
-    centroid, normal = focus.fit_plane(focus_points)
+    centroid, normal = fit_plane(focus_points)
     normal[2] = abs(normal[2])
 
     return focal_points, normal, centroid

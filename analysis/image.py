@@ -156,13 +156,19 @@ def sum_images(images):
     SNR = np.array([])
     i = 0
     for im in images:
-        kurt_z, pvalue = stats.kurtosistest(im, axis = None)
-        if kurt_z > 1.96:
+        #kurt_z, pvalue = stats.kurtosistest(im, axis = None)
+        kurt_z = stats.kurtosis(im, axis=None)
+        if kurt_z > 12:
+            print(kurt_z)
+            print('signal in channel ' + str(i))
             SNR = np.append(SNR,np.mean(im)/np.std(im))
         else:
+            print('no signal in channel ' + str(i))
             # Remove images without signal
             images.pop(i)
+            
         i += 1
+        
     ref_i = np.argmax(SNR)
     ref = images[ref_i]
 
@@ -171,20 +177,21 @@ def sum_images(images):
     for im in images:
         # Match histogram to reference image
         if i != ref_i:
-            _im = match_histograms(im, ref)
+            _im = im
+            #_im = match_histograms(im, ref)
         else:
             _im = im
         i += 1
         # Add add image
         if sum_im is None:
-            sum_im = _im
+            sum_im = _im.astype('uint16')
         else:
             sum_im = np.add(sum_im, _im)
 
     return sum_im
 
 
-def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
+def get_focus_points(im, scale, min_n_markers, p_sat = 99.9):
     '''Get potential points to focus on.
 
        The top 1000 brightest pixels that are not saturate are found.
@@ -231,6 +238,7 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
 
     # Subset to 1000 points
     n_markers = len(markers)
+    print(n_markers)
     if n_markers > 1000:
       rand_markers = np.random.choice(range(n_markers), size = 1000)
       markers = markers[rand_markers,:]
@@ -277,7 +285,7 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.5):
       _markers = np.delete(_markers,ind, axis=0)
 
 
-    ord_points[:,0] = px_rows - ord_points[:,0]
+    #ord_points[:,0] = px_rows - ord_points[:,0]
 
     return ord_points
 
