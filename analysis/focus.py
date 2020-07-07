@@ -79,6 +79,26 @@ def find_focus_points(rough_ims, scale, hs):
 
     return stage_points
 
+def format_focus2(hs, fs):
+    col_names = ['x','y','frame', 'channel', 'filesize', 'kurtosis']
+
+    n_frames, n_channels = fs.shape
+
+    x = np.ones(shape=(n_frames,1))*hs.x.position
+    y = np.ones(shape=(n_frames,1))*hs.y.position
+    frame = np.array(range(n_frames))
+    frame = np.reshape(frame, (n_frames,1))
+
+    for ch in range(n_channels):
+        channel = np.ones(shape=(n_frames,1))*hs.channels[ch]
+        filesize = np.reshape(fs[:,ch],(n_frames,1))
+        kurt = stats.kurtosis(fs)
+        kurt = np.ones(shape=(n_frames,1))*kurt
+        data = np.concatenate([x, y, frame, channel, filesize, kurt], axis=1)
+    df = pd.DataFrame(data, columns = col_names)
+
+    return df
+
 def format_focus(hs, focus):
     '''Return valid and normalized focus frame file sizes.
 
@@ -107,7 +127,7 @@ def format_focus(hs, focus):
     # fix obj.vel
     #spf = hs.obj.vel*1000*hs.obj.spum*frame_interval # steps/frame
     spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
-    
+
     # Remove frames after objective stops moving
     #obj_start = 60292
     #obj_stop = 2621
