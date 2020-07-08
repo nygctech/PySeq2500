@@ -53,7 +53,7 @@ class OBJstage():
         self.spum = 262                                                         #steps per um
         self.max_v = 5                                                          #mm/s
         self.min_v = 0                                                          #mm/s
-        self.vel = None                                                         #mm/s
+        self.v = None                                                           #mm/s
         self.suffix = '\n'
         self.position = None
         self.logger = logger
@@ -150,7 +150,7 @@ class OBJstage():
         """
 
         if v > self.min_v and v <= self.max_v:
-            self.vel = v
+            self.v = v
             # convert mm/s to steps/s
             v = int(v * 1288471)                                                #steps/mm
             self.command('ZSTEP ' + str(v))                                     # Set velocity

@@ -538,8 +538,6 @@ class HiSeq():
         else:
             f_filesize = 0
 
-        obj.set_velocity(5) # mm/s
-
         return f_filesize
 
 

@@ -469,7 +469,7 @@ def normalize(im, scale_factor):
 
     return plane
 
-def get_image_plane(hs, px_points, n_markers, scale, pos_dict):
+def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
     '''Return points and unit normal that define the imaging plane.
 
          Loop through candidate focus px_points, and take an objective stack at
@@ -497,6 +497,7 @@ def get_image_plane(hs, px_points, n_markers, scale, pos_dict):
     focus_points = np.empty(shape=(n_markers,3))
     i = 0
     n_obj = 0
+    focus_data = None
     while n_obj < n_markers:
     # Take obj_stack at focus points until n_markers have been found
         px_pt = px_points[i,:]
@@ -504,25 +505,35 @@ def get_image_plane(hs, px_points, n_markers, scale, pos_dict):
         hs.y.move(y_pos)
         hs.x.move(x_pos)
         fs = hs.obj_stack()
-        f_fs = format_focus(hs, fs)
-        if f_fs is not False:
-            obj_pos = fit_mixed_gaussian(hs, f_fs)
-            if obj_pos:
-                print('Found point ' + str(n_obj))
-                focus_points[n_obj,:] = [x_pos, y_pos, obj_pos]
-                n_obj += 1
+
+        df = format_focus2(hs,fs)
+        if focus_data is None:
+            focus_data = df
+        else:
+            focus_data = focus_data.append(df)
+
+        if any(df.kurtosis > 1.96):
+            n_obj += 1
+        #f_fs = format_focus(hs, fs)
+        #if f_fs is not False:
+        #    obj_pos = fit_mixed_gaussian(hs, f_fs)
+        #    if obj_pos:
+        #        print('Found point ' + str(n_obj))
+        #        focus_points[n_obj,:] = [x_pos, y_pos, obj_pos]
+        #        n_obj += 1
         i += 1
 
 
     # Convert stage step position microns
-    focal_points[:,0] = focal_points[:,0]/hs.x.spum
-    focal_points[:,1] = focal_points[:,1]/hs.y.spum
-    focal_points[:,2] = focal_points[:,2]/hs.obj.spum
+    #focal_points[:,0] = focal_points[:,0]/hs.x.spum
+    #focal_points[:,1] = focal_points[:,1]/hs.y.spum
+    #focal_points[:,2] = focal_points[:,2]/hs.obj.spum
 
-    centroid, normal = fit_plane(focus_points)
-    normal[2] = abs(normal[2])
+    #centroid, normal = fit_plane(focus_points)
+    #normal[2] = abs(normal[2])
 
-    return focal_points, normal, centroid
+    #return focal_points, normal, centroid
+    return focus_data
 
 def autolevel(hs, n_ip, centroid):
 
