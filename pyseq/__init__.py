@@ -504,10 +504,6 @@ class HiSeq():
                print('Imaging took too long.')
                break
 
-        with open('frame_time.txt','w') as filehandle:
-            for i in frame_time:
-                filehandle.write(str(i[0]) + ', ' + str(i[1]) + ', ' + str(i[2]) + '\n')
-
         # Close laser shutters
         f.command('SWLSRSHUT 0')
 

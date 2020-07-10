@@ -535,6 +535,9 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
     #return focal_points, normal, centroid
     return focus_data
 
+def get_image_plane(focus_data):
+    
+
 def autolevel(hs, n_ip, centroid):
 
     # Find normal vector of motor plane
