@@ -171,4 +171,4 @@ class OBJstage():
         self.command('ZTRG ' + str(position))
         self.command('ZYT 0 3')
 
-        return self.check_position
+        return self.check_position()

@@ -496,9 +496,7 @@ class HiSeq():
 
         # Wait for imaging
         start_time = time.time()
-        frame_time = []
         while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
-           frame_time.append([time.time()-start_time,  cam1.getFrameCount(), obj.check_position()])
            now = time.time()
            if now - start_time > 10:
                print('Imaging took too long.')
