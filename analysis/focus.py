@@ -99,7 +99,7 @@ def format_focus2(hs, fs):
 
     return df
 
-def format_focus(hs, focus):
+def format_focus(hs, focus_data):
     '''Return valid and normalized focus frame file sizes.
 
        Parameters:
@@ -121,46 +121,37 @@ def format_focus(hs, focus):
 
     if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
         print('Frame interval mismatch')
-    else:
-        frame_interval = hs.cam1.getFrameInterval()
 
-    # fix obj.vel
-    #spf = hs.obj.vel*1000*hs.obj.spum*frame_interval # steps/frame
+    frame_interval = hs.cam1.getFrameInterval()
     spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
 
     # Remove frames after objective stops moving
-    #obj_start = 60292
-    #obj_stop = 2621
-    n_frames = len(focus)
+    n_frames = len(focus_data)
     _frames = range(n_frames)
     objsteps = hs.obj.focus_start + np.array(_frames)*spf
     objsteps = objsteps[objsteps < hs.obj.focus_stop]
 
-    # Remove first 16 frames
-    #objsteps = objsteps[16:]
 
     # Number of formatted frames
     n_f_frames = len(objsteps)
 
     #formatted focus data
-    f_fd = np.zeros(shape = (n_f_frames,2))
-    f_fd[:,0] = objsteps
+    f_fd = np.zeros(shape = (n_f_frames,1))
 
-    nrows, ncols = focus.shape
-    focus = np.flip(focus, axis = 0)
+    nrows, ncols = focus_data.shape
     for i in range(ncols):
         # test if there is a tail in data and add if True
-        kurt_z, pvalue = stats.kurtosistest(focus[0:n_f_frames,i])
+        kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
         if kurt_z > 1.96:
             print('signal in channel ' +str(i))
-            f_fd[:,1] = f_fd[:,1] + focus[0:n_f_frames,i]
+            f_fd = f_fd + focus_data[0:n_f_frames,i]
 
     # Normalize
-    if np.sum(f_fd[:,1]) == 0:
+    if np.sum(f_fd) == 0:
         return False
     else:
-        f_fd[:,1] = f_fd[:,1] / np.sum(f_fd[:,1])
-        return f_fd
+        f_fd = f_fd/ np.sum(f_fd)
+        return np.concatenate(objsteps,f_fd, axis=1)
 
 
 def gaussian(x, *args):
@@ -536,7 +527,7 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
     return focus_data
 
 #def get_image_plane(focus_data):
-    
+
 
 def autolevel(hs, n_ip, centroid):
 
