@@ -38,9 +38,9 @@ def obj_stack(hs, start, stop, n_frames):
 
         cam1.allocFrame(frames_per_step)
         cam2.allocFrame(frames_per_step)
-        
+
         #hs.obj.set_focus_trigger(int(pos))
-        
+
         # Open laser shutters
         f.command('SWLSRSHUT 1')
 
@@ -231,11 +231,11 @@ def objstack(hs, n_frames = 232, velocity = 0.42):
 
         text = 'ZMV ' + str(obj.focus_stop) + obj.suffix
         obj.serial_port.write(text)
-        
+
         # Start Cameras
         cam1.startAcquisition()
         cam2.startAcquisition()
-        
+
         obj.serial_port.flush()
         response = obj.serial_port.readline()
 
@@ -247,13 +247,13 @@ def objstack(hs, n_frames = 232, velocity = 0.42):
            if now - start_time > 10:
                print('Imaging took too long.')
                break
-            
+
         start_time = time.time()
         while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
            now = time.time()
            if now - start_time > 10:
                print('Imaging took too long.')
-               break          
+               break
 
         # Close laser shutters
         f.command('SWLSRSHUT 0')

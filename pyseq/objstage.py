@@ -57,8 +57,8 @@ class OBJstage():
         self.suffix = '\n'
         self.position = None
         self.logger = logger
-        self.focus_start = 2621                                                  # focus start step
-        self.focus_stop = 60292                                                  # focus stop step
+        self.focus_start =  2000                                                # focus start step
+        self.focus_stop = 62000                                                 # focus stop step
         self.focus_rough = int((self.focus_stop - self.focus_start)/2 +
                                 self.focus_start)
 

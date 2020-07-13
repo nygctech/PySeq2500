@@ -428,7 +428,7 @@ class HiSeq():
         return image_complete == 2
 
 
-    def obj_stack(self, n_frames = 232):
+    def obj_stack(self, n_frames = 232, velocity = 0.1):
         """Take an objective stack of images.
 
            Parameters:
@@ -449,11 +449,12 @@ class HiSeq():
         cam1 = self.cam1
         cam2 = self.cam2
 
+
+        if cam1.sensor_mode != 'TDI':
+            cam1.setTDI()
+        if cam2.sensor_mode != 'TDI':
+            cam2.setTDI()
         # Make sure cameras are ready (status = 3)
-        if cam1.sensor_mode != 'AREA':
-            cam1.setAREA()
-        if cam2.sensor_mode != 'AREA':
-            cam2.setAREA()
         while cam1.get_status() != 3:
             cam1.stopAcquisition()
             cam1.freeFrames()
@@ -467,8 +468,8 @@ class HiSeq():
         cam1.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
         cam2.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
         #Set line bundle height to 8
-        cam1.setPropertyValue("sensor_mode_line_bundle_height", 8)
-        cam2.setPropertyValue("sensor_mode_line_bundle_height", 8)
+        cam1.setPropertyValue("sensor_mode_line_bundle_height", 64)
+        cam2.setPropertyValue("sensor_mode_line_bundle_height", 64)
 
         cam1.captureSetup()
         cam2.captureSetup()
@@ -482,17 +483,31 @@ class HiSeq():
         obj.move(obj.focus_start)
 
         # Set up objective to trigger as soon as it moves
-        obj.set_velocity(0.42) #mm/s
+        obj.set_velocity(velocity) #mm/s
         obj.set_focus_trigger(obj.focus_start)
 
         # Open laser shutters
         f.command('SWLSRSHUT 1')
 
+        # Prepare move objective to move
+        text = 'ZMV ' + str(obj.focus_stop) + obj.suffix
+        obj.serial_port.write(text)
+
         # Start Cameras
         cam1.startAcquisition()
         cam2.startAcquisition()
 
-        obj.move(obj.focus_stop)
+        # Move objective
+        obj.serial_port.flush()
+        response = obj.serial_port.readline()
+
+        # Wait for objective
+        start_time = time.time()
+        while hs.obj.check_position() != obj.focus_stop:
+           now = time.time()
+           if now - start_time > 10:
+               print('Objective took too long to move.')
+               break
 
         # Wait for imaging
         start_time = time.time()
