@@ -166,9 +166,9 @@ def sum_images(images):
             print('no signal in channel ' + str(i))
             # Remove images without signal
             images.pop(i)
-            
+
         i += 1
-        
+
     ref_i = np.argmax(SNR)
     ref = images[ref_i]
 
@@ -194,7 +194,7 @@ def sum_images(images):
 def get_focus_points(im, scale, min_n_markers, p_sat = 99.9):
     '''Get potential points to focus on.
 
-       The top 1000 brightest pixels that are not saturate are found.
+       First 1000 of the brightest, unsaturated pixels are found.
        Then the focus field of views with the top min_n_markers contrast are
        ordered based on the distance from each other, with the points farthest
        away from each other being first.
@@ -211,12 +211,13 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.9):
 
     '''
 
+    #score pixels
     px_rows, px_cols = im.shape
     px_sat = np.percentile(im, p_sat)
     px_score = np.reshape(stats.zscore(im, axis = None), (px_rows, px_cols))
 
+    # Find brightest unsaturated pixels
     edge_width = int(2048/scale/2)
-
     im_ = np.zeros_like(im)
     px_score_thresh = 3
     while np.sum(im_ != 0) == 0:
@@ -283,9 +284,6 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.9):
       ord_points[i,:] = _markers[ind,:]
       dist = np.delete(dist,ind,1)
       _markers = np.delete(_markers,ind, axis=0)
-
-
-    #ord_points[:,0] = px_rows - ord_points[:,0]
 
     return ord_points
 

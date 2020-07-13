@@ -497,34 +497,35 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
         hs.x.move(x_pos)
         fs = hs.obj_stack()
 
-        df = format_focus2(hs,fs)
-        if focus_data is None:
-            focus_data = df
-        else:
-            focus_data = focus_data.append(df)
-
-        if any(df.kurtosis > 1.96):
-            n_obj += 1
-        #f_fs = format_focus(hs, fs)
-        #if f_fs is not False:
-        #    obj_pos = fit_mixed_gaussian(hs, f_fs)
-        #    if obj_pos:
-        #        print('Found point ' + str(n_obj))
-        #        focus_points[n_obj,:] = [x_pos, y_pos, obj_pos]
-        #        n_obj += 1
+        # df = format_focus2(hs,fs)
+        # if focus_data is None:
+        #     focus_data = df
+        # else:
+        #     focus_data = focus_data.append(df)
+        #
+        # if any(df.kurtosis > 1.96):
+        #     n_obj += 1
+        f_fs = format_focus(hs, fs)
+        if f_fs is not False:
+           obj_pos = fit_mixed_gaussian(hs, f_fs)
+           if obj_pos:
+               print('Found point ' + str(n_obj))
+               focus_points[n_obj,:] = [x_pos, y_pos, obj_pos]
+               n_obj += 1
         i += 1
 
 
     # Convert stage step position microns
-    #focal_points[:,0] = focal_points[:,0]/hs.x.spum
-    #focal_points[:,1] = focal_points[:,1]/hs.y.spum
-    #focal_points[:,2] = focal_points[:,2]/hs.obj.spum
+    focus_points[:,0] = focus_points[:,0]/hs.x.spum
+    focus_points[:,1] = focus_points[:,1]/hs.y.spum
+    focus_points[:,2] = focus_points[:,2]/hs.obj.spum
 
     #centroid, normal = fit_plane(focus_points)
     #normal[2] = abs(normal[2])
 
     #return focal_points, normal, centroid
-    return focus_data
+    #return focus_data
+    return focus_points
 
 #def get_image_plane(focus_data):
 
@@ -542,10 +543,11 @@ def autolevel(hs, n_ip, centroid):
     n_mp = n_mp/np.linalg.norm(n_mp)
     n_mp[2] = abs(n_mp[2])
 
-    # Pick reference motor
-    if correction[0] >= 0:
+    tilt = [0, 0, 1] - n_ip
+    # Pick reference motor based on tilt of imaging plane
+    if tilt[0] >= 0:
         p_mp = 0 # right motor
-    elif correction[1] >= 0:
+    elif tilt[1] >= 0:
         p_mp = 2 # left back motors
     else:
         p_mp = 1 # left front motor
@@ -564,7 +566,7 @@ def autolevel(hs, n_ip, centroid):
 
     # Move motor plane to preferred objective position
     offset_distance = hs.im_obj_pos/hs.obj.spum - centroid[2]
-    offset_distance += hs.z.position[p_mp]/hs.z.spum
+    offset_distance = offset_distance*hs.z.spum + hs.z.position[p_mp]
     mp[p_mp,2] = offset_distance
     #offset_distance = int(offset_distance*self.z.spum)
 
