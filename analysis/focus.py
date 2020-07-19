@@ -607,7 +607,7 @@ def autolevel(hs, n_ip, centroid):
 
     # Find objective position on imaging plane at reference motor
     d_ip = -np.dot(n_ip, centroid)
-    obj_mp = -(n_ip[0]*mp[p_mp,0] + n_ip[1]*mp[p_mp,1] + d_ip)/n_ip[2]
+    obj_mp = -(n_ip[0]*mp[p_mp,0] + n_ip[1]*mp[p_mp,1] - d_ip)/n_ip[2]
     mp[p_mp,2] = obj_mp
     # Calculate plane correction
     mag_mp = np.linalg.norm(mp[p_mp,:])
@@ -641,7 +641,7 @@ def autolevel(hs, n_ip, centroid):
     d_tp = -np.dot(n_tp, mp[p_mp,:])
     z_pos = []
     for i in range(3):
-        z_pos.append(int(-(n_tp[0]*mp[i,0] + n_tp[1]*mp[i,1] + d_tp)/n_tp[2]))
+        z_pos.append(int(-(n_tp[0]*mp[i,0] + n_tp[1]*mp[i,1] - d_tp)/n_tp[2]))
 
     # Convert back to z step position
     z_pos = np.array(z_pos)
