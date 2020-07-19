@@ -21,7 +21,7 @@ def autofocus(hs, pos_dict):
     hs.y.move(pos_dict['y_initial'])
     hs.x.move(pos_dict['x_initial'])
 ##    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
-##    for i in range(len(hs.channels)): 
+##    for i in range(len(hs.channels)):
 ##        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff'), rough_ims[i])
     # Sum channels with signal
     rough_ims = []
@@ -164,12 +164,12 @@ def format_focus(hs, focus_data):
     _frames = range(n_frames)
     objsteps = hs.obj.focus_start + np.array(_frames)*spf
     objsteps = objsteps[objsteps < hs.obj.focus_stop]
-    
+
 
     # Number of formatted frames
     n_f_frames = len(objsteps)
     objsteps = np.reshape(objsteps, (n_f_frames, 1))
-    
+
     #formatted focus data
     f_fd = np.zeros(shape = (n_f_frames,1))
     print(f_fd.shape)
@@ -191,7 +191,7 @@ def format_focus(hs, focus_data):
         print(np.sum(f_fd))
         f_fd = f_fd/ np.sum(f_fd)
         f_fd = np.reshape(f_fd, (n_f_frames, 1))
-        
+
         return np.concatenate((objsteps,f_fd), axis=1)
 
 
@@ -221,24 +221,10 @@ def gaussian(x, *args):
 def res_gaussian(args, xfun, yfun):
     '''Gaussian residual function for curve fitting.'''
 
-    if len(args) == 1:
-      args = args[0]
+    g_sum = gaussian(xfun, args)
 
-    n_peaks = int(len(args)/3)
+    return yfun-g_sum
 
-    if len(args) - n_peaks*3 != 0:
-      print('Unequal number of parameters')
-    else:
-      for i in range(n_peaks):
-        amp = args[0:n_peaks]
-        cen = args[n_peaks:n_peaks*2]
-        sigma = args[n_peaks*2:n_peaks*3]
-
-      g_sum = 0
-      for i in range(len(amp)):
-          g_sum += amp[i]*(1/(sigma[i]*np.sqrt(2*np.pi)))*np.exp(-0.5*(((xfun-cen[i])/sigma[i])**2))
-
-      return yfun-g_sum
 
 def fit_mixed_gaussian(hs, data):
     '''Fit focus data & return optimal objective focus step.
