@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import pandas as pd
 import numpy as np
+from numpy.linalg import svd
 import image
 from scipy.optimize import least_squares
 import os
@@ -20,16 +21,24 @@ def autofocus(hs, pos_dict):
     # Initial scan of section
     hs.y.move(pos_dict['y_initial'])
     hs.x.move(pos_dict['x_initial'])
-##    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
-##    for i in range(len(hs.channels)):
-##        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff'), rough_ims[i])
-    # Sum channels with signal
-    rough_ims = []
+    hs.z.move([21500, 21500, 21500])
+    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
     for i in range(len(hs.channels)):
-        rough_ims.append(imageio.imread(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff')))
-        scale = 16
+        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff'), rough_ims[i])
+    # Sum channels with signal
+    #rough_ims = []
+    #for i in range(len(hs.channels)):
+    #    rough_ims.append(imageio.imread(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff')))
+    #    scale = 16
+    # Drastic Tilt
+    hs.y.move(pos_dict['y_initial'])
+    hs.x.move(pos_dict['x_initial'])
+    hs.z.move([21000, 22000, 21500])
+    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], image_name = 'InitialTilt')
+    for i in range(len(hs.channels)):
+        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'InitialTilt.tiff'), rough_ims[i])
     sum_im = image.sum_images(rough_ims)
-    imageio.imwrite(path.join(hs.image_path,'sum_im.tiff'), sum_im)
+    imageio.imwrite(path.join(hs.image_path,'sum_tilt_im.tiff'), sum_im)
     # Find pixels to focus on
     px_rows, px_cols = sum_im.shape
     n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
@@ -43,19 +52,38 @@ def autofocus(hs, pos_dict):
     center, n_ip = planeFit(focus_points)
     n_ip[2] = abs(n_ip[2])
     z_pos = autolevel(hs, n_ip, center)
+    np.savetxt(path.join(hs.image_path, 'focus_zpos.txt'), np.array(z_pos))
+    hs.z.move(z_pos)
+    # One last objective focus
+    for i in range(len(focus_points), len(ord_points)):
+        y_pos = ord_points[i,1]
+        x_pos = ord_points[i,0]
+        hs.y.move(y_pos)
+        hs.x.move(x_pos)
+        fs = hs.obj_stack()
+        f_fs = format_focus(hs, fs)
+        if f_fs is not False:
+           obj_pos = fit_mixed_gaussian(hs, f_fs)
+           if obj_pos:
+               break
+    np.savetxt(path.join(hs.image_path, 'focus_obj_pos.txt'), np.array([obj_pos]))
+    hs.obj.move(obj_pos)
+    # Image leveled section
+    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], image_name = 'Leveled')
+    for i in range(len(hs.channels)):
+        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'Leveled.tiff'), rough_ims[i])
 
-    return z_pos
+    return z_pos, obj_pos
 
-def rough_focus(hs, n_tiles, n_frames):
+def rough_focus(hs, n_tiles, n_frames, image_name = 'RoughScan'):
     '''Image section at preset positions and return scaled image scan.'''
     x_initial = hs.x.position
     y_initial = hs.y.position
-    image_name = 'RoughScan'
     obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
     hs.obj.move(obj_pos)
     # Move to rough focus position
-    z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
-    hs.z.move(z_pos)
+    #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
+    #hs.z.move(z_pos)
     # Take rough focus image
     hs.scan(n_tiles, 1, n_frames, image_name)
     hs.y.move(y_initial)
@@ -691,8 +719,9 @@ def planeFit(points):
     Return a point, p, on the plane (the point-cloud centroid),
     and the normal, n.
     '''
-    import numpy as np
-    from numpy.linalg import svd
+
+    points = np.transpose(points)
+
     points = np.reshape(points, (np.shape(points)[0], -1)) # Collapse trialing dimensions
     assert points.shape[0] <= points.shape[1], "There are only {} points in {} dimensions.".format(points.shape[1], points.shape[0])
     ctr = points.mean(axis=1)
