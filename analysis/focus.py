@@ -11,6 +11,40 @@ from math import log2
 from skimage.exposure import match_histograms
 from skimage.util import img_as_ubyte
 from skimage.transform import downscale_local_mean
+import imageio
+import importlib
+importlib.reload(image)
+
+
+def autofocus(hs, pos_dict):
+    # Initial scan of section
+    hs.y.move(pos_dict['y_initial'])
+    hs.x.move(pos_dict['x_initial'])
+##    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
+##    for i in range(len(hs.channels)): 
+##        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff'), rough_ims[i])
+    # Sum channels with signal
+    rough_ims = []
+    for i in range(len(hs.channels)):
+        rough_ims.append(imageio.imread(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff')))
+        scale = 16
+    sum_im = image.sum_images(rough_ims)
+    imageio.imwrite(path.join(hs.image_path,'sum_im.tiff'), sum_im)
+    # Find pixels to focus on
+    px_rows, px_cols = sum_im.shape
+    n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
+    ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
+    np.savetxt(path.join(hs.image_path, 'ord_points.txt'), ord_points)
+    # Get stage positions on in focus points
+    focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
+    np.savetxt(path.join(hs.image_path, 'focus_points.txt'), focus_points)
+    # Get adjusted z stage positions for level image
+    hs.im_obj_pos = 30000
+    center, n_ip = planeFit(focus_points)
+    n_ip[2] = abs(n_ip[2])
+    z_pos = autolevel(hs, n_ip, center)
+
+    return z_pos
 
 def rough_focus(hs, n_tiles, n_frames):
     '''Image section at preset positions and return scaled image scan.'''
@@ -39,7 +73,7 @@ def rough_focus(hs, n_tiles, n_frames):
         plane, scale_factor = stitch(hs.image_path, df_x, scaled = True)
         rough_ims.append(normalize(plane, scale_factor))
 
-    return rough_ims
+    return rough_ims, scale_factor
 
 def find_focus_points(rough_ims, scale, hs):
     x_initial = hs.x.position
@@ -130,13 +164,15 @@ def format_focus(hs, focus_data):
     _frames = range(n_frames)
     objsteps = hs.obj.focus_start + np.array(_frames)*spf
     objsteps = objsteps[objsteps < hs.obj.focus_stop]
-
+    
 
     # Number of formatted frames
     n_f_frames = len(objsteps)
-
+    objsteps = np.reshape(objsteps, (n_f_frames, 1))
+    
     #formatted focus data
     f_fd = np.zeros(shape = (n_f_frames,1))
+    print(f_fd.shape)
 
     nrows, ncols = focus_data.shape
     for i in range(ncols):
@@ -144,14 +180,19 @@ def format_focus(hs, focus_data):
         kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
         if kurt_z > 1.96:
             print('signal in channel ' +str(i))
-            f_fd = f_fd + focus_data[0:n_f_frames,i]
+            f_fd = f_fd + np.reshape(focus_data[0:n_f_frames,i], (n_f_frames,1))
+            print(f_fd.shape)
 
     # Normalize
     if np.sum(f_fd) == 0:
         return False
     else:
+        print(f_fd.shape)
+        print(np.sum(f_fd))
         f_fd = f_fd/ np.sum(f_fd)
-        return np.concatenate(objsteps,f_fd, axis=1)
+        f_fd = np.reshape(f_fd, (n_f_frames, 1))
+        
+        return np.concatenate((objsteps,f_fd), axis=1)
 
 
 def gaussian(x, *args):
@@ -534,12 +575,12 @@ def autolevel(hs, n_ip, centroid):
 
     # Find normal vector of motor plane
     mp = np.array(hs.z.get_motor_points())
-    mp[:,0] = mp[:,0] / self.x.spum
-    mp[:,1] = mp[:,1] / self.y.spum
-    mp[:,2] = mp[:,2] / self.z.spum
+    mp[:,0] = mp[:,0] / hs.x.spum
+    mp[:,1] = mp[:,1] / hs.y.spum
+    mp[:,2] = mp[:,2] / hs.z.spum
     u_mp = mp[1,:] - mp[0,:]
     v_mp = mp[2,:] - mp[0,:]
-    n_mp = np.cross(u_sp, v_sp)
+    n_mp = np.cross(u_mp, v_mp)
     n_mp = n_mp/np.linalg.norm(n_mp)
     n_mp[2] = abs(n_mp[2])
 
@@ -558,16 +599,18 @@ def autolevel(hs, n_ip, centroid):
     mp[p_mp,2] = obj_mp
     # Calculate plane correction
     mag_mp = np.linalg.norm(mp[p_mp,:])
-    n_ip = n_ip * mag_m
-    correction = [0, 0, n_ip[2]] - n_ip
+    n_ip = n_ip * mag_mp
+    correction = [0, 0, mag_mp] - n_ip
     # Calculate target motor plane for a flat, level image plane
     n_mp = n_mp * mag_mp
     n_tp = n_mp + correction
+    n_tp = n_tp / np.linalg.norm(n_tp)
 
     # Move motor plane to preferred objective position
     offset_distance = hs.im_obj_pos/hs.obj.spum - centroid[2]
-    offset_distance = offset_distance*hs.z.spum + hs.z.position[p_mp]
+    offset_distance = offset_distance + hs.z.position[p_mp]/hs.z.spum
     mp[p_mp,2] = offset_distance
+    print(offset_distance)
     #offset_distance = int(offset_distance*self.z.spum)
 
     # Solve system equations for level plane
@@ -582,18 +625,17 @@ def autolevel(hs, n_ip, centroid):
     # z_pos = np.linalg.solve(A,B)
     # z_pos = int(z_pos * self.z.spum)
     # z_pos = z_pos.astype('int')
-
     # Solve for motor positions that move motor plane to the target plane
-    d_tp = -np.dot(n_tp/np.linalg.norm(n_tp), mp[p_mp,:])
+    d_tp = -np.dot(n_tp, mp[p_mp,:])
     z_pos = []
     for i in range(3):
-        z_pos.append(int(-(n_tp[0]*mp[i,0] + n_tp[1]*mp[i,1] + d_ip)/n_tp[2]))
+        z_pos.append(int(-(n_tp[0]*mp[i,0] + n_tp[1]*mp[i,1] + d_tp)/n_tp[2]))
 
     # Convert back to z step position
     z_pos = np.array(z_pos)
-    z_pos = int(z_pos * hs.z.spum)
+    z_pos = z_pos * hs.z.spum
     z_pos = z_pos.astype('int')
-    self.z.move(z_pos)
+    #hs.z.move(z_pos)
 
     return z_pos
 

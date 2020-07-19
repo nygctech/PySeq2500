@@ -503,7 +503,7 @@ class HiSeq():
 
         # Wait for objective
         start_time = time.time()
-        while hs.obj.check_position() != obj.focus_stop:
+        while obj.check_position() != obj.focus_stop:
            now = time.time()
            if now - start_time > 10:
                print('Objective took too long to move.')

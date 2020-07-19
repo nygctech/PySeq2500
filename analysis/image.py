@@ -158,23 +158,29 @@ def sum_images(images):
     for im in images:
         #kurt_z, pvalue = stats.kurtosistest(im, axis = None)
         kurt_z = stats.kurtosis(im, axis=None)
-        if kurt_z > 12:
+        print(kurt_z)
+        if kurt_z > 3:
             print(kurt_z)
             print('signal in channel ' + str(i))
             SNR = np.append(SNR,np.mean(im)/np.std(im))
         else:
             print('no signal in channel ' + str(i))
             # Remove images without signal
-            images.pop(i)
+            SNR = np.append(SNR, 0)
 
         i += 1
 
+    ims = []
+    for i in range(len(SNR)):
+      if SNR[i] > 0:
+        ims.append(images[i])
+    SNR = SNR[SNR > 0]
     ref_i = np.argmax(SNR)
     ref = images[ref_i]
-
+    
     # Sum images
     i = 0
-    for im in images:
+    for im in ims:
         # Match histogram to reference image
         if i != ref_i:
             _im = im
