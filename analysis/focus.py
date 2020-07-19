@@ -598,15 +598,16 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
 def autolevel(hs, n_ip, centroid):
 
     # Find normal vector of motor plane
-    mp = np.array(hs.z.get_motor_points())
+    mp = np.array(hs.z.get_motor_points(),dtype = float)
     mp[:,0] = mp[:,0] / hs.x.spum
     mp[:,1] = mp[:,1] / hs.y.spum
     mp[:,2] = mp[:,2] / hs.z.spum
-    u_mp = mp[1,:] - mp[0,:]
-    v_mp = mp[2,:] - mp[0,:]
+    u_mp = mp[0,:] - mp[2,:]
+    v_mp = mp[1,:] - mp[2,:]
     n_mp = np.cross(u_mp, v_mp)
     n_mp = n_mp/np.linalg.norm(n_mp)
     n_mp[2] = abs(n_mp[2])
+
 
     tilt = [0, 0, 1] - n_ip
     # Pick reference motor based on tilt of imaging plane
@@ -617,40 +618,38 @@ def autolevel(hs, n_ip, centroid):
     else:
         p_mp = 1 # left front motor
 
+    d_mp = -np.dot(n_mp, mp[p_mp,:])
+
     # Find objective position on imaging plane at reference motor
     d_ip = -np.dot(n_ip, centroid)
-    obj_mp = -(n_ip[0]*mp[p_mp,0] + n_ip[1]*mp[p_mp,1] + d_ip)/n_ip[2]
-    mp[p_mp,2] = obj_mp
+
+
+    #obj_mp = -(n_ip[0]*mp[p_mp,0] + n_ip[1]*mp[p_mp,1] + d_ip)/n_ip[2]
+    #print(obj_mp)
+    #mp[p_mp,2] = obj_mp
     # Calculate plane correction
-    mag_mp = np.linalg.norm(mp[p_mp,:])
-    n_ip = n_ip * mag_mp
-    correction = [0, 0, mag_mp] - n_ip
+    #mag_mp = np.linalg.norm(mp[p_mp,:])
+    #n_ip = n_ip * mag_mp
+    #correction = [0, 0, mag_mp] - n_ip
+    correction = [0, 0, 1] - n_ip
+
     # Calculate target motor plane for a flat, level image plane
-    n_mp = n_mp * mag_mp
+    #n_mp = n_mp * mag_mp
     n_tp = n_mp + correction
+
+    #n_tp = n_mp
     n_tp = n_tp / np.linalg.norm(n_tp)
+    print('target plane', n_tp)
 
     # Move motor plane to preferred objective position
     offset_distance = hs.im_obj_pos/hs.obj.spum - centroid[2]
     offset_distance = offset_distance + hs.z.position[p_mp]/hs.z.spum
     mp[p_mp,2] = offset_distance
-    print(offset_distance)
-    #offset_distance = int(offset_distance*self.z.spum)
 
-    # Solve system equations for level plane
-    # A = np.array([[v_mp[1]-u_mp[1], -v_mp[1], u_mp[1]],
-    #               [u_mp[0]-v_mp[0], v_mp[0], u_mp[0]],
-    #               [0, 0, 0]])
-    # A = np.array([[mp[2,1]-mp[1,1], mp[0,1]-mp[2,1], mp[1,1]-mp[0,1]],
-    #               [mp[1,0]-mp[2,0], mp[2,0]-mp[0,0], mp[0,0]-mp[1,0]],
-    #               [0,0,0]])
-    # A[2, p_sp] = 1
-    # B = np.array([n_tp[0], n_tp[1], offset_distance])
-    # z_pos = np.linalg.solve(A,B)
-    # z_pos = int(z_pos * self.z.spum)
-    # z_pos = z_pos.astype('int')
-    # Solve for motor positions that move motor plane to the target plane
+    #offset_distance = int(offset_distance*hs.z.spum)
+
     d_tp = -np.dot(n_tp, mp[p_mp,:])
+
     z_pos = []
     for i in range(3):
         z_pos.append(int(-(n_tp[0]*mp[i,0] + n_tp[1]*mp[i,1] + d_tp)/n_tp[2]))
