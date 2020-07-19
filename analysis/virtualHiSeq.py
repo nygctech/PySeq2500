@@ -29,9 +29,8 @@ class objstage():
 
 class HiSeq():
     def __init__(self):
-        self.x.spum = 100/244
-        self.y.spum = 100
-        self.z.spum = 0.656
-        self.z.position = [21500, 21500, 21500]
-        self.obj.spum = 262
+        self.x = xstage()
+        self.y = ystage()
+        self.z = zstage()
+        self.obj = objstage()
         self.im_obj_pos = 30000
