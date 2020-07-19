@@ -19,31 +19,40 @@ importlib.reload(image)
 
 def autofocus(hs, pos_dict):
     # Initial scan of section
-    hs.y.move(pos_dict['y_initial'])
-    hs.x.move(pos_dict['x_initial'])
-    hs.z.move([21500, 21500, 21500])
-    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
-    for i in range(len(hs.channels)):
-        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff'), rough_ims[i])
-    # Sum channels with signal
-    #rough_ims = []
-    #for i in range(len(hs.channels)):
-    #    rough_ims.append(imageio.imread(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff')))
-    #    scale = 16
-    # Drastic Tilt
-    hs.y.move(pos_dict['y_initial'])
-    hs.x.move(pos_dict['x_initial'])
-    hs.z.move([21000, 22000, 21500])
-    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], image_name = 'InitialTilt')
-    for i in range(len(hs.channels)):
-        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'InitialTilt.tiff'), rough_ims[i])
-    sum_im = image.sum_images(rough_ims)
-    imageio.imwrite(path.join(hs.image_path,'sum_tilt_im.tiff'), sum_im)
-    # Find pixels to focus on
+##    hs.y.move(pos_dict['y_initial'])
+##    hs.x.move(pos_dict['x_initial'])
+##    hs.z.move([21500, 21500, 21500])
+##    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
+##    for i in range(len(hs.channels)):
+##        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff'), rough_ims[i])
+##    # Sum channels with signal
+##    #rough_ims = []
+##    #for i in range(len(hs.channels)):
+##    #    rough_ims.append(imageio.imread(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff')))
+##    #    scale = 16
+##    # Drastic Tilt
+##    hs.y.move(pos_dict['y_initial'])
+##    hs.x.move(pos_dict['x_initial'])
+##    hs.z.move([20000, 23000, 21500])
+##    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], image_name = 'InitialTilt')
+##    rough_ims = []
+##    # Stitch rough focus image
+##    for ch in hs.channels:
+##        df_x = get_image_df(hs.image_path, 'c'+str(ch)+'_InitialTilt')
+##        plane, scale = stitch(hs.image_path, df_x, scaled = True)
+##        rough_ims.append(normalize(plane, scale))
+##    for i in range(len(hs.channels)):
+##        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'InitialTilt.tiff'), rough_ims[i])
+##    sum_im = image.sum_images(rough_ims)
+##    imageio.imwrite(path.join(hs.image_path,'sum_tilt_im.tiff'), sum_im)
+    sum_im = imageio.imread(path.join(hs.image_path,'sum_tilt_im.tiff'))
+    scale = 16
+##    # Find pixels to focus on
     px_rows, px_cols = sum_im.shape
     n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
-    ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
-    np.savetxt(path.join(hs.image_path, 'ord_points.txt'), ord_points)
+##    ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
+##    np.savetxt(path.join(hs.image_path, 'ord_points.txt'), ord_points)
+    ord_points = np.loadtxt(path.join(hs.image_path, 'ord_points.txt'))
     # Get stage positions on in focus points
     focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
     np.savetxt(path.join(hs.image_path, 'focus_points.txt'), focus_points)
@@ -69,6 +78,8 @@ def autofocus(hs, pos_dict):
     np.savetxt(path.join(hs.image_path, 'focus_obj_pos.txt'), np.array([obj_pos]))
     hs.obj.move(obj_pos)
     # Image leveled section
+    hs.y.move(pos_dict['y_initial'])
+    hs.x.move(pos_dict['x_initial'])
     rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], image_name = 'Leveled')
     for i in range(len(hs.channels)):
         imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'Leveled.tiff'), rough_ims[i])
@@ -92,7 +103,7 @@ def rough_focus(hs, n_tiles, n_frames, image_name = 'RoughScan'):
     # Stitch rough focus image
     for ch in hs.channels:
         df_x = get_image_df(hs.image_path, 'c'+str(ch)+'_'+image_name)
-        df_x = df_x.drop('R', axis = 1)
+        #df_x = df_x.drop('R', axis = 1)
         #df_x = df_x.rename(columns = {'X0':'ch', 'X2':'x', 'X3':'o'})
         # for i in range(len(df_x.x)):
         #     df_x.x[i] = int(df_x.x[i][1:])
@@ -285,9 +296,8 @@ def fit_mixed_gaussian(hs, data):
     tolerance = 0.9                                                             # Tolerance for R2
     xfun = data[:,0]; yfun = data[:,1]
 
-
     # Add peaks until fit reaches threshold
-    while len(amps) <= max_peaks and R2 > tolerance:
+    while len(amp) <= max_peaks and R2 < tolerance:
         # set initial guesses
         max_y = np.max(y)
         amp.append(max_y*10000)
@@ -310,10 +320,12 @@ def fit_mixed_gaussian(hs, data):
 
         # Optimize parameters
         results = least_squares(res_gaussian, p0, bounds=(lo_bounds,up_bounds), args=(data[:,0],data[:,1]))
+
         if not results.success:
             print(results.message)
         else:
             R2 = 1 - np.sum(results.fun**2)/SST
+            print('R2 with ' + str(len(amp)) + ' peaks is ' + str(R2))
 
 
         if results.success and R2 > tolerance:
@@ -323,7 +335,7 @@ def fit_mixed_gaussian(hs, data):
             optobjstep = int(_objsteps[np.argmax(_focus)])
             return optobjstep
         else:
-            if len(amps) == max_peaks:
+            if len(amp) == max_peaks:
                 print('No good fit try moving z stage')
                 return False
 
