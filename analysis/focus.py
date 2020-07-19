@@ -246,19 +246,20 @@ def fit_mixed_gaussian(hs, data):
     '''
 
     # initialize values
-    max_peaks = 3
-    peaks = 1
+    max_peaks = 10
     # Initialize varibles
     amp = []; amp_lb = []; amp_ub = []
     cen = []; cen_lb = []; cen_ub = []
     sigma = []; sigma_lb = []; sigma_ub = []
     y = data[:,1]
-    error = 1
-    tolerance = 1e-4
+    SST = np.sum((y-np.mean(y))**2)
+    R2 = 0
+    tolerance = 0.9                                                             # Tolerance for R2
     xfun = data[:,0]; yfun = data[:,1]
 
-    # Add peaks until fit reached threshold
-    while peaks <= max_peaks and error > tolerance:
+
+    # Add peaks until fit reaches threshold
+    while len(amps) <= max_peaks and R2 > tolerance:
         # set initial guesses
         max_y = np.max(y)
         amp.append(max_y*10000)
@@ -284,22 +285,19 @@ def fit_mixed_gaussian(hs, data):
         if not results.success:
             print(results.message)
         else:
-            error = np.sum(results.fun**2)
+            R2 = 1 - np.sum(results.fun**2)/SST
 
 
-        if results.success and error < tolerance:
+        if results.success and R2 > tolerance:
             _objsteps = range(hs.obj.focus_start, hs.obj.focus_stop,
                               int(hs.nyquist_obj/2))
             _focus = gaussian(_objsteps, results.x)
             optobjstep = int(_objsteps[np.argmax(_focus)])
             return optobjstep
         else:
-            if peaks == max_peaks:
+            if len(amps) == max_peaks:
                 print('No good fit try moving z stage')
-                optobjstep = False
-                #hs.focus_direction = optobjstep * -1
-
-    return optobjstep
+                return False
 
 def get_image_df(image_path, image_name = None):
     '''Get dataframe of rough focus images.
