@@ -169,7 +169,7 @@ def scan(hs, n_frames, px_step):
 
         return image_complete
 
-def objstack(hs, n_frames = 232, velocity = 0.42):
+def objstack(hs, n_frames = 232, velocity = 0.1):
         """Take an objective stack of images.
 
            Parameters:
@@ -205,8 +205,8 @@ def objstack(hs, n_frames = 232, velocity = 0.42):
             cam2.captureSetup()
 
         #Switch Camera to Area mode
-        cam1.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-        cam2.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        #cam1.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        #cam2.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
         #Set line bundle height to 8
         cam1.setPropertyValue("sensor_mode_line_bundle_height", 64)
         cam2.setPropertyValue("sensor_mode_line_bundle_height", 64)

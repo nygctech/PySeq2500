@@ -339,7 +339,7 @@ class HiSeq():
         while cam2.get_status() != 3:
             cam2.stopAcquisition()
             cam2.freeFrames()
-            cam1.captureSetup()
+            cam2.captureSetup()
         # Set bundle height
         cam1.setPropertyValue("sensor_mode_line_bundle_height",
                                self.bundle_height)
@@ -450,10 +450,10 @@ class HiSeq():
         cam2 = self.cam2
 
 
-        if cam1.sensor_mode != 'TDI':
-            cam1.setTDI()
-        if cam2.sensor_mode != 'TDI':
-            cam2.setTDI()
+        if cam1.sensor_mode != 'AREA':
+            cam1.setAREA()
+        if cam2.sensor_mode != 'AREA':
+            cam2.setAREA()
         # Make sure cameras are ready (status = 3)
         while cam1.get_status() != 3:
             cam1.stopAcquisition()
@@ -464,9 +464,7 @@ class HiSeq():
             cam2.freeFrames()
             cam2.captureSetup()
 
-        #Switch Camera to Area mode
-        cam1.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-        cam2.setPropertyValue("sensor_mode", 1) #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+
         #Set line bundle height to 8
         cam1.setPropertyValue("sensor_mode_line_bundle_height", 64)
         cam2.setPropertyValue("sensor_mode_line_bundle_height", 64)

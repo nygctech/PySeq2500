@@ -1085,44 +1085,40 @@ class HamamatsuCamera():
 
     def setTDI(self):
         'Switch camera to TDI imaging mode, return True is successful'
+        
+        success = 0
+        
+        success +=self.setPropertyValue("sensor_mode", 4)                       #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        success += self.setPropertyValue("sensor_mode_line_bundle_height", 128)
 
-        success = True
-        if self.setPropertyValue("binning", 1)  !=  1:
-            success = False
-        if self.setPropertyValue("sensor_mode", 4) != 4:                        #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-            success = False
-        if self.setPropertyValue("contrast_gain", 0) != 0:
-            success = False
         #self.setPropertyValue("exposure_time", self.tdi_exposure)
-        self.setPropertyValue("trigger_mode", 1)                                #Normal
-        self.setPropertyValue("trigger_polarity", 1)                            #Negative
-        self.setPropertyValue("trigger_connector", 1)                           #Interface
-        self.setPropertyValue("trigger_source", 2)                              #1 = internal, 2=external
-        self.setPropertyValue("subarray_mode", 1)                               #1 = OFF, 2 = ON
-        if success:
+        if success == 2:
             self.sensor_mode = 'TDI'
+            self.captureSetup()
+            success = True
+        else:
+            success = False
 
-        self.captureSetup()
-
-        exp_time = self.getPropertyValue('exposure_time')
-        self.message('Exposure time is ' + str(exp_time) + ' s')
+        #exp_time = self.getPropertyValue('exposure_time')
+        #self.message('Exposure time is ' + str(exp_time) + ' s')
 
         return success
 
     def setAREA(self):
         'Switch camera to AREA imaging mode, return True is successful'
 
-        success = True
-        if self.setPropertyValue("binning", 1)  !=  1:
-            success = False
-        if self.setPropertyValue("sensor_mode", 1) != 1:                         #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-            success = False
-        if self.setPropertyValue("contrast_gain", 0) != 0:
-            success = False
-        self.setPropertyValue("exposure_time", self.area_exposure)
-        if success:
-            self.sensor_mode = 'AREA'
+        success = 0
 
+        success += self.setPropertyValue("sensor_mode", 1)                      #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        success += self.setPropertyValue("sensor_mode_line_bundle_height", 64)
+
+        if success == 2:
+            self.sensor_mode = 'AREA'
+            self.captureSetup()
+            success = True
+        else:
+            sucess = False
+        
         return success
 
 ## HamamatsuCameraMR
