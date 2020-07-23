@@ -17,35 +17,40 @@ import importlib
 importlib.reload(image)
 
 def calibrate(hs, pos_dict):
-    # Initial scan of section
-    hs.y.move(pos_dict['y_initial'])
-    hs.x.move(pos_dict['x_initial'])
-    hs.z.move([21500, 21500, 21500])
-    obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
-    hs.obj.move(obj_pos)
-    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
-    for i in range(len(hs.channels)):
-        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff'), rough_ims[i])
-
-    # Sum channels with signal
-    sum_im = image.sum_images(rough_ims)
-    imageio.imwrite(path.join(hs.image_path,'sum_im.tiff'), sum_im)
-
-    # Find pixels to focus on
+##    # Initial scan of section
+##    hs.y.move(pos_dict['y_initial'])
+##    hs.x.move(pos_dict['x_initial'])
+##    hs.z.move([21500, 21500, 21500])
+##    obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
+##    hs.obj.move(obj_pos)
+##    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
+##    for i in range(len(hs.channels)):
+##        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff'), rough_ims[i])
+##
+##    # Sum channels with signal
+##    sum_im = image.sum_images(rough_ims)
+##    imageio.imwrite(path.join(hs.image_path,'sum_im.tiff'), sum_im)
+    sum_im = imageio.imread(path.join(hs.image_path,'sum_im.tiff'))
+    scale = 16
+##
+##    # Find pixels to focus on
     px_rows, px_cols = sum_im.shape
     n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
-    ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
-    np.savetxt(path.join(hs.image_path, 'ord_points.txt'), ord_points)
+##    ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
+##    np.savetxt(path.join(hs.image_path, 'ord_points.txt'), ord_points)
+
+    ord_points = np.loadtxt(path.join(hs.image_path, 'ord_points.txt'))
 
     # Get stage positions on in focus points
-    focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
-    np.savetxt(path.join(hs.image_path, 'focus_points.txt'), focus_points)
-    pos_ord_points = ord_points[:,focus_points[:,3]]
+    #focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
+    #np.savetxt(path.join(hs.image_path, 'focus_points.txt'), focus_points)
+    focus_points = np.loadtxt(path.join(hs.image_path, 'focus_points.txt'))
+    pos_ord_points = ord_points[focus_points[:,3].astype(int)]
 
     z_list = [21000, 21250, 21750, 22000 ]
     for motor in range(3):
         for z in z_list:
-            print('moving motor ' + str(motor) ' to ' + str(z))
+            print('moving motor ' + str(motor) + ' to ' + str(z))
             z_pos = [21500, 21500, 21500]
             z_pos[motor] = z
             hs.z.move(z_pos)
@@ -53,69 +58,11 @@ def calibrate(hs, pos_dict):
             for z_ in hs.z.position:
                 fp_name += str(z_) + '_'
             fp_name += str(motor) + '.txt'
-            focus_points = get_focus_data(hs, pos_ord_points, n_markers, scale, pos_dict)
-            if not focus_point.any():
-                np.savetxt(path.join(hs.image_path, fp_name), focus_points)
+            fp = get_focus_data(hs, pos_ord_points, n_markers, scale, pos_dict)
+            if focus_points.any():
+                np.savetxt(path.join(hs.image_path, fp_name), fp)
             else:
-                print(print('no data for motor ' + str(motor) ' at ' + str(z)))
-
-####    # Drastic Tilt
-##    hs.y.move(pos_dict['y_initial'])
-##    hs.x.move(pos_dict['x_initial'])
-##    hs.z.move([21000, 22000, 21500])
-##    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], image_name = 'InitialTilt')
-####    rough_ims = []
-####    # Stitch rough focus image
-####    for ch in hs.channels:
-####        df_x = get_image_df(hs.image_path, 'c'+str(ch)+'_InitialTilt')
-####        plane, scale = stitch(hs.image_path, df_x, scaled = True)
-####        rough_ims.append(normalize(plane, scale))
-##    for i in range(len(hs.channels)):
-##        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'InitialTilt.tiff'), rough_ims[i])
-##    sum_im = image.sum_images(rough_ims)
-##    imageio.imwrite(path.join(hs.image_path,'sum_tilt_im.tiff'), sum_im)
-####    sum_im = imageio.imread(path.join(hs.image_path,'sum_tilt_im.tiff'))
-####    scale = 16
-####    # Find pixels to focus on
-##    px_rows, px_cols = sum_im.shape
-##    n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
-##    ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
-##    np.savetxt(path.join(hs.image_path, 'ord_points.txt'), ord_points)
-##    ord_points = np.loadtxt(path.join(hs.image_path, 'ord_points.txt'))
-    # Get stage positions on in focus points
-##    focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
-##    np.savetxt(path.join(hs.image_path, 'focus_points.txt'), focus_points)
-##    # Get adjusted z stage positions for level image
-##    hs.im_obj_pos = 30000
-##    center, n_ip = planeFit(focus_points)
-##    n_ip[2] = abs(n_ip[2])
-##    z_pos = autolevel(hs, n_ip, center)
-##    np.savetxt(path.join(hs.image_path, 'focus_zpos.txt'), np.array(z_pos))
-##    hs.z.move(z_pos)
-##    scale = 16
-##    focus_points = np.loadtxt(path.join(hs.image_path, 'focus_points.txt'))
-##    ord_points = np.loadtxt(path.join(hs.image_path, 'ord_points.txt'))
-##    # One last objective focus
-##    for i in range(len(focus_points), len(ord_points)):
-##        [x_pos, y_pos] = hs.px_to_step(ord_points[i,0], ord_points[i,1], pos_dict, scale)
-##        hs.y.move(y_pos)
-##        hs.x.move(x_pos)
-##        fs = hs.obj_stack()
-##        f_fs = format_focus(hs, fs)
-##        if f_fs is not False:
-##           obj_pos = fit_mixed_gaussian(hs, f_fs)
-##           if obj_pos:
-##               break
-##    np.savetxt(path.join(hs.image_path, 'focus_obj_pos.txt'), np.array([obj_pos]))
-##    hs.obj.move(obj_pos)
-##    # Image leveled section
-    hs.y.move(pos_dict['y_initial'])
-    hs.x.move(pos_dict['x_initial'])
-    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], image_name = 'Leveled')
-    for i in range(len(hs.channels)):
-        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'Leveled.tiff'), rough_ims[i])
-
-    return z_pos, obj_pos
+                print('no data for motor ' + str(motor) + ' at ' + str(z))
 
 def autofocus(hs, pos_dict):
 ##    # Initial scan of section
@@ -679,22 +626,24 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
                print('Found point ' + str(n_obj))
                ##################################################################
                # Save in focus frame
-               in_focus_frame = np.argmin(abs(f_fs[:,0]-obj_pos))
-               frame_name = 'c740_'+str(in_focus_frame)+'.jpeg'
-               z_pos = ''
-               for z in z_pos:
-                   z_pos += str(z) + '_'
-               os.rename(path.join(hs.image_path,frame_name), path.join(hs.image_path,
-                         z_pos+str(px_pt[0])+'_'+str(px_pt[1])+'.jpeg'))
+##               in_focus_frame = np.argmin(abs(f_fs[:,0]-obj_pos))
+##               frame_name = '740_'+str(in_focus_frame)+'.jpeg'
+##               z_pos = ''
+##               for z in z_pos:
+##                   z_pos += str(z) + '_'
+##               os.rename(path.join(hs.image_path,frame_name), path.join(hs.image_path,
+##                         z_pos+str(px_pt[0])+'_'+str(px_pt[1])+'.jpeg'))
                ##################################################################
                # TODO: REMOVE i AFTER TESTING
                focus_points[n_obj,:] = [x_pos, y_pos, obj_pos, i]
                n_obj += 1
 
-        if i == len(px_points):
-            i = n_markers
+        if i == len(px_points)-1:
+            n_obj = n_markers+1
+            break
         else:
-            i += 1
+            print(i,'/',len(px_points))
+            i += 1 
 
 
     # Convert stage step position microns
