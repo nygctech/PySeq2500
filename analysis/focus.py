@@ -679,13 +679,13 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
                print('Found point ' + str(n_obj))
                ##################################################################
                # Save in focus frame
-               in_focus_frame = np.argmin(f_fs[:,0]-obj_pos)
+               in_focus_frame = np.argmin(abs(f_fs[:,0]-obj_pos))
                frame_name = 'c740_'+str(in_focus_frame)+'.jpeg'
                z_pos = ''
                for z in z_pos:
                    z_pos += str(z) + '_'
                os.rename(path.join(hs.image_path,frame_name), path.join(hs.image_path,
-                         z_pos+str(x_pos)+'_'+str(y_pos)+'.jpeg'))
+                         z_pos+str(px_pt[0])+'_'+str(px_pt[1])+'.jpeg'))
                ##################################################################
                # TODO: REMOVE i AFTER TESTING
                focus_points[n_obj,:] = [x_pos, y_pos, obj_pos, i]
