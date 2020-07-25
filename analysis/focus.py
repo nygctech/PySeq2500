@@ -17,37 +17,39 @@ import importlib
 importlib.reload(image)
 
 def calibrate(hs, pos_dict):
-##    # Initial scan of section
-##    hs.y.move(pos_dict['y_initial'])
-##    hs.x.move(pos_dict['x_initial'])
-##    hs.z.move([21500, 21500, 21500])
-##    obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
-##    hs.obj.move(obj_pos)
-##    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
-##    for i in range(len(hs.channels)):
-##        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'RoughFocus.tiff'), rough_ims[i])
-##
-##    # Sum channels with signal
-##    sum_im = image.sum_images(rough_ims)
-##    imageio.imwrite(path.join(hs.image_path,'sum_im.tiff'), sum_im)
-    sum_im = imageio.imread(path.join(hs.image_path,'sum_im.tiff'))
-    scale = 16
-##
-##    # Find pixels to focus on
+    # Initial scan of section
+    hs.y.move(pos_dict['y_initial'])
+    hs.x.move(pos_dict['x_initial'])
+    hs.z.move([21500, 21500, 21500])
+    obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
+    hs.obj.move(obj_pos)
+    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
+    for i in range(len(hs.channels)):
+        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'INIT.tiff'), rough_ims[i])
+
+    # Sum channels with signal
+    sum_im = image.sum_images(rough_ims)
+    imageio.imwrite(path.join(hs.image_path,'sum_im.tiff'), sum_im)
+##    sum_im = imageio.imread(path.join(hs.image_path,'sum_im.tiff'))
+##    scale = 16
+
+    # Find pixels to focus on
     px_rows, px_cols = sum_im.shape
     n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
-##    ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
-##    np.savetxt(path.join(hs.image_path, 'ord_points.txt'), ord_points)
+    ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
+    np.savetxt(path.join(hs.image_path, 'ord_points.txt'), ord_points)
 
-    ord_points = np.loadtxt(path.join(hs.image_path, 'ord_points.txt'))
+##    ord_points = np.loadtxt(path.join(hs.image_path, 'ord_points.txt'))
 
-    # Get stage positions on in-focus points
-    #focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
-    #np.savetxt(path.join(hs.image_path, 'focus_points.txt'), focus_points)
-    focus_points = np.loadtxt(path.join(hs.image_path, 'focus_points.txt'))
+    #Get stage positions on in-focus points
+    focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
+    np.savetxt(path.join(hs.image_path, 'focus_points.txt'), focus_points)
+    last_point = focus_points[-1,3]
+    np.savetxt(path.join(hs.image_path, 'last_point.txt'), np.array([last_point]))
+##    focus_points = np.loadtxt(path.join(hs.image_path, 'focus_points.txt'))
     pos_ord_points = ord_points[focus_points[:,3].astype(int)]
 
-    z_list = [21000, 21250, 21750, 22000 ]
+    z_list = [19000, 20000, 23000, 24000]
     for motor in range(3):
         for z in z_list:
             print('moving motor ' + str(motor) + ' to ' + str(z))
@@ -71,7 +73,7 @@ def autofocus(hs, pos_dict):
     hs.z.move([21500, 21500, 21500])
     obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
     hs.obj.move(obj_pos)
-    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
+    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], image_name = 'INIT')
     for i in range(len(hs.channels)):
         imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'INIT.tiff'), rough_ims[i])
 ####    #rough_ims = []
@@ -90,11 +92,14 @@ def autofocus(hs, pos_dict):
     n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
     ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
     np.savetxt(path.join(hs.image_path, 'INIT_ord_points.txt'), ord_points)
+    #ord_points = np.loadtxt(path.join(hs.image_path, 'INIT_ord_points.txt'))
+
 
     # Get stage positions on in-focus points
     focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
     np.savetxt(path.join(hs.image_path, 'INIT_focus_points.txt'), focus_points)
     last_point = focus_points[-1,3]
+    np.savetxt(path.join(hs.image_path, 'last_point.txt'), np.array([last_point]))
 
     # Save focus positions
     pos_points = ord_points[focus_points[:,3].astype(int)]
@@ -110,12 +115,19 @@ def autofocus(hs, pos_dict):
     # Get stage positions on in-focus points
     focus_points = get_focus_data(hs, pos_points, n_markers, scale, pos_dict)
     np.savetxt(path.join(hs.image_path, 'TILT_focus_points.txt'), focus_points)
+    #focus_points = np.loadtxt(path.join(hs.image_path, 'TILT_focus_points.txt'))
 
     # Get adjusted z stage positions for level image
     hs.im_obj_pos = 30000
-    center, n_ip = planeFit(focus_points)
+    center, n_ip = planeFit(focus_points[:,0:3])
     n_ip[2] = abs(n_ip[2])
     z_pos = autolevel(hs, n_ip, center)
+    np.savetxt(path.join(hs.image_path, 'z_pos_raw.txt'), np.array(z_pos))
+    for i in range(3):
+        if z_pos[i] > 25000:
+            z_pos[i] = 25000
+    np.savetxt(path.join(hs.image_path, 'z_pos_check.txt'), np.array(z_pos))
+    print('leveling... ', z_pos)
     hs.z.move(z_pos)
 
     # Move to p=optimal objective position
