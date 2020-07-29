@@ -1009,8 +1009,9 @@ class HiSeq():
         x_step = int(x_init + x_step - 315/2)
 
         trigger_offset = -80000
+        frame_offset = 64/2*self.resolution*self.y.spum
         y_step = row*scale*self.y.spum
-        y_step = int(y_init + trigger_offset - y_step + 64*self.y.spum/2)
+        y_step = int(y_init + trigger_offset - y_step - frame_offset)
 
         return [x_step, y_step]
 
