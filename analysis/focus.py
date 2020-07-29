@@ -16,38 +16,40 @@ import imageio
 import importlib
 importlib.reload(image)
 
-def calibrate(hs, pos_dict):
-    # Initial scan of section
-    hs.y.move(pos_dict['y_initial'])
-    hs.x.move(pos_dict['x_initial'])
-    hs.z.move([21500, 21500, 21500])
-    obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
-    hs.obj.move(obj_pos)
-    rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'])
-    for i in range(len(hs.channels)):
-        imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'INIT.tiff'), rough_ims[i])
+def calibrate(hs, pos_list):
+    for pos_i, pos_dict in enumerate(pos_list):
+        # Initial scan of section
+        hs.y.move(pos_dict['y_initial'])
+        hs.x.move(pos_dict['x_initial'])
+        hs.z.move([21500, 21500, 21500])
+        obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
+        hs.obj.move(obj_pos)
+        rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], 'RoughScan'+str(pos_i))
+        for i in range(len(hs.channels)):
+            imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'INIT'+str(pos_i)+'.tiff'), rough_ims[i])
 
-    # Sum channels with signal
-    sum_im = image.sum_images(rough_ims)
-    imageio.imwrite(path.join(hs.image_path,'sum_im.tiff'), sum_im)
-##    sum_im = imageio.imread(path.join(hs.image_path,'sum_im.tiff'))
-##    scale = 16
+        # Sum channels with signal
+        sum_im = image.sum_images(rough_ims)
+        imageio.imwrite(path.join(hs.image_path,'sum_im' + str(pos_i) + '.tiff'), sum_im)
+    ##    sum_im = imageio.imread(path.join(hs.image_path,'sum_im.tiff'))
+    ##    scale = 16
 
-    # Find pixels to focus on
-    px_rows, px_cols = sum_im.shape
-    n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
-    ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
-    np.savetxt(path.join(hs.image_path, 'ord_points.txt'), ord_points)
+        # Find pixels to focus on
+        px_rows, px_cols = sum_im.shape
+        n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
+        ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
+        np.savetxt(path.join(hs.image_path, 'ord_points'+str(pos_i)+'.txt'), ord_points)
 
-##    ord_points = np.loadtxt(path.join(hs.image_path, 'ord_points.txt'))
+    ##    ord_points = np.loadtxt(path.join(hs.image_path, 'ord_points.txt'))
 
-    #Get stage positions on in-focus points
-    focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
-    np.savetxt(path.join(hs.image_path, 'focus_points.txt'), focus_points)
-    last_point = focus_points[-1,3]
-    np.savetxt(path.join(hs.image_path, 'last_point.txt'), np.array([last_point]))
-##    focus_points = np.loadtxt(path.join(hs.image_path, 'focus_points.txt'))
-    pos_ord_points = ord_points[focus_points[:,3].astype(int)]
+        #Get stage positions on in-focus points
+        focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
+        np.savetxt(path.join(hs.image_path, 'focus_points'+str(pos_i)+'.txt'), focus_points)
+        last_point = focus_points[-1,3]
+        np.savetxt(path.join(hs.image_path, 'last_point'+str(pos_i)+'.txt'), np.array([last_point]))
+    ##    focus_points = np.loadtxt(path.join(hs.image_path, 'focus_points.txt'))
+        pos_ord_points = ord_points[focus_points[:,3].astype(int)]
+        np.savetxt(path.join(hs.image_path, 'pos_ord_points'+str(pos_i)+'.txt'), pos_ord_points)
 
     z_list = [19000, 20000, 23000, 24000]
     for motor in range(3):
@@ -56,15 +58,17 @@ def calibrate(hs, pos_dict):
             z_pos = [21500, 21500, 21500]
             z_pos[motor] = z
             hs.z.move(z_pos)
-            fp_name = ''
-            for z_ in hs.z.position:
-                fp_name += str(z_) + '_'
-            fp_name += str(motor) + '.txt'
-            fp = get_focus_data(hs, pos_ord_points, n_markers, scale, pos_dict)
-            if focus_points.any():
-                np.savetxt(path.join(hs.image_path, fp_name), fp)
-            else:
-                print('no data for motor ' + str(motor) + ' at ' + str(z))
+            for pos_i, pos_dict in enumerate(pos_list):
+                pos_ord_points = np.loadtxt(path.join(hs.image_path,  'pos_ord_points'+str(pos_i)+'.txt'))
+                fp_name = ''
+                for z_ in hs.z.position:
+                    fp_name += str(z_) + '_'
+                fp_name += 'm'+str(motor)+'_'+str(pos_i) + '.txt'
+                fp = get_focus_data(hs, pos_ord_points, n_markers, scale, pos_dict)
+                if focus_points.any():
+                    np.savetxt(path.join(hs.image_path, fp_name), fp)
+                else:
+                    print('no data for motor ' + str(motor) + ' at ' + str(z))
 
 def autofocus(hs, pos_dict):
     # Initial scan of section
