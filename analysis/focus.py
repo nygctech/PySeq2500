@@ -17,12 +17,14 @@ import importlib
 importlib.reload(image)
 
 def calibrate(hs, pos_list):
-    for pos_i, pos_dict in enumerate(pos_list):
+    hs.z.move([21500, 21500, 21500])
+    obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
+    for index, pos_dict in enumerate([pos_list[3]]):
+        print(pos_dict)
+        pos_i = index + 3
         # Initial scan of section
         hs.y.move(pos_dict['y_initial'])
         hs.x.move(pos_dict['x_initial'])
-        hs.z.move([21500, 21500, 21500])
-        obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
         hs.obj.move(obj_pos)
         rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], 'RoughScan'+str(pos_i))
         for i in range(len(hs.channels)):
@@ -51,7 +53,7 @@ def calibrate(hs, pos_list):
         pos_ord_points = ord_points[focus_points[:,3].astype(int)]
         np.savetxt(path.join(hs.image_path, 'pos_ord_points'+str(pos_i)+'.txt'), pos_ord_points)
 
-    z_list = [19000, 20000, 23000, 24000]
+    z_list = [20000, 20500, 21000, 22000, 22500, 23000]
     for motor in range(3):
         for z in z_list:
             print('moving motor ' + str(motor) + ' to ' + str(z))
@@ -290,6 +292,7 @@ def format_focus(hs, focus_data):
     for i in range(ncols):
         # test if there is a tail in data and add if True
         kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
+        kurt_z, pvalue = stats.kurtosistest(focus_data[:,i])
         if kurt_z > 1.96:
             print('signal in channel ' +str(i))
             f_fd = f_fd + np.reshape(focus_data[0:n_f_frames,i], (n_f_frames,1))
