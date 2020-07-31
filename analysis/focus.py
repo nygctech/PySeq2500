@@ -358,7 +358,7 @@ def fit_mixed_gaussian(hs, data):
     '''
 
     # initialize values
-    max_peaks = 10
+    max_peaks = 4
     # Initialize varibles
     amp = []; amp_lb = []; amp_ub = []
     cen = []; cen_lb = []; cen_ub = []
