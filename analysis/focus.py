@@ -19,39 +19,39 @@ importlib.reload(image)
 def calibrate(hs, pos_list):
     hs.z.move([21500, 21500, 21500])
     obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
-    for index, pos_dict in enumerate([pos_list[3]]):
-        print(pos_dict)
-        pos_i = index + 3
+    for index, pos_dict in enumerate(pos_list):
+        pos_i = str(index)
         # Initial scan of section
         hs.y.move(pos_dict['y_initial'])
         hs.x.move(pos_dict['x_initial'])
         hs.obj.move(obj_pos)
-        rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], 'RoughScan'+str(pos_i))
+        rough_ims, scale = rough_focus(hs, pos_dict['n_tiles'], pos_dict['n_frames'], 'RoughScan'+pos_i)
         for i in range(len(hs.channels)):
-            imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'INIT'+str(pos_i)+'.tiff'), rough_ims[i])
+            imageio.imwrite(path.join(hs.image_path,'c'+str(hs.channels[i])+'INIT'+pos_i+'.tiff'), rough_ims[i])
 
         # Sum channels with signal
         sum_im = image.sum_images(rough_ims)
-        imageio.imwrite(path.join(hs.image_path,'sum_im' + str(pos_i) + '.tiff'), sum_im)
+        imageio.imwrite(path.join(hs.image_path,'sum_im' + pos_i + '.tiff'), sum_im)
     ##    sum_im = imageio.imread(path.join(hs.image_path,'sum_im.tiff'))
     ##    scale = 16
 
         # Find pixels to focus on
         px_rows, px_cols = sum_im.shape
-        n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
+        #n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
+        n_markers = 6
         ord_points = image.get_focus_points(sum_im, scale, n_markers*10)
-        np.savetxt(path.join(hs.image_path, 'ord_points'+str(pos_i)+'.txt'), ord_points)
+        np.savetxt(path.join(hs.image_path, 'ord_points'+pos_i+'.txt'), ord_points)
 
     ##    ord_points = np.loadtxt(path.join(hs.image_path, 'ord_points.txt'))
 
         #Get stage positions on in-focus points
         focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
-        np.savetxt(path.join(hs.image_path, 'focus_points'+str(pos_i)+'.txt'), focus_points)
+        np.savetxt(path.join(hs.image_path, 'focus_points'+pos_i+'.txt'), focus_points)
         last_point = focus_points[-1,3]
-        np.savetxt(path.join(hs.image_path, 'last_point'+str(pos_i)+'.txt'), np.array([last_point]))
+        np.savetxt(path.join(hs.image_path, 'last_point'+pos_i+'.txt'), np.array([last_point]))
     ##    focus_points = np.loadtxt(path.join(hs.image_path, 'focus_points.txt'))
         pos_ord_points = ord_points[focus_points[:,3].astype(int)]
-        np.savetxt(path.join(hs.image_path, 'pos_ord_points'+str(pos_i)+'.txt'), pos_ord_points)
+        np.savetxt(path.join(hs.image_path, 'pos_ord_points'+pos_i+'.txt'), pos_ord_points)
 
     z_list = [20000, 20500, 21000, 22000, 22500, 23000]
     for motor in range(3):
@@ -61,7 +61,7 @@ def calibrate(hs, pos_list):
             z_pos[motor] = z
             hs.z.move(z_pos)
             for pos_i, pos_dict in enumerate(pos_list):
-                pos_ord_points = np.loadtxt(path.join(hs.image_path,  'pos_ord_points'+str(pos_i)+'.txt'))
+                pos_ord_points = np.loadtxt(path.join(hs.image_path,  'pos_ord_points'+pos_i+'.txt'))
                 fp_name = ''
                 for z_ in hs.z.position:
                     fp_name += str(z_) + '_'
