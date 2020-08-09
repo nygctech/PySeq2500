@@ -17,9 +17,31 @@ import importlib
 importlib.reload(image)
 
 def calibrate(hs, pos_list):
-    hs.z.move([21500, 21500, 21500])
-    obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
-    for index, pos_dict in enumerate(pos_list):
+    
+    e_ = enumerate(pos_list)
+    for index, pos_dict in e_:
+        while index < 3:
+            index, pos_dict = e_.__next__()
+        # Position objective for optimal focus for Rough Scan
+        print(index)
+
+        hs.y.move(pos_dict['y_center'])
+        hs.x.move(pos_dict['x_center'])
+        hs.z.move([21500, 21500, 21500])
+        
+        fs = hs.obj_stack()
+        f_fs = format_focus(hs, fs)
+        if f_fs is not False:
+            obj_pos = fit_mixed_gaussian(hs, f_fs)
+            if obj_pos:
+                hs.obj.move(obj_pos)
+            else:
+                obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
+        else:
+            obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
+
+        hs.obj.move(obj_pos)
+        
         pos_i = str(index)
         # Initial scan of section
         hs.y.move(pos_dict['y_initial'])
@@ -54,20 +76,23 @@ def calibrate(hs, pos_list):
         np.savetxt(path.join(hs.image_path, 'pos_ord_points'+pos_i+'.txt'), pos_ord_points)
 
     z_list = [20000, 20500, 21000, 22000, 22500, 23000]
+    n_markers = 6
+    scale = 8
     for motor in range(3):
         for z in z_list:
             print('moving motor ' + str(motor) + ' to ' + str(z))
             z_pos = [21500, 21500, 21500]
             z_pos[motor] = z
             hs.z.move(z_pos)
-            for pos_i, pos_dict in enumerate(pos_list):
+            for index, pos_dict in enumerate(pos_list):
+                pos_i = str(index)
                 pos_ord_points = np.loadtxt(path.join(hs.image_path,  'pos_ord_points'+pos_i+'.txt'))
                 fp_name = ''
                 for z_ in hs.z.position:
                     fp_name += str(z_) + '_'
                 fp_name += 'm'+str(motor)+'_'+str(pos_i) + '.txt'
                 fp = get_focus_data(hs, pos_ord_points, n_markers, scale, pos_dict)
-                if focus_points.any():
+                if fp.any():
                     np.savetxt(path.join(hs.image_path, fp_name), fp)
                 else:
                     print('no data for motor ' + str(motor) + ' at ' + str(z))

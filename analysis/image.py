@@ -265,7 +265,10 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.9):
     #resolution = 0.7
     #marker_thresh = 3 + int((px_rows*px_cols*scale**2)**0.5*resolution/1000)*10
     # Get the minimum number of markers needed with the highest contrast
-    p_top = (1 - min_n_markers/n_markers)*100
+    if n_markers > min_n_markers:
+      p_top = (1 - min_n_markers/n_markers)*100
+    else:
+      p_top = 0
     c_cutoff = np.percentile(c_score, p_top)
     c_markers = markers[c_score >= c_cutoff,:]
 
