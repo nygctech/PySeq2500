@@ -62,7 +62,7 @@ class Xstage():
         self.min_x = 1000
         self.max_x = 50000
         self.home = 30000
-        self.spum = 100/244     #steps per um
+        self.spum = 0.4096     #steps per um
         self.suffix = '\r'
         self.position = 0
         self.logger = logger
