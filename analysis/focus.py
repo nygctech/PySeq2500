@@ -17,7 +17,7 @@ import importlib
 importlib.reload(image)
 
 def calibrate(hs, pos_list):
-    
+
     e_ = enumerate(pos_list)
     for index, pos_dict in e_:
 ##        while index <= 0:
@@ -28,7 +28,7 @@ def calibrate(hs, pos_list):
         hs.y.move(pos_dict['y_center'])
         hs.x.move(pos_dict['x_center'])
         hs.z.move([21500, 21500, 21500])
-        
+
         fs = hs.obj_stack()
         f_fs = format_focus(hs, fs)
         if f_fs is not False:
@@ -41,7 +41,7 @@ def calibrate(hs, pos_list):
             obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
 
         hs.obj.move(obj_pos)
-        
+
         pos_i = str(index)
         # Initial scan of section
         hs.y.move(pos_dict['y_initial'])
@@ -116,7 +116,7 @@ def autofocus(hs, pos_dict, af = False):
             obj_pos = int((hs.obj.focus_stop - hs.obj.focus_start)/2 + hs.obj.focus_start)
 
         hs.obj.move(obj_pos)
-    
+
     # Initial scan of section
     hs.y.move(pos_dict['y_initial'])
     hs.x.move(pos_dict['x_initial'])
@@ -740,8 +740,8 @@ def autolevel(hs, n_ip, centroid):
     mp[:,0] = mp[:,0] / hs.x.spum
     mp[:,1] = mp[:,1] / hs.y.spum
     mp[:,2] = mp[:,2] / hs.z.spum
-    u_mp = mp[0,:] - mp[2,:]
-    v_mp = mp[1,:] - mp[2,:]
+    u_mp = mp[1,:] - mp[0,:]
+    v_mp = mp[2,:] - mp[0,:]
     n_mp = np.cross(u_mp, v_mp)
     n_mp = n_mp/np.linalg.norm(n_mp)
     n_mp[2] = abs(n_mp[2])
@@ -761,32 +761,44 @@ def autolevel(hs, n_ip, centroid):
     # Find objective position on imaging plane at reference motor
     d_ip = -np.dot(n_ip, centroid)
 
+    mag_ip = np.linalg.norm(centroid)
+    correction = [0, 0, mag_ip] - n_ip*mag_ip
+    print('correction', correction)
 
-    #obj_mp = -(n_ip[0]*mp[p_mp,0] + n_ip[1]*mp[p_mp,1] + d_ip)/n_ip[2]
-    #print(obj_mp)
-    #mp[p_mp,2] = obj_mp
-    # Calculate plane correction
+
+    z_centroid = -(centroid[0]*n_mp[0] + centroid[1]*n_mp[1] + d_mp)/n_mp[2]
+    # print(obj_mp)
+    ##mp[p_mp,2] = obj_mp
+    # # Calculate plane correction
+    mag_mp = np.linalg.norm(np.array([centroid[0],centroid[1],z_centroid]))
     #mag_mp = np.linalg.norm(mp[p_mp,:])
-    #n_ip = n_ip * mag_mp
-    #correction = [0, 0, mag_mp] - n_ip
-    correction = [0, 0, 1] - n_ip
+    print('z mag',mag_mp)
+    # n_ip = n_ip * mag_mp
+    print('obj mag',mag_ip)
+    # correction = [0, 0, mag_mp] - n_ip
+    # #correction = [0, 0, 1] - n_ip
 
     # Calculate target motor plane for a flat, level image plane
-    #n_mp = n_mp * mag_mp
-    n_tp = n_mp + correction
+    n_mp = n_mp * mag_mp
+    print('n_mp', n_mp)
+    correction = correction * mag_mp / mag_ip
+    print('correction', correction)
+    n_tp = n_mp +  correction
+    print('target plane', n_tp)
 
     #n_tp = n_mp
-    n_tp = n_tp / np.linalg.norm(n_tp)
-    print('target plane', n_tp)
+    #n_tp = n_tp / np.linalg.norm(n_tp)
+    #n_tp = n_tp * mag_mp
 
     # Move motor plane to preferred objective position
     offset_distance = hs.im_obj_pos/hs.obj.spum - centroid[2]
     offset_distance = offset_distance + hs.z.position[p_mp]/hs.z.spum
-    mp[p_mp,2] = offset_distance
+    #mp[p_mp,2] = offset_distance
 
     #offset_distance = int(offset_distance*hs.z.spum)
 
-    d_tp = -np.dot(n_tp, mp[p_mp,:])
+    #d_tp = -np.dot(n_tp, mp[p_mp,:])
+    d_tp = -np.dot(n_tp, [centroid[0],centroid[1],z_centroid])
 
     z_pos = []
     for i in range(3):
