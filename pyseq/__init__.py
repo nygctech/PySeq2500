@@ -147,7 +147,6 @@ class HiSeq():
                     }
         self.image_path = getcwd()                                                  # path to save images in
         self.log_path = getcwd()                                                  # path to save logs in
-        self.bg_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\PySeq2500V2\\calibration\\' # path save background calibration images, WILL REMOVE IN FUTURE
         self.fc_origin = {'A':[17571,-180000],
                           'B':[43310,-180000]}
         self.tile_width = 0.769                                                 #mm
@@ -155,7 +154,6 @@ class HiSeq():
         self.bundle_height = 128
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
-        self.focus_direction = -1                                               # direction to move z stage if focus not found
         self.channels = None
 
 
@@ -271,8 +269,6 @@ class HiSeq():
                      'laser2 ' + str(self.lasers['red'].get_power()) + '\n' +
                      'ex filters ' + str(self.optics.ex) + '\n' +
                      'em filter in ' + str(self.optics.em_in) + '\n' +
-                     'mode 1 ' + str(self.cam1.sensor_mode) + '\n' +
-                     'mode 2 ' + str(self.cam2.sensor_mode) + '\n' +
                      'interval 1 ' + str(self.cam1.getFrameInterval()) + '\n' +
                      'interval 2 ' + str(self.cam2.getFrameInterval()) + '\n'
                      )

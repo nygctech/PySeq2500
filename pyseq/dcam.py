@@ -447,7 +447,12 @@ class HamamatsuCamera():
         imageio.imwrite(join(image_path,left_name), left_image)
         imageio.imwrite(join(image_path,right_name), right_image)
 
-        self.message(str(self.frame_bytes*f) + ' bytes saved from camera ' + str(self.camera_id))
+        n_bytes = self.frame_bytes*f
+        self.message(str(n_btyes) + ' bytes saved from camera ' + str(self.camera_id))
+
+        return n_bytes
+
+
 
     def saveFocus(self, image_path):
         '''Save focus stack frames as jpeg and return file size.
@@ -884,6 +889,8 @@ class HamamatsuCamera():
                                      ctypes.c_int32(self.number_image_buffers))
         self.message(error)
 
+        return error
+
 
     ## startAcquisition
     #
@@ -904,6 +911,7 @@ class HamamatsuCamera():
         # Start acquisition.
         error = dcam.dcam_capture(self.camera_handle) #KP 9/19
         self.message(error)
+        return error
 
     ## stopAcquisition
     #
@@ -920,7 +928,7 @@ class HamamatsuCamera():
         # Free image buffers.
         #self.number_image_buffers = 0
         #error = dcam.dcam_freeframe(self.camera_handle)#KP 9/19
-        #print(error)
+        return error
 
 
     ## freeFrames
@@ -931,6 +939,7 @@ class HamamatsuCamera():
         self.number_image_buffers = 0
         error = dcam.dcam_freeframe(self.camera_handle)#KP 9/19
         self.message(error)
+        return error
 
 
 
@@ -1085,9 +1094,9 @@ class HamamatsuCamera():
 
     def setTDI(self):
         'Switch camera to TDI imaging mode, return True is successful'
-        
+
         success = 0
-        
+
         success +=self.setPropertyValue("sensor_mode", 4)                       #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
         success += self.setPropertyValue("sensor_mode_line_bundle_height", 128)
 
@@ -1118,7 +1127,7 @@ class HamamatsuCamera():
             success = True
         else:
             sucess = False
-        
+
         return success
 
 ## HamamatsuCameraMR
