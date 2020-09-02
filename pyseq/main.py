@@ -277,15 +277,20 @@ def setup_logger():
 ##########################################################
 ## Setup HiSeq ###########################################
 ##########################################################
-def initialize_hs():
+def initialize_hs(virtual):
     """Initialize the HiSeq and return the handle."""
 
-    import pyseq
+
 
     experiment = config['experiment']
     method = config[experiment['method']]
 
-    hs = pyseq.HiSeq(logger)
+    if virtual:
+        import virtualHiSeq
+        hs = virtualHiSeq.HiSeq(logger)
+    else:
+        import pyseq
+        hs = pyseq.HiSeq(logger)
 
     # Configure laser color & filters
     colors = [method.get('laser color 1', fallback = 'green'),
@@ -309,7 +314,7 @@ def initialize_hs():
 
     # Set laser power
     laser_power = int(method.get('laser power', fallback = 100))
-    for color in hs.lasers.keys()
+    for color in hs.lasers.keys():
         hs.laser[color].set_power(laser_power)
 
     # Assign output directory
@@ -761,7 +766,7 @@ def autofocus(n_tiles, n_frames):
         counter = 0
         while in_range is False or counter == 0:
             # Loop until a frame with max focus is found
-            obj_range =
+            obj_range = 0
             # Take objective stack
             jpeg_size = hs.objstack()
             jpeg_size = np.sum(jpeg_size, axis = 1)
@@ -1081,14 +1086,14 @@ def get_config(args):
 ## Run System #####################
 ###################################
 args_ = args.get_arguments()
-
+print(args_['virtual'])
 if __name__ == 'pyseq.main':                                                    # Get config path, experiment name, & output path
     config = get_config(args_)                                                  # Get config file
     logger = setup_logger()                                                     # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
     first_line = check_instructions()                                           # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line)                                     # Create flowcells
-    hs = initialize_hs()                                                        # Initialize HiSeq, takes a few minutes
+    hs = initialize_hs(args_['virtual'])                                                        # Initialize HiSeq, takes a few minutes
     integrate_fc_and_hs(port_dict)                                              # Integrate flowcell info with hs
 
     do_flush()                                                                  # Flush out lines

@@ -53,6 +53,12 @@ parser.add_argument('-method',
                     metavar = 'METHOD'
                     )
 
+# Flag to use virtual HiSeq
+parser.add_argument('-virtual',
+                    help='use virtual HiSeq',
+                    action = 'store_true',
+                    )
+
 def get_arguments():
     """Return arguments from command line"""
 
