@@ -20,7 +20,7 @@ from . import args
 ##########################################################
 ## Flowcell Class ########################################
 ##########################################################
-class flowcell():
+class Flowcell():
     """HiSeq 2500 System :: Flowcell
 
        **Attributes:**
@@ -164,17 +164,15 @@ def setup_flowcells(first_line):
         AorB, coord  = position.split(':')
         # Create flowcell if it doesn't exist
         if AorB not in flowcells.keys():
-            flowcells[AorB] = flowcell(AorB)
-            flowcells[AorB].recipe_path = experiment['recipe path']
-            flowcells[AorB].first_line = first_line
-            flowcells[AorB].flush_volume = int(method.get('flush volume',
-                fallback=2000))
-            flowcells[AorB].pump_speed['flush'] = int(method.get('flush speed',
-                fallback=700))
-            flowcells[AorB].pump_speed['reagent'] = int(method.get(
-                'reagent speed', fallback=40))
-            flowcells[AorB].total_cycles = int(config.get('experiment',
-                'cycles'))
+            fc = Flowcell(AorB)
+            fc.recipe_path = experiment['recipe path']
+            fc.first_line = first_line
+            fc.flush_volume = int(method.get('flush volume', fallback=2000))
+            ps = int(method.get('flush speed',fallback=700))
+            fc.pump_speed['flush'] = ps
+            rs = int(method.get('reagent speed', fallback=40))
+            fc.pump_speed['reagent'] = rs
+            fc.total_cycles = int(config.get('experiment','cycles'))
 
         # Add section to flowcell
         if sect_name in flowcells[AorB].sections:
@@ -637,7 +635,7 @@ def do_nothing():
 ##########################################################
 ## iterate over lines, send to pump, and print response ##
 ##########################################################
-def do_recipe(fc):
+def do_recipe(fc, virtual):
     """Do the next event in the recipe.
 
        **Parameters:**
@@ -663,9 +661,9 @@ def do_recipe(fc):
         # Move reagent valve
         if instrument == 'PORT':
             #Move to cycle specific reagent if it is variable a reagent
-            if (command in hs.v24[AorB].variable_ports and
-            fc.cycle <= fc.total_cycles):
-                command = hs.v24[AorB].port_dict[command][fc.cycle]
+            if fc.cycle <= fc.total_cycles:
+                if command in hs.v24[AorB].variable_ports:
+                    command = hs.v24[AorB].port_dict[command][fc.cycle]
 
             log_message = 'Move to ' + command
             fc.thread = threading.Thread(target = hs.v24[AorB].move,
@@ -683,7 +681,10 @@ def do_recipe(fc):
         elif instrument == 'HOLD':
             holdTime = float(command)*60
             log_message = 'Flowcell holding for ' + str(command) + ' min.'
-            fc.thread = threading.Timer(holdTime, fc.endHOLD)
+            if not virtual:
+                fc.thread = threading.Timer(holdTime, fc.endHOLD)
+            else:
+                fc.thread = threading.Timer(1, fc.endHOLD)
 
         # Wait for other flowcell to finish event before continuing with current flowcell
         elif instrument == 'WAIT':
@@ -1102,7 +1103,7 @@ if __name__ == 'pyseq.main':                                                    
 
         for fc in flowcells.values():
             if not fc.thread.is_alive():                                        # flowcell not busy, do next step in recipe
-                do_recipe(fc)
+                do_recipe(fc, args_['virtual'])
 
             if fc.signal_event:                                                 # check if flowcells are waiting on each other
                 stuck += 1

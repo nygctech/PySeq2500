@@ -387,6 +387,9 @@ class Pump():
         self.dispense_speed = 7000 # speed to dispense (sps)
         self.name = name
 
+    def command(self, text):
+        return text
+
     def pump(self, volume, speed = 0):
         """Pump desired volume at desired speed then send liquid to waste.
 
