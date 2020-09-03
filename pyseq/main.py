@@ -286,7 +286,7 @@ def initialize_hs(virtual):
     method = config[experiment['method']]
 
     if virtual:
-        import virtualHiSeq
+        from . import virtualHiSeq
         hs = virtualHiSeq.HiSeq(logger)
     else:
         import pyseq
@@ -295,12 +295,12 @@ def initialize_hs(virtual):
     # Configure laser color & filters
     colors = [method.get('laser color 1', fallback = 'green'),
               method.get('laser color 2', fallback = 'red')]
-    default_colors = [*hs.optics.colors.keys()]
-    for i in range(colors):
-        if colors[i] is not default_colors[i]:
-            hs.laser[colors[i]] = hs.laser[default_colors[i]]                   # Add new laser
+    default_colors = hs.optics.colors
+    for i, color in enumerate(default_colors):
+        if color not in colors[i]:
+            laser = hs.laser[color].pop()                                       # Remove default laser color
+            hs.laser[colors[i]] = laser                                         # Add new laser
             hs.laser[colors[i]].color = colors[i]                               # Update laser color
-            hs.laser[default_colors[i]].pop()                                   # Remove default laser color
             hs.optics.colors[i] = colors[i]                                     # Update laser line color
 
     #Check filters for laser at each cycle are valid
@@ -313,9 +313,9 @@ def initialize_hs(virtual):
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
 
     # Set laser power
-    laser_power = int(method.get('laser power', fallback = 100))
+    laser_power = int(method.get('laser power', fallback = 10))
     for color in hs.lasers.keys():
-        hs.laser[color].set_power(laser_power)
+        hs.lasers[color].set_power(laser_power)
 
     # Assign output directory
     save_path = experiment['save path']
@@ -995,14 +995,14 @@ def free_fc():
 
 
 
-def integrate_fc_and_hs(port_dict):
+def integrate_fc_and_hs(port_dict, config):
     """Integrate flowcell info with hiseq configuration info."""
 
     method = config.get('experiment', 'method')                                 # Read method specific info
     method = config[method]
     variable_ports = method.get('variable reagents', fallback = None)
-    z_pos = config['z position']
-    obj_pos = config['obj position']
+    z_pos = int(method.get('z position', fallback = 21500))
+    obj_pos = int(method.get('obj position', fallback = 30000))
 
     n_barrels = int(method.get('barrels per lane', 8))                          # Get method specific pump barrels per lane, fallback to 8
 
@@ -1086,15 +1086,15 @@ def get_config(args):
 ## Run System #####################
 ###################################
 args_ = args.get_arguments()
-print(args_['virtual'])
+
 if __name__ == 'pyseq.main':                                                    # Get config path, experiment name, & output path
     config = get_config(args_)                                                  # Get config file
     logger = setup_logger()                                                     # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
     first_line = check_instructions()                                           # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line)                                     # Create flowcells
-    hs = initialize_hs(args_['virtual'])                                                        # Initialize HiSeq, takes a few minutes
-    integrate_fc_and_hs(port_dict)                                              # Integrate flowcell info with hs
+    hs = initialize_hs(args_['virtual'])                                        # Initialize HiSeq, takes a few minutes
+    integrate_fc_and_hs(port_dict, config)                                      # Integrate flowcell info with hs
 
     do_flush()                                                                  # Flush out lines
 

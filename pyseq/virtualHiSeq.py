@@ -549,6 +549,7 @@ class Camera():
         return self.frame_interval
 
 from os import getcwd
+from math import ceil
 import time
 import warnings
 class HiSeq():
