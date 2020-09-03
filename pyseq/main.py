@@ -995,7 +995,7 @@ def free_fc():
 
 
 
-def integrate_fc_and_hs(port_dict, config):
+def integrate_fc_and_hs(hs, flowcells, port_dict, config):
     """Integrate flowcell info with hiseq configuration info."""
 
     method = config.get('experiment', 'method')                                 # Read method specific info
@@ -1016,17 +1016,13 @@ def integrate_fc_and_hs(port_dict, config):
                 hs.v24[AorB].variable_ports.append(variable)
         hs.p[AorB].n_barrels = n_barrels                                        # Assign barrels per lane to pump
         for section in fc.sections:                                             # Convert coordinate sections on flowcell to stage info
-            stage = hs.position(fc.position, fc.sections[section])
-            fc.stage[section]['x center'] = stage[0]
-            fc.stage[section]['y center'] = stage[1]
-            fc.stage[section]['x initial'] = stage[2]
-            fc.stage[section]['y initial'] = stage[3]
-            fc.stage[section]['n tiles'] = stage[4]
-            fc.stage[section]['n frames'] = stage[5]
-            fc.stage[section]['z pos'] = method.get('z position',fallback=None) # Z stage position for imaging
-            fc.stage[section]['obj pos'] = obj_pos.get(section,fallback=None)
+            pos = hs.position(AorB, fc.sections[section])
+            for key in pos.keys():
+                fc.stage[section][key] = pos[key]
+            fc.stage[section]['z pos'] = [z_pos, z_pos, z_pos]
+            fc.stage[section]['obj pos'] = obj_pos
 
-
+    return hs
 
 def get_config(args):
     """Return the experiment config appended with the method config.
@@ -1094,7 +1090,7 @@ if __name__ == 'pyseq.main':                                                    
     first_line = check_instructions()                                           # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line)                                     # Create flowcells
     hs = initialize_hs(args_['virtual'])                                        # Initialize HiSeq, takes a few minutes
-    integrate_fc_and_hs(port_dict, config)                                      # Integrate flowcell info with hs
+    hs = integrate_fc_and_hs(hs, flowcells, port_dict, config)                  # Integrate flowcell info with hs
 
     do_flush()                                                                  # Flush out lines
 

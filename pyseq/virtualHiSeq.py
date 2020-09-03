@@ -913,6 +913,15 @@ class HiSeq():
         return stop - start
 
 
+    def move_stage_out(self):
+        """Move stage out for loading/unloading flowcells."""
+
+        self.z.move([0,0,0])
+        self.x.move(self.x.home)
+        self.y.move(self.y.min_y)
+
+
+
     def position(self, AorB, box):
         """Returns stage position information.
 
