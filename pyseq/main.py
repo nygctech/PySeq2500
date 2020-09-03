@@ -16,6 +16,7 @@ import argparse
 
 from . import methods
 from . import args
+from . import focus
 
 ##########################################################
 ## Flowcell Class ########################################
@@ -173,6 +174,7 @@ def setup_flowcells(first_line):
             rs = int(method.get('reagent speed', fallback=40))
             fc.pump_speed['reagent'] = rs
             fc.total_cycles = int(config.get('experiment','cycles'))
+            flowcells[AorB] = fc
 
         # Add section to flowcell
         if sect_name in flowcells[AorB].sections:
@@ -307,8 +309,9 @@ def initialize_hs(virtual):
     hs.initializeCams(logger)
     hs.initializeInstruments()
 
-    # Set line bundle height
+    # HiSeq Settings
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
+    hs.af = method.get('autofocus', fallback = True)
 
     # Set laser power
     laser_power = int(method.get('laser power', fallback = 10))
@@ -818,6 +821,71 @@ def IMAG(fc, n_Zplanes):
     colors = hs.lasers.keys()
 
     for section in fc.sections:
+        pos = fc.stage[section]
+        hs.y.move(pos['y_initial'])
+        hs.x.move(pos['x_initial'])
+        hs.z.move(pos['z_pos'])
+        hs.obj.move(pos['obj_pos'])
+
+        if hs.af:
+            logger.log(21, AorB + '::cycle'+cycle+'::Focusing ' + str(section))
+            opt_obj_pos = focus.autofocus(hs, pos)
+            if opt_obj_pos:
+                hs.obj.move(opt_obj_pos)
+                logger.log(21, AorB + '::cycle'+cycle+'::Focus Finished ' +
+                           str(section))
+            else:
+                logger.log(21, AorB + '::cycle'+cycle+'::Focus Failed ' +
+                           str(section))
+
+
+        # Calculate objective positions to image
+        if n_Zplanes > 1:
+            obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes/2)
+        else:
+            obj_start = hs.obj.position
+
+
+        image_name = AorB
+        image_name = image_name + '_s' + str(section)
+        image_name = image_name + '_r' + cycle
+
+        # Scan section on flowcell
+        hs.y.move(y_initial)
+        hs.x.move(x_initial)
+        hs.obj.move(obj_start)
+        logger.log(21, AorB + '::cycle'+cycle+'::Imaging ' + str(section))
+        scan_time = hs.scan(n_tiles, n_Zframes, n_frames, image_name)
+        scan_time = str(int(scan_time/60))
+        logger.log(21, AorB+'::cycle'+cycle+'::Took ' + scan_time +
+                       ' minutes ' + 'imaging ' + str(section))
+
+
+def IMAG_old(fc, n_Zplanes):
+    """Image the flowcell at a number of z planes.
+
+       For each section on the flowcell, the stage is first positioned
+       to the center of the section to find the optimal focus. Then if no
+       optical settings are listed, the optimal filter sets are found.
+       Next, the stage is repositioned to scan the entire section and
+       image the specified number of z planes.
+
+       Parameters:
+       fc: The flowcell to image.
+       n_Zplanes: The number of z planes to image.
+
+       Returns:
+       int: Time in seconds to scan the entire section.
+
+    """
+
+    AorB = fc.position
+    cycle = str(fc.cycle)
+    fc.imaging = True
+    start = time.time()
+    colors = hs.lasers.keys()
+
+    for section in fc.sections:
         x_center = fc.stage[section]['x center']
         y_center = fc.stage[section]['y center']
         x_initial = fc.stage[section]['x initial']
@@ -996,7 +1064,7 @@ def free_fc():
 
 
 
-def integrate_fc_and_hs(hs, flowcells, port_dict, config):
+def integrate_fc_and_hs(port_dict):
     """Integrate flowcell info with hiseq configuration info."""
 
     method = config.get('experiment', 'method')                                 # Read method specific info
@@ -1018,10 +1086,9 @@ def integrate_fc_and_hs(hs, flowcells, port_dict, config):
         hs.p[AorB].n_barrels = n_barrels                                        # Assign barrels per lane to pump
         for section in fc.sections:                                             # Convert coordinate sections on flowcell to stage info
             pos = hs.position(AorB, fc.sections[section])
-            for key in pos.keys():
-                fc.stage[section][key] = pos[key]
-            fc.stage[section]['z pos'] = [z_pos, z_pos, z_pos]
-            fc.stage[section]['obj pos'] = obj_pos
+            fc.stage[section] = pos
+            fc.stage[section]['z_pos'] = [z_pos, z_pos, z_pos]
+            fc.stage[section]['obj_pos'] = obj_pos
 
     return hs
 
@@ -1062,7 +1129,7 @@ def get_config(args):
     elif os.path.isfile(method):
             config.read(method)
     else:
-        print('Error reading method configuration')
+        logger.log(21,'Error reading method configuration')
         sys.exit()
 
     # Get recipe
@@ -1072,7 +1139,7 @@ def get_config(args):
     elif os.path.isfile(recipe_name):
         recipe_path = recipe_name
     else:
-        print('Error reading recipe')
+        logger.log(21,'Error reading recipe')
         sys.exit()
 
     config['experiment']['recipe path'] = recipe_path
@@ -1082,6 +1149,7 @@ def get_config(args):
 ###################################
 ## Run System #####################
 ###################################
+
 args_ = args.get_arguments()
 
 if __name__ == 'pyseq.main':                                                    # Get config path, experiment name, & output path
@@ -1091,7 +1159,7 @@ if __name__ == 'pyseq.main':                                                    
     first_line = check_instructions()                                           # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line)                                     # Create flowcells
     hs = initialize_hs(args_['virtual'])                                        # Initialize HiSeq, takes a few minutes
-    hs = integrate_fc_and_hs(hs, flowcells, port_dict, config)                  # Integrate flowcell info with hs
+    hs = integrate_fc_and_hs(port_dict)                                         # Integrate flowcell info with hs
 
     do_flush()                                                                  # Flush out lines
 
