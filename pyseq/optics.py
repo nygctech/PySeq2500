@@ -12,7 +12,7 @@ mW at the home "filter". None of the light is blocked, laser intensity
 available filters are listed in the following table.
 
 ===========  ===========  ========================================
-laser color  laser index  filters
+laser color  laser index  filters (Optical Density, home = 0)
 ===========  ===========  ========================================
 green        1            open, 0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
 red          2            open, 0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
@@ -73,7 +73,7 @@ class Optics():
 
            Returns:
            optics object: An optics object to control the optical filters.
-           
+
         """
 
         self.serial_port = fpga
@@ -82,7 +82,7 @@ class Optics():
         self.em_in = None
         self.suffix = '\n'
         self.colors = [colors[0], colors[1]]
-        self.cycle_dict = {self.colors[0]:{}, self.colors[1]:{}}
+        self.cycle_dict = {'em':{}, self.colors[0]:{}, self.colors[1]:{}}
         self.ex_dict = {
                         # EX1
                         self.colors[0]:
@@ -113,7 +113,7 @@ class Optics():
            The default position for the excitation filters is home
            which blocks excitation light. The default position for
            the emission filter is in the light path.
-           
+
         """
 
         #Home Excitation Filters
@@ -132,7 +132,7 @@ class Optics():
 
            Returns:
            str: The response from the optics.
-           
+
         """
 
         text = text + self.suffix
@@ -166,7 +166,7 @@ class Optics():
            Parameters:
            color (str): The color of laser line.
            position (str): The name of the filter to change to.
-           
+
         """
 
 

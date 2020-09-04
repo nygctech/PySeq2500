@@ -77,6 +77,7 @@ class Flowcell():
         self.waits_for = None                                                   # position of the flowcell that signals current flowcell to continue
         self.pump_speed = {}
         self.flush_volume = None
+        self.filters = {}                                                       # Dictionary of filter set at each cycle, c: em, ex1, ex2
 
         while position not in ['A', 'B']:
             print(self.name + ' must be at position A or B')
@@ -208,7 +209,6 @@ def setup_flowcells(first_line):
     return flowcells
 
 
-
 ##########################################################
 ## Parse lines from recipe ###############################
 ##########################################################
@@ -292,19 +292,23 @@ def initialize_hs(virtual):
         import pyseq
         hs = pyseq.HiSeq(logger)
 
+    ## TODO: Changing laser color unecessary for now, revist if upgrading HiSeq
     # Configure laser color & filters
     colors = [method.get('laser color 1', fallback = 'green'),
               method.get('laser color 2', fallback = 'red')]
     default_colors = hs.optics.colors
     for i, color in enumerate(default_colors):
-        if color not in colors[i]:
-            laser = hs.laser[color].pop()                                       # Remove default laser color
-            hs.laser[colors[i]] = laser                                         # Add new laser
-            hs.laser[colors[i]].color = colors[i]                               # Update laser color
+        if color is not colors[i]:
+            laser = hs.lasers.pop(color)                                        # Remove default laser color
+            hs.lasers[colors[i]] = laser                                        # Add new laser
+            hs.lasers[colors[i]].color = colors[i]                              # Update laser color
             hs.optics.colors[i] = colors[i]                                     # Update laser line color
 
     #Check filters for laser at each cycle are valid
-    check_filters(hs)
+    hs.optics.cycle_dict = check_filters(hs.optics.cycle_dict, hs.optics.ex_dict)
+
+    for filter in hs.optics.cycle_dict.keys():
+        print(hs.optics.cycle_dict[filter])
 
     hs.initializeCams(logger)
     hs.initializeInstruments()
@@ -540,7 +544,7 @@ def check_ports():
 
 
 
-def check_filters(hs):
+def check_filters(cycle_dict, ex_dict):
     """Check filter section of config file.
 
        **Exceptions:**
@@ -553,23 +557,23 @@ def check_filters(hs):
 
     """
 
-    # NOTE: This is the only local use of a HiSeq object
+    colors = [*cycle_dict.keys()]
 
+    # Check laser, cycle, and filter are valid
     cycle_filters = config['filters'].items()
-
     for item in cycle_filters:
         # Get laser cycle = filter
         filter = item[1]
         if filter is not 'home' and filter is not 'open':                       # filters are floats, except for home and open
             filter = float(filter)
-        laser, cycle = item[0].split(' ')
+        laser, cycle = item[0].split()
+        cycle = int(cycle)
 
-        # Check laser, cycle, and filter are valid
-        colors = hs.lasers.keys()
-        if lasers in colors:
-            if filter in hs.optics.ex_dict[laser]:
-                if cycle not in hs.optics.cycle_dict[laser]:
-                    hs.optics.cycle_dict[laser][cycle] = filter
+        if laser in colors:
+            if filter in ex_dict[laser]:
+                print(laser, cycle, cycle_dict[laser] )
+                if cycle not in cycle_dict[laser]:
+                    cycle_dict[laser][cycle] = filter
                 else:
                     warnings.warn('Experiment config error in filter section. '+
                     'Duplicated cycle for ' + laser + ' laser')
@@ -582,18 +586,26 @@ def check_filters(hs):
             warnings.warn('Experiment config error: invalid laser')
             sys.exit()
 
-        # Add None to cycles with out filters specified
-        method = config.get('experiment', 'method')
-        method = config[method]
-        for c in range(int(config['experiment','cycles'])):
-            if c not in hs.optics.cycle_dict[colors[0]]:
-                hs.optics.cycle_dict[colors[0]][c] = method.get(
-                                                    'default filter 1',
-                                                    fallback = None)
-            if c not in hs.optics.cycle_dict[colors[1]]:
-                hs.optics.cycle_dict[colors[1]][c] = method.get(
-                                                    'default filter 2',
-                                                    fallback = None)
+    # Add default/home to cycles with out filters specified
+    method = config.get('experiment', 'method')
+    method = config[method]
+    for c in range(1,int(config.get('experiment','cycles'))+1):
+        if c not in cycle_dict[colors[0]]:
+            cycle_dict[colors[0]][c] = method.get(
+                                       'default em filter',
+                                        fallback = 'True')
+        if c not in cycle_dict[colors[1]]:
+            cycle_dict[colors[1]][c] = method.get(
+                                       'default filter 1',
+                                        fallback = 'home')
+        if c not in cycle_dict[colors[2]]:
+            cycle_dict[colors[2]][c] = method.get(
+                                       'default filter 2',
+                                        fallback = 'home')
+
+    return cycle_dict
+
+
 
 ##########################################################
 ## Flush Lines ###########################################
@@ -793,6 +805,8 @@ def autofocus(n_tiles, n_frames):
 
     return stop-start
 
+
+
 ##########################################################
 ## Image flowcell ########################################
 ##########################################################
@@ -818,8 +832,16 @@ def IMAG(fc, n_Zplanes):
     cycle = str(fc.cycle)
     fc.imaging = True
     start = time.time()
-    colors = hs.lasers.keys()
 
+    # Set filters
+    for color in hs.optics.cycle_dict.keys():
+        filter = hs.optics.cycle_dict[color][fc.cycle]
+        if color is 'em':
+            hs.optics.move_em_in(filter)
+        else:
+            hs.optics.move_ex(color, filter)
+
+    #Image sections on flowcell
     for section in fc.sections:
         pos = fc.stage[section]
         hs.y.move(pos['y_initial'])
@@ -827,6 +849,7 @@ def IMAG(fc, n_Zplanes):
         hs.z.move(pos['z_pos'])
         hs.obj.move(pos['obj_pos'])
 
+        # Autofocus
         if hs.af:
             logger.log(21, AorB + '::cycle'+cycle+'::Focusing ' + str(section))
             opt_obj_pos = focus.autofocus(hs, pos)
@@ -838,13 +861,11 @@ def IMAG(fc, n_Zplanes):
                 logger.log(21, AorB + '::cycle'+cycle+'::Focus Failed ' +
                            str(section))
 
-
         # Calculate objective positions to image
         if n_Zplanes > 1:
             obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes/2)
         else:
             obj_start = hs.obj.position
-
 
         image_name = AorB
         image_name = image_name + '_s' + str(section)
@@ -860,6 +881,14 @@ def IMAG(fc, n_Zplanes):
         scan_time = str(int(scan_time/60))
         logger.log(21, AorB+'::cycle'+cycle+'::Took ' + scan_time +
                        ' minutes ' + 'imaging ' + str(section))
+
+    # Reset filters
+    for color in hs.optics.cycle_dict.keys():
+        filter = hs.optics.cycle_dict[color][cycle]
+        if color is 'em':
+            hs.optics.move_em_in(True)
+        else:
+            hs.optics.move_ex(color, 'home')
 
 
 def IMAG_old(fc, n_Zplanes):
@@ -1150,10 +1179,7 @@ def get_config(args):
 ###################################
 ## Run System #####################
 ###################################
-
-args_ = args.get_arguments()
-
-if __name__ == 'pyseq.main':                                                    # Get config path, experiment name, & output path
+def main(args_):
     config = get_config(args_)                                                  # Get config file
     logger = setup_logger()                                                     # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
@@ -1187,3 +1213,8 @@ if __name__ == 'pyseq.main':                                                    
             cycles_complete = True
 
     do_shutdown()                                                               # Shutdown HiSeq
+
+
+args_ = args.get_arguments()                                                    # Get config path, experiment name, & output path
+if __name__ == 'pyseq.main':
+    main(args_)
