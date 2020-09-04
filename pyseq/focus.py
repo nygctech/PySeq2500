@@ -101,17 +101,17 @@ def autofocus(hs, pos_dict):
     sum_im = IA.sum_images(rough_ims)
 
     # Find pixels to focus on
-    px_rows, px_cols = sum_im.shape
-    n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
-    ord_points = IA.get_focus_points(sum_im, scale, n_markers*10)
+    opt_obj_pos = False
+    if sum_im:
+        px_rows, px_cols = sum_im.shape
+        n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
+        ord_points = IA.get_focus_points(sum_im, scale, n_markers*10)
 
-    # Get stage positions on in-focus points
-    focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
+        # Get stage positions on in-focus points
+        focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
 
-    if focus_points:
-        opt_obj_pos = int(np.median(focus_points[:,2]))
-    else:
-        opt_obj_pos = False
+        if focus_points:
+            opt_obj_pos = int(np.median(focus_points[:,2]))
 
     for f in files:
         remove(path.join(hs.image_path, f))

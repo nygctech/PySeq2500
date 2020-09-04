@@ -189,28 +189,31 @@ def sum_images(images):
         i += 1
 
     ims = []
-    for i in range(len(SNR)):
-      if SNR[i] > 0:
+    for i, s in enumerate(SNR):
+      if s > 0:
         ims.append(images[i])
     SNR = SNR[SNR > 0]
-    ref_i = np.argmax(SNR)
-    ref = images[ref_i]
 
-    # Sum images
-    i = 0
-    for im in ims:
-        # Match histogram to reference image
-        if i != ref_i:
-            _im = im
-            #_im = match_histograms(im, ref)
-        else:
-            _im = im
-        i += 1
-        # Add add image
-        if sum_im is None:
-            sum_im = _im.astype('uint16')
-        else:
-            sum_im = np.add(sum_im, _im)
+    if SNR.size > 0:
+        ref_i = np.argmax(SNR)
+        ref = images[ref_i]
+
+        # Sum images
+        for i, im in enumerate(ims):
+            # Match histogram to reference image
+            if i != ref_i:
+                _im = im
+                #_im = match_histograms(im, ref)
+            else:
+                _im = im
+
+            # Add add image
+            if sum_im is None:
+                sum_im = _im.astype('uint16')
+            else:
+                sum_im = np.add(sum_im, _im)
+    else:
+        sum_im = False
 
     return sum_im
 

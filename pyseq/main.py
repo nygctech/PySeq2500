@@ -851,11 +851,12 @@ def IMAG(fc, n_Zplanes):
         image_name = image_name + '_r' + cycle
 
         # Scan section on flowcell
-        hs.y.move(y_initial)
-        hs.x.move(x_initial)
+        hs.y.move(pos['y_initial'])
+        hs.x.move(pos['x_initial'])
         hs.obj.move(obj_start)
         logger.log(21, AorB + '::cycle'+cycle+'::Imaging ' + str(section))
-        scan_time = hs.scan(n_tiles, n_Zframes, n_frames, image_name)
+
+        scan_time = hs.scan(pos['n_tiles'], n_Zplanes, pos['n_frames'], image_name)
         scan_time = str(int(scan_time/60))
         logger.log(21, AorB+'::cycle'+cycle+'::Took ' + scan_time +
                        ' minutes ' + 'imaging ' + str(section))
