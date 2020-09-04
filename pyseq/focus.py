@@ -10,7 +10,21 @@ from scipy.optimize import least_squares
 from skimage.util import img_as_ubyte
 from skimage.transform import downscale_local_mean
 import imageio
+import time
 
+def message(logger, screen, *args):
+    if logger is None:
+        print(args)
+    else:
+        msg = ''
+        for a in args:
+            msg += str(a)
+            msg += ' '
+
+        if screen:
+            logger.log(21, 'Autofocus::'+msg)
+        else:
+            logger.info('Autofocus::'+msg)
 
 # def calibrate(hs, pos_list):
 #
@@ -94,27 +108,43 @@ import imageio
 #                     print('no data for motor ' + str(motor) + ' at ' + str(z))
 
 def autofocus(hs, pos_dict):
+    start = time.time()
+    log = hs.logger
+
+    message(log, True, 'Scanning section')
     rough_ims, scale, files = rough_scan(hs, pos_dict['n_tiles'],
                                              pos_dict['n_frames'])
 
     # Sum channels with signal
-    sum_im = IA.sum_images(rough_ims)
+    sum_im = IA.sum_images(rough_ims,log)
 
     # Find pixels to focus on
+
     opt_obj_pos = False
     if sum_im:
+        message(log, True, 'Finding potential focus positions')
         px_rows, px_cols = sum_im.shape
         n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
-        ord_points = IA.get_focus_points(sum_im, scale, n_markers*10)
+        ord_points = IA.get_focus_points(sum_im, scale, n_markers*10,log)
 
+        message(log, True, 'Found',length(ord_points),'focus positions')
+        message(log, True, 'Finding optimal focus')
         # Get stage positions on in-focus points
         focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
 
         if focus_points:
             opt_obj_pos = int(np.median(focus_points[:,2]))
+        else:
+            message(log, True, 'Failed::Could not find focus')
+    else:
+        message(log, True, 'Failed::No signal in channels')
 
     for f in files:
         remove(path.join(hs.image_path, f))
+
+    stop = time.time()
+    af_time = int(stop-start)
+    message(log, True, 'Completed in',af_time,'s')
 
     return opt_obj_pos
 
@@ -263,7 +293,7 @@ def format_focus(hs, focus_data):
     '''
 
     if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
-        print('Frame interval mismatch')
+        message(hs.logger,False,'format_focus::Frame interval mismatch')
 
     frame_interval = hs.cam1.getFrameInterval()
     spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
@@ -288,7 +318,7 @@ def format_focus(hs, focus_data):
         kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
         kurt_z, pvalue = stats.kurtosistest(focus_data[:,i])
         if kurt_z > 1.96:
-            print('signal in channel ' +str(i))
+            message(hs.logger, False, 'format_focus::signal in channel',i)
             f_fd = f_fd + np.reshape(focus_data[0:n_f_frames,i], (n_f_frames,1))
 
     # Normalize
@@ -389,10 +419,10 @@ def fit_mixed_gaussian(hs, data):
         results = least_squares(res_gaussian, p0, bounds=(lo_bounds,up_bounds), args=(data[:,0],data[:,1]))
 
         if not results.success:
-            print(results.message)
+            message(hs.logger, False, 'fit_gaussian::',results.message)
         else:
             R2 = 1 - np.sum(results.fun**2)/SST
-            print('R2 with ' + str(len(amp)) + ' peaks is ' + str(R2))
+            message(hs.logger, False, 'fit_gaussian::R2=',R2,'with',len(amp),'peaks')
 
 
         if results.success and R2 > tolerance:
@@ -403,7 +433,7 @@ def fit_mixed_gaussian(hs, data):
             return optobjstep
         else:
             if len(amp) == max_peaks:
-                print('No good fit try moving z stage')
+                message(hs.logger, False, 'fit_gaussian::Bad fit')
                 return False
 
 
@@ -459,7 +489,8 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
         if f_fs is not False:
            obj_pos = fit_mixed_gaussian(hs, f_fs)
            if obj_pos:
-               print('Found point ' + str(n_obj))
+               message(log, 'get_focus_data::Found point',str(n_obj),
+                            'at x =',x_pos,'and y =',y_pos)
                ##################################################################
                # Save in focus frame
 ##               in_focus_frame = np.argmin(abs(f_fs[:,0]-obj_pos))
@@ -474,11 +505,15 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
                focus_points[n_obj,:] = [x_pos, y_pos, obj_pos, i]
                n_obj += 1
 
+           else:
+               message(log,'get_focus_data::No Focus',str(n_obj),
+                           'at x =',x_pos,'and y =',y_pos)
+
         if i == len(px_points)-1:
             n_obj = n_markers+1
             break
         else:
-            print(i,'/',len(px_points))
+            message(log, True, i,'/',len(px_points))
             i += 1
 
 

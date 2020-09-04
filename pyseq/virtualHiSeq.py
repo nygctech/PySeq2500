@@ -534,8 +534,8 @@ class Camera():
     def saveImage(self, image_name, image_path):
         # save text info as image data
         n_bytes = self.frames*self.bundle_height*2048*2*12
-        im1 = np.random.randint(2, size=(2048,2048))
-        im2 = np.random.randint(2, size=(2048,2048))
+        im1 = np.random.randint(2, size=(2048,2048), dtype='uint8')
+        im2 = np.random.randint(2, size=(2048,2048), dtype='uint8')
 
         left_name = 'c' + str(self.left_emission)+'_'+image_name+'.tiff'
         right_name = 'c' + str(self.right_emission)+'_'+image_name+'.tiff'
@@ -600,13 +600,13 @@ class HiSeq():
         self.cam2.right_emission = 740
 
         # Initialize camera 1
-        self.message('Initializing camera 1...')
+        self.message('Initializing camera 1',)
         self.cam1.setTDI()
         self.cam1.captureSetup()
         self.cam1.get_status()
 
         # Initialize Camera 2
-        self.message('Initializing camera 2...')
+        self.message('Initializing camera 2')
         self.cam2.setTDI()
         self.cam2.captureSetup()
         self.cam2.get_status()
@@ -684,10 +684,10 @@ class HiSeq():
         #Make sure TDI is synced with Ystage
         y_pos = y.position
         if abs(y_pos - f.read_position()) > 10:
-            self.message('Attempting to sync TDI and stage')
+            self.message(True, 'Attempting to sync TDI and stage')
             f.write_position(y.position)
         else:
-            self.message('TDI and stage are synced')
+            self.message(True, 'TDI and stage are synced')
 
         #TO DO, double check gains and velocity are set
         #Set gains and velocity of image scanning for ystage
@@ -758,16 +758,16 @@ class HiSeq():
 
         # Check if all frames were taken from camera 1 then save images
         if cam1.getFrameCount() != n_frames:
-            print('Cam1 frames: ', cam1.getFrameCount())
-            print('Cam1 image not taken')
+            message('Cam1 frames: ', cam1.getFrameCount())
+            message('Cam1 image not taken')
             image_complete = False
         else:
             cam1.saveImage(image_name, self.image_path)
             image_complete = True
         # Check if all frames were taken from camera 2 then save images
         if cam2.getFrameCount() != n_frames:
-            print('Cam2 frames: ', cam2.getFrameCount())
-            print('Cam2 image not taken')
+            message('Cam2 frames: ', cam2.getFrameCount())
+            message('Cam2 image not taken')
             image_complete += False
         else:
             cam2.saveImage(image_name, self.image_path)
@@ -795,13 +795,23 @@ class HiSeq():
 
         return image_complete == 2
 
-    def message(self, text):
+    def message(self, *args):
         """Print output text to logger or console"""
 
         if self.logger is None:
             print(str(text))
         else:
-            self.logger.info(str(text))
+            i = 0
+            if isinstance(args[0], bool):
+                i = 1
+
+            msg = 'HiSeq::'
+            for a in args[i:]:
+                msg = msg + str(a) + ' '
+            if i is 0:
+                self.logger.log(21,msg)
+            else:
+                self.logger.info(msg)
 
     def write_metadata(self, n_frames, image_name):
         """Write image metadata to file.

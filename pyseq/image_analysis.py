@@ -11,6 +11,15 @@ from skimage.transform import downscale_local_mean
 from skimage.util import img_as_ubyte
 import imageio
 
+def message(logger, *args):
+    if logger is None:
+        print(args)
+    else:
+        msg = ''
+        for a in args:
+            msg += str(a)
+            msg += ' '
+        logger.info('ImageAnalysis::'+msg)
 
 
 def get_image_df(image_path, image_name = None):
@@ -152,7 +161,7 @@ def normalize(im, scale_factor):
 
     return plane
 
-def sum_images(images):
+def sum_images(images, logger = None):
     '''Sum pixel values over channel images.
        Image with largest signal to noise used a reference.
        Images without significant kurtosis are discarded.
@@ -176,13 +185,11 @@ def sum_images(images):
     for im in images:
         #kurt_z, pvalue = stats.kurtosistest(im, axis = None)
         kurt_z = stats.kurtosis(im, axis=None)
-        print(kurt_z)
         if kurt_z > 3:
-            print(kurt_z)
-            print('signal in channel ' + str(i))
+            message(logger, 'sum_im::signal in channel',i)
             SNR = np.append(SNR,np.mean(im)/np.std(im))
         else:
-            print('no signal in channel ' + str(i))
+            message(logger, 'sum_im::no signal in channel',i)
             # Remove images without signal
             SNR = np.append(SNR, 0)
 
@@ -218,7 +225,7 @@ def sum_images(images):
     return sum_im
 
 
-def get_focus_points(im, scale, min_n_markers, p_sat = 99.9):
+def get_focus_points(im, scale, min_n_markers, p_sat = 99.9, log=None):
     '''Get potential points to focus on.
 
        First 1000 of the brightest, unsaturated pixels are found.
@@ -266,7 +273,7 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.9):
 
     # Subset to 1000 points
     n_markers = len(markers)
-    print(n_markers)
+    message(log, 'get_focus_points::Found',n_markers,'markers')
     if n_markers > 1000:
       rand_markers = np.random.choice(range(n_markers), size = 1000)
       markers = markers[rand_markers,:]
@@ -290,6 +297,7 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.9):
       p_top = (1 - min_n_markers/n_markers)*100
     else:
       p_top = 0
+    message(log, 'get_focus_points::Used', p_top, 'percentile cutoff')
     c_cutoff = np.percentile(c_score, p_top)
     c_markers = markers[c_score >= c_cutoff,:]
 

@@ -307,9 +307,6 @@ def initialize_hs(virtual):
     #Check filters for laser at each cycle are valid
     hs.optics.cycle_dict = check_filters(hs.optics.cycle_dict, hs.optics.ex_dict)
 
-    for filter in hs.optics.cycle_dict.keys():
-        print(hs.optics.cycle_dict[filter])
-
     hs.initializeCams(logger)
     hs.initializeInstruments()
 
@@ -571,7 +568,6 @@ def check_filters(cycle_dict, ex_dict):
 
         if laser in colors:
             if filter in ex_dict[laser]:
-                print(laser, cycle, cycle_dict[laser] )
                 if cycle not in cycle_dict[laser]:
                     cycle_dict[laser][cycle] = filter
                 else:
@@ -884,7 +880,6 @@ def IMAG(fc, n_Zplanes):
 
     # Reset filters
     for color in hs.optics.cycle_dict.keys():
-        filter = hs.optics.cycle_dict[color][cycle]
         if color is 'em':
             hs.optics.move_em_in(True)
         else:
@@ -1179,7 +1174,8 @@ def get_config(args):
 ###################################
 ## Run System #####################
 ###################################
-def main(args_):
+args_ = args.get_arguments()                                                    # Get config path, experiment name, & output path
+if __name__ == 'pyseq.main':
     config = get_config(args_)                                                  # Get config file
     logger = setup_logger()                                                     # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
@@ -1213,8 +1209,3 @@ def main(args_):
             cycles_complete = True
 
     do_shutdown()                                                               # Shutdown HiSeq
-
-
-args_ = args.get_arguments()                                                    # Get config path, experiment name, & output path
-if __name__ == 'pyseq.main':
-    main(args_)
