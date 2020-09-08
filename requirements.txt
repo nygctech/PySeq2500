@@ -1,4 +1,6 @@
 pyserial>=3
 numpy
+pandas
 scipy
 imageio
+skimage
