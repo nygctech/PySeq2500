@@ -16,15 +16,18 @@ def message(logger, screen, *args):
     if logger is None:
         print(args)
     else:
-        msg = ''
-        for a in args:
-            msg += str(a)
-            msg += ' '
+        i = 0
+        if isinstance(args[0], bool):
+            i = 1
 
-        if screen:
-            logger.log(21, 'Autofocus::'+msg)
+        msg = 'Autofocus::'
+        for a in args[i:]:
+            msg = msg + str(a) + ' '
+
+        if i is 1:
+            logger.log(21, msg)
         else:
-            logger.info('Autofocus::'+msg)
+            logger.info(msg)
 
 # def calibrate(hs, pos_list):
 #
@@ -292,8 +295,9 @@ def format_focus(hs, focus_data):
 
     '''
 
+    name_ = 'FormatFocus::'
     if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
-        message(hs.logger,False,'format_focus::Frame interval mismatch')
+        message(hs.logger,name_,'Frame interval mismatch')
 
     frame_interval = hs.cam1.getFrameInterval()
     spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
@@ -318,7 +322,7 @@ def format_focus(hs, focus_data):
         kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
         kurt_z, pvalue = stats.kurtosistest(focus_data[:,i])
         if kurt_z > 1.96:
-            message(hs.logger, False, 'format_focus::signal in channel',i)
+            message(hs.logger,name_,'Signal in', hs.channel[i], 'channel')
             f_fd = f_fd + np.reshape(focus_data[0:n_f_frames,i], (n_f_frames,1))
 
     # Normalize
@@ -334,6 +338,7 @@ def format_focus(hs, focus_data):
 def gaussian(x, *args):
     '''Gaussian function for curve fitting.'''
 
+    name_ = 'Gaussian::'
     if len(args) == 1:
       args = args[0]
 
@@ -381,6 +386,7 @@ def fit_mixed_gaussian(hs, data):
 
     '''
 
+    name_ = 'FitMixedGaussian::'
     # initialize values
     max_peaks = 4
     # Initialize varibles
@@ -419,10 +425,10 @@ def fit_mixed_gaussian(hs, data):
         results = least_squares(res_gaussian, p0, bounds=(lo_bounds,up_bounds), args=(data[:,0],data[:,1]))
 
         if not results.success:
-            message(hs.logger, False, 'fit_gaussian::',results.message)
+            message(hs.logger,name_,results.message)
         else:
             R2 = 1 - np.sum(results.fun**2)/SST
-            message(hs.logger, False, 'fit_gaussian::R2=',R2,'with',len(amp),'peaks')
+            message(hs.logger,name_,'R2=',R2,'with',len(amp),'peaks')
 
 
         if results.success and R2 > tolerance:
@@ -433,7 +439,7 @@ def fit_mixed_gaussian(hs, data):
             return optobjstep
         else:
             if len(amp) == max_peaks:
-                message(hs.logger, False, 'fit_gaussian::Bad fit')
+                message(hs.logger, name_, 'Bad fit')
                 return False
 
 
@@ -465,6 +471,7 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
     #n_markers = ((2048*n_tiles)**2 + (n_frames*hs.bundle_height)**2)**0.5   # image size in px
     #n_markers = 3 + int(min_n_markers/2/2048)
     #px_points = image.get_focus_points(im, scale, n_markers*10)
+    name_ = 'GetFocusData::'
     focus_points = np.empty(shape=(n_markers,4))
     i = 0
     n_obj = 0
@@ -489,7 +496,7 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
         if f_fs is not False:
            obj_pos = fit_mixed_gaussian(hs, f_fs)
            if obj_pos:
-               message(log, 'get_focus_data::Found point',str(n_obj),
+               message(log, name_, 'Found point',str(n_obj),
                             'at x =',x_pos,'and y =',y_pos)
                ##################################################################
                # Save in focus frame
@@ -506,14 +513,14 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
                n_obj += 1
 
            else:
-               message(log,'get_focus_data::No Focus',str(n_obj),
+               message(log,name_,'No Focus at point',n_obj,
                            'at x =',x_pos,'and y =',y_pos)
 
         if i == len(px_points)-1:
             n_obj = n_markers+1
             break
         else:
-            message(log, True, i,'/',len(px_points))
+            message(log, True, name_,i,'/',len(px_points))
             i += 1
 
 

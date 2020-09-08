@@ -322,10 +322,6 @@ class HiSeq():
 
 
         # Make sure cameras are ready (status = 3)
-        if cam1.sensor_mode != 'TDI':
-            cam1.setTDI()
-        if cam2.sensor_mode != 'TDI':
-            cam2.setTDI()
         while cam1.get_status() != 3:
             cam1.stopAcquisition()
             cam1.freeFrames()
@@ -334,6 +330,12 @@ class HiSeq():
             cam2.stopAcquisition()
             cam2.freeFrames()
             cam2.captureSetup()
+
+        if cam1.sensor_mode != 'TDI':
+            cam1.setTDI()
+        if cam2.sensor_mode != 'TDI':
+            cam2.setTDI()
+
         # Set bundle height
         cam1.setPropertyValue("sensor_mode_line_bundle_height",
                                self.bundle_height)
@@ -756,149 +758,6 @@ class HiSeq():
         return C
 
 
-    def rough_focus(self, z_start = 21200, z_interval = 200, n_images = 6):
-        """Bring the sample into focus by moving the z stage.
-
-           Images a ~ 0.75 mm x 1.5 mm area in the center of the section,
-           at increasing zstage heights while keeping the objective position
-           constant. The image file size as compressed jpegs are measured
-           as a proxy for how in focus the images are. The focus value as
-           a function of zstage position is fit to a gaussian curve, and
-           the center of the peak is chosen as the optimal position for
-           the zstage for in focus pictures.
-
-           Parameters:
-           z_start (int, optional): Absolute z stage position to start
-                taking pictures.
-           z_interval (int, optional): Zstage steps to increase the stage
-                height by for subsequent images.
-           n_images (int, optional): Number of zstage positions to image.
-
-           Returns:
-           [int,...],[int,...]: List of zstage absolute stage positions and
-                list of file sizes.
-        """
-
-        # move stage to initial distance
-        y_pos = self.y.position
-        obj_pos = 17500
-        self.obj.move(obj_pos)
-        z_pos = z_start
-        self.z.move([z_pos, z_pos, z_pos])
-
-        Z = []                                                             # list of distance [0] and contrast [1]
-        C = []                                                              # list of contrasts
-        for i in range(n_images):
-            image_name = 'AF_rough_'+str(i)
-            image_complete = False
-            while not image_complete:
-                image_complete = self.take_picture(32, 128, image_name)         # take picture
-                self.y.move(y_pos)                                              # reset stage
-
-
-            C.append(self.jpeg(image_name))                                 # calculate compression
-            Z.append(z_pos)
-
-            # Move stage for next step
-            z_pos = int(z_pos + z_interval)
-            self.z.move([z_pos, z_pos, z_pos])
-
-        # find best z stage position
-        self.message('Compressions: ' + str(C))
-        self.message('Z pos: ' + str(Z))
-        z_opt = find_focus(Z, C)
-        self.message('Optimal Z pos = ' + str(z_opt))
-        if z_opt is None:
-            self.message('Could not find rough focus')
-            z_opt = 21500
-        # move z stage to optimal contrast position
-        self.z.move([z_opt, z_opt, z_opt])
-
-        return Z,C
-
-
-    def fine_focus(self, obj_start = 10000, obj_interval = 5000, n_images = 7):
-        """Bring the sample into focus by moving the objective.
-
-           Returns matrix of [obj position, focus value]
-           Will be updated in future.
-
-        """
-        #Initialize
-        y_pos = self.y.position
-        obj_pos = obj_start
-        self.obj.move(obj_pos)
-
-        # Sweep across objective positions
-        Z = []                                                              # list of distance
-        C = []                                                              # list of contrasts
-        for i in range(n_images):
-            image_name = 'AF_fine_'+str(i)
-            image_complete = False
-            while not image_complete:
-                image_complete = self.take_picture(32, 128, image_name)         # take picture
-                self.y.move(y_pos)                                              # reset stage
-
-
-            C.append(self.jpeg(image_name))                                      # calculate compression
-            Z.append(self.obj.position)
-
-            # Move stage for next step
-            obj_pos = int(obj_pos + obj_interval)
-            self.obj.move(obj_pos)
-
-        # find best obj stage position
-        obj_pos = find_focus(Z, C)
-        self.message('Compressions: ' + str(C))
-        self.message('OBJ pos: ' + str(Z))
-        self.message('Optimal OBJ pos = ' + str(obj_pos))
-
-        if obj_pos is None:
-            self.message('Could not find fine focus')
-            i = np.argmax(C)
-            obj_pos = Z[i]
-            if i != 0 and i != len(C)-1:
-                if C[i-1] > C[i+1]:
-                    obj_pos -= int(obj_interval/2)
-                else:
-                    obj_pos += int(obj_interval/2)
-            elif i == 0:
-                obj_pos += int(obj_interval/2)
-            elif i == len(C)-1:
-                obj_pos -= int(obj_interval/2)
-
-        # Home in on objective position for optimal contrast
-        while abs(obj_pos-self.obj.position) >= self.obj.spum/2:
-            self.message('Moving objective by ' + str((obj_pos-self.obj.position)/self.obj.spum) +  ' microns')
-            self.obj.move(obj_pos)                                                # move objective
-            i = i + 1
-            image_name = 'AF_fine_'+str(i)
-            image_complete = False
-            while not image_complete:
-                image_complete = self.take_picture(32, 128, image_name)           # take picture
-
-            self.y.move(y_pos)                                                    # reset stage
-
-            C.append(self.jpeg(image_name))                                   # calculate contrast
-            Z.append(self.obj.position)
-
-            obj_pos = find_focus(Z, C)                                              #find best obj stage position
-            self.message('Contrasts: ' + str(C))
-            self.message('OBJ pos: ' + str(Z))
-            self.message('Optimal OBJ pos = ' + str(obj_pos))
-
-
-            if obj_pos is None:
-                self.message('Could not find fine focus')
-                obj_pos = Z[np.argmax(C)]
-
-        self.message('Contrasts: ' + str(C))
-        self.message('OBJ pos: ' + str(Z))
-        self.message('Optimal OBJ pos = ' + str(obj_pos))
-
-        return Z, C
-
-
     def position(self, AorB, box):
         """Returns stage position information.
 
@@ -1130,7 +989,8 @@ class HiSeq():
         else:
             i = 0
             if isinstance(args[0], bool):
-                i = 1
+                if args[0]:
+                    i = 1
 
             msg = 'HiSeq::'
             for a in args[i:]:
@@ -1139,85 +999,6 @@ class HiSeq():
                 self.logger.log(21,msg)
             else:
                 self.logger.info(msg)
-
-def find_focus(X, Y):
-    """Fit Y(X) to gaussian curve and return the center point.
-
-       Used to fit focus as function of z position to a gaussion curve and
-       find the optimal focus. X = position and Y = focus.
-
-       Parameters:
-       X ([int,]): List of z or objective stage positions
-       Y ([int,]): List of focus values.
-
-       Returns:
-       int: Center position of gaussian peak = to optimal focus.
-
-    """
-
-    Ynorm = Y - np.min(Y)
-    Ynorm = Ynorm/np.max(Y)
-
-    amp = 1
-    cen = X[np.argmax(Y)]
-    sigma = 1
-
-    # Optimize amplitude, center, std
-
-    # Calculate error
-    try:
-        popt_gauss, pcov_gauss = curve_fit(_1gaussian, X, Ynorm, p0 = [amp, cen, sigma])
-        #perr_gauss = np.sqrt(np.diag(pcov_gauss))
-        center  = int(popt_guass[1])
-        #error  = perr_gauss[1]
-    except:
-        if Ynorm[0] > Ynorm[-1]:
-            center = -1
-        else:
-            center = 1
-
-    # Return center
-    return center
-
-
-def signal_and_saturation(img, nbins = 256):
-    """Return mean intensity of signal and fraction of pixels saturated.
-
-       img = image to be analyzed
-       nbins = number of bins in histograms
-
-       Fits histogram of image to 2 peaks, and assumes 1st peak is the
-       background and the 2nd peak is the signal.
-    """
-
-    # Histogram of image
-    hist, bin_edges = np.histogram(img, bins = nbins, range = (0,4095), density = True)
-
-    # Find background signal intensity
-    amp1 = 0.5
-    cen1 = 100
-    sigma1 = 10
-    x_range = range(0,4095,int(4096/nbins))
-    pback, pcov = curve_fit(_1gaussian, x_range[0:-1], hist[0:-1], p0=[amp1, cen1, sigma1])
-
-    # Mask background
-    masked_img = img[img > pback[1] + 6*pback[2]]
-
-    if len(masked_img):
-        # Histogram of image with background masked
-        masked_hist, bin_edges = np.histogram(masked_img, bins = nbins, range = (0,4095), density = True)
-
-        # Find signal intensity
-        amp1 = 0.1
-        cen1 = 2048
-        sigma1 = 20
-        psignal, pcov = curve_fit(_1gaussian, x_range[0:-1], masked_hist[0:-1], p0=[amp1, cen1, sigma1])
-        mean_intensity = psignal[1]
-    else:
-        mean_intensity = 0
-
-    return mean_intensity, hist[-1]
-
 
 def contrast2(filename, channel, path, nbins=256):
     """Return the image contrast and fraction of pixels saturated.
@@ -1246,8 +1027,3 @@ def contrast2(filename, channel, path, nbins=256):
     saturation = hist[-1]
 
     return contrast, saturation
-
-
-def _1gaussian(x, amp1,cen1,sigma1):
-    """Gaussian function for curve fitting."""
-    return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
