@@ -1,4 +1,3 @@
-#!/usr/bin/python
 """
 TODO:
 
@@ -11,12 +10,34 @@ from os.path import join
 import sys
 import configparser
 import threading
-import warnings
 import argparse
 
 from . import methods
 from . import args
 from . import focus
+
+                                                                                # Global int to track # of errors during start up
+def error(*args):
+    """Print error to logger and/or console"""
+
+    global n_errors
+
+    i = 0
+    if isinstance(args[0], logging.Logger):
+        logger = args[0]
+        i = 1
+
+    msg = 'ERROR::'
+    for a in args[i:]:
+        msg = msg + str(a) + ' '
+    if i is 0:
+        print(msg)
+    else:
+        logger.log(21, msg)
+
+    n_errors += 1
+
+    return n_errors
 
 ##########################################################
 ## Flowcell Class ########################################
@@ -179,9 +200,7 @@ def setup_flowcells(first_line):
 
         # Add section to flowcell
         if sect_name in flowcells[AorB].sections:
-            warnings.warn(sect_name + ' already on flowcell ' + AorB)
-            warnings.warn('Config file error: section name duplications')
-            sys.exit()
+            error('ConfigFile::', sect_name, 'duplicated on flowcell', AorB)
         else:
             coord = coord.split(',')
             flowcells[AorB].sections[sect_name] = []                            # List to store coordinates of section on flowcell
@@ -190,9 +209,7 @@ def setup_flowcells(first_line):
                 try:
                     flowcells[AorB].sections[sect_name].append(float(coord[i]))
                 except:
-                    warnings.warn(sect_name +
-                        ' does not have a position, check config file')
-                    sys.exit()
+                    error('ConfigFile::No position for', sect_name)
 
         # if runnning mulitiple flowcells...
         # Define first flowcell
@@ -203,8 +220,7 @@ def setup_flowcells(first_line):
                 flowcells[fc].waits_for = flowcell_list[
                     flowcell_list.index(fc)-1]
             if experiment['first flowcell'] not in flowcells:
-                print('First flowcell does not exist')
-                sys.exit()
+                error('ConfigFile::First flowcell does not exist')
 
     return flowcells
 
@@ -280,7 +296,7 @@ def setup_logger():
 def initialize_hs(virtual):
     """Initialize the HiSeq and return the handle."""
 
-
+    global n_errors
 
     experiment = config['experiment']
     method = config[experiment['method']]
@@ -307,18 +323,6 @@ def initialize_hs(virtual):
     #Check filters for laser at each cycle are valid
     hs.optics.cycle_dict = check_filters(hs.optics.cycle_dict, hs.optics.ex_dict)
 
-    hs.initializeCams(logger)
-    hs.initializeInstruments()
-
-    # HiSeq Settings
-    hs.bundle_height = int(method.get('bundle height', fallback = 128))
-    hs.af = method.get('autofocus', fallback = True)
-
-    # Set laser power
-    laser_power = int(method.get('laser power', fallback = 10))
-    for color in hs.lasers.keys():
-        hs.lasers[color].set_power(laser_power)
-
     # Assign output directory
     save_path = experiment['save path']
     experiment_name = experiment['experiment name']
@@ -327,19 +331,33 @@ def initialize_hs(virtual):
         try:
             os.mkdir(save_path)
         except:
-            warnings.warn('Experiment config error: Save path not valid.')
+            error('ConfigFile:: Save path not valid.')
 
-    # Assign image directory
-    image_path = join(save_path, experiment['image path'])
-    if not os.path.exists(image_path):
-        os.mkdir(image_path)
-    hs.image_path = image_path
+    if n_errors is 0:
 
-    # Assign log directory
-    log_path = join(save_path, experiment['log path'])
-    if not os.path.exists(log_path):
-        os.mkdir(log_path)
-    hs.log_path = log_path
+        hs.initializeCams(logger)
+        hs.initializeInstruments()
+
+        # HiSeq Settings
+        hs.bundle_height = int(method.get('bundle height', fallback = 128))
+        hs.af = method.get('autofocus', fallback = True)
+
+        # Set laser power
+        laser_power = int(method.get('laser power', fallback = 10))
+        for color in hs.lasers.keys():
+            hs.lasers[color].set_power(laser_power)
+
+        # Assign image directory
+        image_path = join(save_path, experiment['image path'])
+        if not os.path.exists(image_path):
+            os.mkdir(image_path)
+        hs.image_path = image_path
+
+        # Assign log directory
+        log_path = join(save_path, experiment['log path'])
+        if not os.path.exists(log_path):
+            os.mkdir(log_path)
+        hs.log_path = log_path
 
     return hs
 
@@ -384,7 +402,6 @@ def check_instructions():
 
     f = open(config['experiment']['recipe path'])
     line_num = 1
-    error = 0
 
 
     def message(text, error):
@@ -401,8 +418,8 @@ def check_instructions():
             if instrument == 'PORT':
                 # Make sure ports in instruction files exist in port dictionary in config file
                 if command not in ports:
-                    error = message(command + ' port on line ' + str(line_num) +
-                        ' does not exist.\n', error)
+                    error('Recipe::', command, 'on line', line_num,
+                          'is not listed as a reagent')
 
                 #Find line to start at for first cycle
                 if first_line == 0 and first_port is not None:
@@ -412,48 +429,36 @@ def check_instructions():
             # Make sure pump volume is a number
             elif instrument == 'PUMP':
                 if command.isdigit() == False:
-                    error = message('Invalid volume on line ' + str(line_num) +
-                        '\n', error)
+                    error('Recipe::Invalid volume on line', line_num)
 
             # Make sure wait command is valid
             elif instrument == 'WAIT':
                 if command not in valid_wait:
-                    error = message('Invalid wait command on line ' +
-                        str(line_num) + '\n', error)
+                    error('Recipe::Invalid wait command on line', line_num)
 
             # Make sure z planes is a number
             elif instrument == 'IMAG':
                  if command.isdigit() == False:
-                    error = message('Invalid number of z planes on line ' +
-                        str(line_num) + '\n', error)
+                    error('Recipe::Invalid number of z planes on line', line_num)
 
             # Make sure hold time (minutes) is a number
             elif instrument == 'HOLD':
                 if command.isdigit() == False:
-                    error = message('Invalid time on line ' + str(line_num) +
-                        '\n', error)
+                    error('Recipe::Invalid time on line', line_num)
 
             # Warn user that HiSeq will completely stop with this command
             elif instrument == 'STOP':
-                warnings.warn(
-                    'HiSeq will complete stop until user input at line' +
-                     str(line_num) + '\n')
+                print('WARNING::HiSeq will stop until user input at line',
+                       line_num)
 
             # Make sure the instrument name is valid
             else:
-                error = message('Bad instrument name on line ' + str(line_num) +
-                    '\n', error)
+                error('Recipe::Bad instrument name on line',line_num)
 
             line_num += 1
 
-    if error > 0:
-            print(str(error) + " errors in instruction file")
-            f.close() #close instruction file
-            sys.exit()
-    else:
-            print("Good instruction file")
-            f.close() #close instruction file
-            return first_line
+    f.close()
+    return first_line
 
 ##########################################################
 ## Check Ports ###########################################
@@ -470,14 +475,11 @@ def check_ports():
     cycle_variables = method.get('variable reagents', fallback = None )         # Get list of port names in recipe that change every cycle
     cycle_reagents = config['cycles'].items()                                   # Get variable reagents that change with each cycle
 
-    error = 0
     port_dict = {}
 
     # Make sure there are no duplicated names in the valve
     if len(valve.values()) != len(set(valve.values())):
-        print('Port names are not unique in configuration file.' +
-              ' Rename or remove duplications.')
-        error += 1
+        error('ConfigFile: Port names are not unique')
 
     if len(valve) > 0:
         # Create port dictionary
@@ -490,8 +492,7 @@ def check_ports():
             for variable in cycle_variables:
                 variable = variable.replace(' ','')
                 if variable in port_dict:
-                    print('Variable ' + variable + ' can not be a reagent!')
-                    error = error+1
+                    error('ConfigFile::Variable', variable, 'can not be a reagent')
                 else:
                     port_dict[variable] = {}
 
@@ -503,21 +504,15 @@ def check_ports():
                     if variable in port_dict:
                         port_dict[variable][int(cyc_number)] = reagent
                     else:
-                        warnings.warn(variable +
-                              ' not listed as variable reagent in config')
-                        error += 1
+                        error('ConfigFile::', variable, 'not listed as variable reagent')
                 else:
-                    warnings.warn('Cycle reagent: ' + reagent +
-                          ' does not exist on valve')
-                    error += 1
+                    error('ConfigFiles::Cycle reagent:', reagent, 'does not exist on valve')
 
             # Check number of reagents in variable reagents matches number of total cycles
             for variable in cycle_variables:
                 variable = variable.replace(' ','')
                 if len(port_dict[variable]) != total_cycles:
-                    warnings.warn('Number of ' + variable +
-                          ' reagents does not match experiment cycles')
-                    error += 1
+                    error('ConfigFile::Number of', variable, 'reagents does not match experiment cycles')
 
         else:
             response = True
@@ -527,17 +522,12 @@ def check_ports():
                 if response == 'Y':
                     response = False
                 elif response == 'N':
-                    sys.exit()
+                    error('ConfigFile::No variable ports listed')
 
     else:
-        warnings.warn('No ports are specified')
+        print('WARNING::No ports are specified')
 
-    if error > 0:
-        warnings.warn(str(error) + ' errors in configuration file')
-        sys.exit()
-    else:
-        print('Ports checked without errors')
-        return port_dict
+    return port_dict
 
 
 
@@ -571,16 +561,11 @@ def check_filters(cycle_dict, ex_dict):
                 if cycle not in cycle_dict[laser]:
                     cycle_dict[laser][cycle] = filter
                 else:
-                    warnings.warn('Experiment config error in filter section. '+
-                    'Duplicated cycle for ' + laser + ' laser')
-                    sys.exit()
+                    errors('ConfigFile::Duplicated cycle for', laser, 'laser')
             else:
-                warnings.warn('Experiment config error in filter section. ' +
-                'Invalid filter for ' + laser + ' laser')
-                sys.exit()
+                errors('ConfigFile::Invalid filter for', laser, 'laser')
         else:
-            warnings.warn('Experiment config error: invalid laser')
-            sys.exit()
+            errors('ConfigFile:Invalid laser')
 
     # Add default/home to cycles with out filters specified
     method = config.get('experiment', 'method')
@@ -614,8 +599,8 @@ def do_flush():
     hs.z.move([0,0,0])
     hs.move_stage_out()
     if flush_YorN == 'Y':
-        print("Lock temporary flowcell(s) on to stage")
-        print("Place all valve input lines in PBS/water")
+        hs.message(True, "Lock temporary flowcell(s) on to stage")
+        hs.message(True, "Place all valve input lines in PBS/water")
         input("Press enter to continue...")
         #Flush all lines
         for fc in flowcells.keys():
@@ -623,15 +608,15 @@ def do_flush():
             speed = flowcells[fc].pump_speed['flush']
             for port in hs.v24[fc].port_dict.keys():
                 if isinstance(port_dict[port], int):
-                    print('Priming ' + str(port))
+                    hs.message(True, 'Priming ' + str(port))
                     hs.v24[fc].move(port)
                     hs.p[fc].pump(volume, speed)
 
-        print("Replace temporary flowcell with experiment flowcell and lock on to stage")
-        print("Place all valve input lines in correct reagent")
+        hs.message(True, "Replace temporary flowcell with experiment flowcell and lock on to stage")
+        hs.message(True, "Place all valve input lines in correct reagent")
         input("Press enter to continue...")
     else:
-        print("Lock experiment flowcells on to stage")
+        hs.message(True, "Lock experiment flowcells on to stage")
         input("Press enter to continue...")
 
     for fc in flowcells.values():
@@ -1022,7 +1007,7 @@ def WAIT(AorB, event):
 def do_shutdown():
     """Shutdown the HiSeq and flush all reagent lines if prompted."""
 
-    logger.log(21,'Shutting down...')
+    hs.message(True, 'Shutting down...')
     for fc in flowcells.values():
         fc.wait_thread.set()
 
@@ -1031,8 +1016,8 @@ def do_shutdown():
     ##Flush all lines##
     flush_YorN = input("Flush lines? Y/N = ")
     if flush_YorN == 'Y':
-        print("Lock temporary flowcell on  stage")
-        print("Place all valve input lines in PBS/water")
+        hs.message(True, "Lock temporary flowcell on  stage")
+        hs.message(True, "Place all valve input lines in PBS/water")
         input("Press enter to continue...")
 
         for fc in flowcells.keys():
@@ -1046,7 +1031,7 @@ def do_shutdown():
             hs.p[fc].command('OA0R')
             hs.p[fc].command('IR')
     else:
-        print('Retrieve experiment flowcells')
+        hs.message(True, 'Retrieve experiment flowcells')
         input('Press any key to finish shutting down')
 
     for fc in flowcells.values():
@@ -1128,6 +1113,7 @@ def get_config(args):
        - config: The experiment config appended with the method config.
 
     """
+
     # Create config parser
     config = configparser.ConfigParser()
 
@@ -1139,7 +1125,7 @@ def get_config(args):
     if os.path.isfile(args['config']):
          config.read(args['config'])
     else:
-        warnings.warn('Configuration file does not exist')
+        error('ConfigFile::Does not exist')
         sys.exit()
     # Set output path
     config['experiment']['save path'] = args['output']
@@ -1154,7 +1140,7 @@ def get_config(args):
     elif os.path.isfile(method):
             config.read(method)
     else:
-        logger.log(21,'Error reading method configuration')
+        error('ConfigFile::Error reading method configuration')
         sys.exit()
 
     # Get recipe
@@ -1164,8 +1150,7 @@ def get_config(args):
     elif os.path.isfile(recipe_name):
         recipe_path = recipe_name
     else:
-        logger.log(21,'Error reading recipe')
-        sys.exit()
+        error('ConfigFile::Error reading recipe')
 
     config['experiment']['recipe path'] = recipe_path
 
@@ -1176,6 +1161,7 @@ def get_config(args):
 ###################################
 args_ = args.get_arguments()                                                    # Get config path, experiment name, & output path
 if __name__ == 'pyseq.main':
+    n_errors = 0
     config = get_config(args_)                                                  # Get config file
     logger = setup_logger()                                                     # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
@@ -1184,28 +1170,32 @@ if __name__ == 'pyseq.main':
     hs = initialize_hs(args_['virtual'])                                        # Initialize HiSeq, takes a few minutes
     hs = integrate_fc_and_hs(port_dict)                                         # Integrate flowcell info with hs
 
-    do_flush()                                                                  # Flush out lines
+    if n_errors is 0:
 
-    cycles_complete = False
+        do_flush()                                                              # Flush out lines
 
-    while not cycles_complete:
-        stuck = 0
-        complete = 0
+        cycles_complete = False
 
-        for fc in flowcells.values():
-            if not fc.thread.is_alive():                                        # flowcell not busy, do next step in recipe
-                do_recipe(fc, args_['virtual'])
+        while not cycles_complete:
+            stuck = 0
+            complete = 0
 
-            if fc.signal_event:                                                 # check if flowcells are waiting on each other
-                stuck += 1
+            for fc in flowcells.values():
+                if not fc.thread.is_alive():                                    # flowcell not busy, do next step in recipe
+                    do_recipe(fc, args_['virtual'])
 
-            if fc.cycle > fc.total_cycles:                                      # check if all cycles are complete on flowcell
-                complete += 1
+                if fc.signal_event:                                             # check if flowcells are waiting on each other
+                    stuck += 1
 
-        if stuck == len(flowcells):                                             # Start the first flowcell if they are waiting on each other
-            free_fc()
+                if fc.cycle > fc.total_cycles:                                  # check if all cycles are complete on flowcell
+                    complete += 1
 
-        if complete == len(flowcells):                                          # Exit while loop
-            cycles_complete = True
+            if stuck == len(flowcells):                                         # Start the first flowcell if they are waiting on each other
+                free_fc()
 
-    do_shutdown()                                                               # Shutdown HiSeq
+            if complete == len(flowcells):                                      # Exit while loop
+                cycles_complete = True
+
+        do_shutdown()                                                           # Shutdown HiSeq
+    else:
+        error('Total number of errors =', n_errors)

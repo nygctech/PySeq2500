@@ -13,7 +13,7 @@ PUMP:	500		#Pump 500 uL
 HOLD:	10		#Hold for 10 minutes
 PUMP:	500		#Pump 500 uL
 HOLD:	10		#Hold for 10 minutes
-PORT:	blocking	#Move valve to blocking buffer (port 4) 
+PORT:	blocking	#Move valve to blocking buffer (port 4)
 PUMP:	800		#Pump 800 uL
 HOLD:	60		#Hold for 60 min
 PORT:	PBS		#Move valve to PBS wash (port 1)

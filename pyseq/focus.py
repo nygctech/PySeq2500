@@ -12,7 +12,7 @@ from skimage.transform import downscale_local_mean
 import imageio
 import time
 
-def message(logger, screen, *args):
+def message(logger, *args):
     if logger is None:
         print(args)
     else:

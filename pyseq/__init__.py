@@ -71,8 +71,6 @@ import numpy as np
 import imageio
 from scipy.optimize import curve_fit
 from math import ceil
-import warnings
-
 
 
 class HiSeq():
@@ -669,7 +667,7 @@ class HiSeq():
                     self.obj.move(self.obj.position + self.nyquist_obj)
                     self.y.move(y_pos)
                 else:
-                    warnings.warn('Image not taken')
+                    message('WARNING::Image not taken')
                     # Reset stage and FPGA
                     self.reset_stage()
                     self.y.move(y_pos)
@@ -995,7 +993,7 @@ class HiSeq():
             msg = 'HiSeq::'
             for a in args[i:]:
                 msg = msg + str(a) + ' '
-            if i is 0:
+            if i is 1:
                 self.logger.log(21,msg)
             else:
                 self.logger.info(msg)
