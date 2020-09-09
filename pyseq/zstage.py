@@ -126,7 +126,7 @@ class Zstage():
 
         """
         for i in range(3):
-            if position[i] <= self.max_z and position[i] >= self.min_z:
+            if self.min_z <= position[i] <= self.max_z:
                 self.command('T' + self.motors[i] + 'MOVETO ' +
                     str(position[i]))                                           # Move Absolute
             else:

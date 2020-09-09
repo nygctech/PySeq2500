@@ -34,7 +34,7 @@ class Laser():
        - min_power: Minimum power of the laser in mW.
        - color: Color of the laser.
        - version: Version number of the control software.
-       
+
     """
 
 
@@ -136,7 +136,7 @@ class Laser():
         bool: True if the laser is on, False if the laser is off.
         """
 
-        if power >= self.min_power and power <= self.max_power:
+        if self.min_power <= and power <= self.max_power:
                 self.command('POWER='+str(power))
                 self.power = self.get_power()
         else:

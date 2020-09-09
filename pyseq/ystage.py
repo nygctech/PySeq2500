@@ -114,7 +114,7 @@ class Ystage():
            bool: True when stage is in position.
         """
 
-        if position <= self.max_y and position >= self.min_y:
+        if self.min_y <= position <= self.max_y:
             self.command('D' + str(position))                                   # Set distance
             self.command('G')                                                   # Go
             while not self.check_position():                                    # Wait till y stage is in position

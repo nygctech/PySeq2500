@@ -152,7 +152,7 @@ class Xstage():
            Returns:
            int: Absolute step position after move.
         """
-        if position <= self.max_x and position >= self.min_x:
+        if self.min_x <= position <= self.max_x:
             self.command('MA ' + str(position))                                 # Move Absolute
             return self.check_position(position)                                # Check position
         else:
