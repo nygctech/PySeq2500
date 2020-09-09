@@ -390,7 +390,7 @@ def check_instructions():
 
     valid_wait = []
     ports = []
-    for port in config['valve24'].items():
+    for port in config['reagents'].items():
         ports.append(port[1])
     if variable_ports is not None:
         variable_ports = variable_ports.split(',')
@@ -462,7 +462,7 @@ def check_ports():
     total_cycles = int(config.get('experiment', 'cycles'))
 
     # Get cycle and port information from configuration file
-    valve = config['valve24']                                                   # Get dictionary of port number of valve : name of reagent
+    valve = config['reagants']                                                   # Get dictionary of port number of valve : name of reagent
     cycle_variables = method.get('variable reagents', fallback = None )         # Get list of port names in recipe that change every cycle
     cycle_reagents = config['cycles'].items()                                   # Get variable reagents that change with each cycle
 
