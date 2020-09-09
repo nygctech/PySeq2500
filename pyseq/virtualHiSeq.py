@@ -356,9 +356,9 @@ class Optics():
             self.ex[index] = position
             if position != 'home':
                 position = str(self.ex_dict[color][position])                   # get step position
-        elif position not in self.ex_dict[wheel-1].keys():
-            print(position + ' excitation filter does not exist for ' + color +
-                  ' laser.')
+        elif position not in self.ex_dict[color].keys():
+            print(str(position) + ' excitation filter does not exist for ' +
+                  color + ' laser.')
 
     def move_em_in(self, INorOUT):
         """Move the emission filter in to or out of the light path.
@@ -800,18 +800,19 @@ class HiSeq():
     def message(self, *args):
         """Print output text to logger or console"""
 
-        if self.logger is None:
-            print(str(text))
-        else:
-            i = 0
-            if isinstance(args[0], bool):
-                if args[0]:
-                    i = 1
+        i = 0
+        if isinstance(args[0], bool):
+            if args[0]:
+                i = 1
 
-            msg = 'HiSeq::'
-            for a in args[i:]:
-                msg = msg + str(a) + ' '
-            if i is 0:
+        msg = 'HiSeq::'
+        for a in args[i:]:
+            msg += str(a) + ' '
+
+        if self.logger is None:
+            print(msg)
+        else:
+            if i is 1:
                 self.logger.log(21,msg)
             else:
                 self.logger.info(msg)
@@ -938,6 +939,54 @@ class HiSeq():
         else:
             self.obj.move(self.obj.focus_rough)
             return False
+
+    def optimize_filter(self, pos_dict, init_filter, n_filters):
+        # position stage
+        self.y.move(pos_dict['y_initial'])
+        self.x.move(pos_dict['x_initial'])
+        self.z.move([21500, 21500, 21500])
+        self.obj.move(self.obj.focus_rough)
+
+        #Order of filters to loop through
+        colors = self.optics.colors
+        f_order = [[],[]]
+        for i, color in enumerate(colors):
+            filters = self.optics.ex_dict[color].keys()
+            f_order[i] = [f for f in filters if isinstance(f,float)]
+            f_order[i] = sorted(f_order[i], reverse = True)
+            f_order[i] = f_order[i][init_filter:init_filter+n_filters]
+            f_order[i].append('home')
+
+        print(f_order)
+        # Set optical filters
+        for i, color in enumerate(colors):
+            self.optics.move_ex(color,f_order[i][0])
+
+        # Focus on section
+        self.message(True, 'Starting Autofocus')
+        if self.autofocus(pos_dict):
+            self.message(True, 'Autofocus completed')
+        else:
+            self.message(True, 'Autofocus failed')
+
+        # Loop through filters and image section
+        for f in range(n_filters+1):
+            self.optics.move_ex(colors[0], f_order[0][f])
+            for f in range(n_filters+1):
+                self.optics.move_ex(colors[1], f_order[1][f])
+
+                image_name = colors[0][0].upper()+str(self.optics.ex[0])+'_'
+                image_name += colors[1][0].upper()+str(self.optics.ex[1])
+
+                self.y.move(pos_dict['y_initial'])
+                self.x.move(pos_dict['x_initial'])
+                self.message(colors[0], 'filter set to', self.optics.ex[0])
+                self.message(colors[1], 'filter set to', self.optics.ex[1])
+                self.message(True, 'Starting imaging')
+                img_time = self.scan(pos_dict['n_tiles'],1,
+                                   pos_dict['n_frames'], image_name)
+                img_time /= 60
+                self.message(True, 'Imaging complete in ', img_time, 'min.')
 
     def move_stage_out(self):
         """Move stage out for loading/unloading flowcells."""

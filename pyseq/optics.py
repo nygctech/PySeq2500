@@ -179,9 +179,9 @@ class Optics():
             if position != 'home':
                 position = str(self.ex_dict[color][position])                   # get step position
                 self.command('EX' + str(index+1) + 'MV ' + position)              # Move Filter relative to home
-        elif position not in self.ex_dict[wheel-1].keys():
-            print(position + ' excitation filter does not exist for ' + color +
-                  ' laser.')
+        elif position not in self.ex_dict[color].keys():
+            print(str(position) + ' excitation filter does not exist for ' +
+                  color + ' laser.')
 
 
     def move_em_in(self, INorOUT):
