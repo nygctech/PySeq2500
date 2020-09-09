@@ -403,15 +403,6 @@ def check_instructions():
     f = open(config['experiment']['recipe path'])
     line_num = 1
 
-
-    def message(text, error):
-        try:
-            logger(21,text)
-        except:
-            print(text)
-        error += 1
-        return error
-
     for line in f:
             instrument, command = parse_line(line)
 
@@ -839,6 +830,7 @@ def IMAG(fc, n_Zplanes):
                 logger.log(21, AorB + '::cycle'+cycle+'::Focus Finished ' +
                            str(section))
             else:
+                hs.obj.move(pos['obj_pos'])
                 logger.log(21, AorB + '::cycle'+cycle+'::Focus Failed ' +
                            str(section))
 
