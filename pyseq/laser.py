@@ -136,7 +136,7 @@ class Laser():
         bool: True if the laser is on, False if the laser is off.
         """
 
-        if self.min_power <= and power <= self.max_power:
+        if self.min_power <= power <= self.max_power:
                 self.command('POWER='+str(power))
                 self.power = self.get_power()
         else:
