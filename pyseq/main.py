@@ -542,21 +542,30 @@ def check_filters(cycle_dict, ex_dict):
     for item in cycle_filters:
         # Get laser cycle = filter
         filter = item[1]
-        if filter is not 'home' and filter is not 'open':                       # filters are floats, except for home and open
+
+        if filter not in ['home','open']:                                       # filters are floats, except for home and open
             filter = float(filter)
         laser, cycle = item[0].split()
         cycle = int(cycle)
+        print(laser, cycle)
 
+        # Check if laser is valid, can use partial match ie, g or G for green
         if laser in colors:
+            laser = [laser]
+        else:
+            laser = [colors[i] for i, c in enumerate(colors) if laser.lower() in c[0]]
+
+        if len(laser) > 0:
+            laser = laser[0]
             if filter in ex_dict[laser]:
                 if cycle not in cycle_dict[laser]:
                     cycle_dict[laser][cycle] = filter
                 else:
-                    errors('ConfigFile::Duplicated cycle for', laser, 'laser')
+                    error('ConfigFile::Duplicated cycle for', laser, 'laser')
             else:
-                errors('ConfigFile::Invalid filter for', laser, 'laser')
+                error('ConfigFile::Invalid filter for', laser, 'laser')
         else:
-            errors('ConfigFile:Invalid laser')
+            error('ConfigFile:Invalid laser')
 
     # Add default/home to cycles with out filters specified
     method = config.get('experiment', 'method')
@@ -1145,6 +1154,7 @@ def get_config(args):
         error('ConfigFile::Error reading recipe')
 
     config['experiment']['recipe path'] = recipe_path
+
 
     return config
 
