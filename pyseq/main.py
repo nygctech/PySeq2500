@@ -274,7 +274,7 @@ def setup_logger():
     f_handler.setLevel(logging.INFO)
 
     # Create formatters and add it to handlers
-    c_format = logging.Formatter('%(asctime)s - %(message)s')
+    c_format = logging.Formatter('%(asctime)s - %(message)s', datefmt = '%Y-%m-%d %H:%M')
     f_format = logging.Formatter('%(asctime)s - %(message)s')
     c_handler.setFormatter(c_format)
     f_handler.setFormatter(f_format)
