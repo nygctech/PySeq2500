@@ -13,17 +13,18 @@ import imageio
 import time
 
 def message(logger, *args):
+
+    i = 0
+    if isinstance(args[0], bool):
+        i = 1
+
+    msg = 'Autofocus::'
+    for a in args[i:]:
+        msg += str(a) + ' '
+
     if logger is None:
-        print(args)
+        print(msg)
     else:
-        i = 0
-        if isinstance(args[0], bool):
-            i = 1
-
-        msg = 'Autofocus::'
-        for a in args[i:]:
-            msg = msg + str(a) + ' '
-
         if i is 1:
             logger.log(21, msg)
         else:
