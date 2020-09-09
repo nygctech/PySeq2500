@@ -462,7 +462,7 @@ def check_ports():
     total_cycles = int(config.get('experiment', 'cycles'))
 
     # Get cycle and port information from configuration file
-    valve = config['reagants']                                                   # Get dictionary of port number of valve : name of reagent
+    valve = config['reagents']                                                   # Get dictionary of port number of valve : name of reagent
     cycle_variables = method.get('variable reagents', fallback = None )         # Get list of port names in recipe that change every cycle
     cycle_reagents = config['cycles'].items()                                   # Get variable reagents that change with each cycle
 
