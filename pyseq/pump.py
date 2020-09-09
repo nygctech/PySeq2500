@@ -220,10 +220,18 @@ class Pump():
 
     def uLperMin_to_sps(self, speed):
         """Convert flowrate from uL per min. (float) to steps per second (int).
-        
+
         """
 
         sps = round(speed / self.min_volume / 60)
+
+        if sps < self.min_speed:
+            sps = self.min_speed
+            write_log('Speed is too slow, increased to' + str(sps) + 'steps/s')
+        elif sps > self.max_speed:
+            sps = self.max_speed
+            write_log('Speed is too fast, decreased to' + str(sps) + 'steps/s')
+
         return int(sps)
 
 
