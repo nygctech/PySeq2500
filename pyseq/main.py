@@ -547,7 +547,6 @@ def check_filters(cycle_dict, ex_dict):
             filter = float(filter)
         laser, cycle = item[0].split()
         cycle = int(cycle)
-        print(laser, cycle)
 
         # Check if laser is valid, can use partial match ie, g or G for green
         if laser in colors:
@@ -831,17 +830,13 @@ def IMAG(fc, n_Zplanes):
         hs.obj.move(hs.obj.focus_rough)
 
         # Autofocus
+        msg = AorB + '::cycle' + cycle+ '::' + str(section) + '::'
         if hs.af:
-            logger.log(21, AorB + '::cycle'+cycle+'::Focusing ' + str(section))
-            opt_obj_pos = focus.autofocus(hs, pos)
-            if opt_obj_pos:
-                hs.obj.move(opt_obj_pos)
-                logger.log(21, AorB + '::cycle'+cycle+'::Focus Finished ' +
-                           str(section))
+            logger.log(21, msg + 'Start Autofocus')
+            if hs.autofocus(pos):
+                logger.log(21, msg + 'Autofocus complete')
             else:
-                hs.obj.move(hs.obj.focus_rough)
-                logger.log(21, AorB + '::cycle'+cycle+'::Focus Failed ' +
-                           str(section))
+                logger.log(21, msg + 'Autofocus failed')
 
         # Calculate objective positions to image
         if n_Zplanes > 1:
@@ -857,12 +852,11 @@ def IMAG(fc, n_Zplanes):
         hs.y.move(pos['y_initial'])
         hs.x.move(pos['x_initial'])
         hs.obj.move(obj_start)
-        logger.log(21, AorB + '::cycle'+cycle+'::Imaging ' + str(section))
+        logger.log(21, msg + 'Start Imaging')
 
         scan_time = hs.scan(pos['n_tiles'], n_Zplanes, pos['n_frames'], image_name)
         scan_time = str(int(scan_time/60))
-        logger.log(21, AorB+'::cycle'+cycle+'::Took ' + scan_time +
-                       ' minutes ' + 'imaging ' + str(section))
+        logger.log(21, msg + 'Imaging completed in ' + scan_time + ' minutes')
 
     # Reset filters
     for color in hs.optics.cycle_dict.keys():
@@ -1088,10 +1082,9 @@ def integrate_fc_and_hs(port_dict):
         AorB = fc.position
         hs.v24[AorB].port_dict = port_dict                                      # Assign ports on HiSeq
         if variable_ports is not None:
-            variable_ports = variable_ports.split(',')
-            for variable in variable_ports:                                     # Assign variable ports
-                variable = variable.replace(' ','')
-                hs.v24[AorB].variable_ports.append(variable)
+            v_ports = variable_ports.split(',')
+            for v in v_ports:                                                   # Assign variable ports
+                hs.v24[AorB].variable_ports.append(v.strip())
         hs.p[AorB].n_barrels = n_barrels                                        # Assign barrels per lane to pump
         for section in fc.sections:                                             # Convert coordinate sections on flowcell to stage info
             pos = hs.position(AorB, fc.sections[section])

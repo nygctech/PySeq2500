@@ -61,6 +61,7 @@ from . import valve
 from . import xstage
 from . import ystage
 from . import zstage
+from . import focus
 
 import time
 from os.path import getsize
@@ -560,6 +561,16 @@ class HiSeq():
         self.x.move(self.x.home)
         self.y.move(self.y.min_y)
 
+    def autofocus(self, pos_dict):
+        """Find optimal objective position for imaging, True if found."""
+
+        opt_obj_pos = focus.autofocus(self, pos_dict)
+        if opt_obj_pos:
+            self.obj.move(opt_obj_pos)
+            return True
+        else:
+            self.obj.move(self.obj.focus_rough)
+            return False
 
     def autolevel(self, focal_points, obj_focus):
         """Tilt the stage motors so the focal points are on a level plane.

@@ -551,10 +551,12 @@ class Camera():
     def getFrameInterval(self):
         return self.frame_interval
 
+from . import focus
 from os import getcwd
 from math import ceil
 import time
 import warnings
+
 class HiSeq():
     def __init__(self, Logger = None):
         self.x = Xstage()
@@ -926,6 +928,16 @@ class HiSeq():
 
         return stop - start
 
+    def autofocus(self, pos_dict):
+        """Find optimal objective position for imaging, True if found."""
+
+        opt_obj_pos = focus.autofocus(self, pos_dict)
+        if opt_obj_pos:
+            self.obj.move(opt_obj_pos)
+            return True
+        else:
+            self.obj.move(self.obj.focus_rough)
+            return False
 
     def move_stage_out(self):
         """Move stage out for loading/unloading flowcells."""
