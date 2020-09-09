@@ -828,7 +828,7 @@ def IMAG(fc, n_Zplanes):
         hs.y.move(pos['y_initial'])
         hs.x.move(pos['x_initial'])
         hs.z.move(pos['z_pos'])
-        hs.obj.move(pos['obj_pos'])
+        hs.obj.move(hs.obj.focus_rough)
 
         # Autofocus
         if hs.af:
@@ -839,7 +839,7 @@ def IMAG(fc, n_Zplanes):
                 logger.log(21, AorB + '::cycle'+cycle+'::Focus Finished ' +
                            str(section))
             else:
-                hs.obj.move(pos['obj_pos'])
+                hs.obj.move(hs.obj.focus_rough)
                 logger.log(21, AorB + '::cycle'+cycle+'::Focus Failed ' +
                            str(section))
 
@@ -1082,8 +1082,6 @@ def integrate_fc_and_hs(port_dict):
     method = config[method]
     variable_ports = method.get('variable reagents', fallback = None)
     z_pos = int(method.get('z position', fallback = 21500))
-    obj_pos = int(method.get('obj position', fallback = 30000))
-
     n_barrels = int(method.get('barrels per lane', 8))                          # Get method specific pump barrels per lane, fallback to 8
 
     for fc in flowcells.values():
@@ -1099,7 +1097,6 @@ def integrate_fc_and_hs(port_dict):
             pos = hs.position(AorB, fc.sections[section])
             fc.stage[section] = pos
             fc.stage[section]['z_pos'] = [z_pos, z_pos, z_pos]
-            fc.stage[section]['obj_pos'] = obj_pos
 
     return hs
 
