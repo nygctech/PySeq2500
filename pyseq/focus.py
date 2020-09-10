@@ -16,7 +16,8 @@ def message(logger, *args):
 
     i = 0
     if isinstance(args[0], bool):
-        i = 1
+        if args[0]:
+            i = 1
 
     msg = 'Autofocus::'
     for a in args[i:]:

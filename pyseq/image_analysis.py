@@ -12,14 +12,14 @@ from skimage.util import img_as_ubyte
 import imageio
 
 def message(logger, *args):
+    msg = 'ImageAnalysis::'
+    for a in args:
+        msg += str(a) + ' '
+
     if logger is None:
-        print(args)
+        print(msg)
     else:
-        msg = ''
-        for a in args:
-            msg += str(a)
-            msg += ' '
-        logger.info('ImageAnalysis::'+msg)
+        logger.info(msg)
 
 
 def get_image_df(image_path, image_name = None):
