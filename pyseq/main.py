@@ -134,17 +134,16 @@ class Flowcell():
             self.recipe.close()
         self.recipe = open(self.recipe_path)
         self.cycle += 1
+        msg = 'PySeq::'+self.position+'::'
         if self.cycle > self.total_cycles:
-            end_message = str(self.position + '::Completed ' +
-                              str(self.total_cycles) + ' cycles')
+            end_message = msg+'Completed '+ str(self.total_cycles) + ' cycles'
             self.thread = threading.Thread(target = hs.message,
-                                           args = (True, end_message,))
+                                           args = (end_message,))
             thread_id = self.thread.start()
         else:
-            restart_message = str('Starting cycle ' + str(self.cycle) +
-                                  ' on flowcell ' + self.position)
+            restart_message = msg+'Starting cycle '+str(self.cycle)
             self.thread = threading.Thread(target = hs.message,
-                                           args = (True, restart_message,))
+                                           args = (restart_message,))
             thread_id = self.thread.start()
 
         return self.cycle
@@ -153,7 +152,8 @@ class Flowcell():
     def endHOLD(self):
         """Ends hold for incubations in buffer, returns False."""
 
-        hs.message(True, self.position,'::cycle',self.cycle,'::Hold stopped')
+        msg = 'PySeq::'+self.position+'::cycle'+str(self.cycle)+'::Hold stopped'
+        hs.message(msg)
 
         return False
 
@@ -597,8 +597,8 @@ def do_flush():
     hs.z.move([0,0,0])
     hs.move_stage_out()
     if flush_YorN == 'Y':
-        hs.message(True, "Lock temporary flowcell(s) on to stage")
-        hs.message(True, "Place all valve input lines in PBS/water")
+        hs.message('Lock temporary flowcell(s) on to stage')
+        hs.message('Place all valve input lines in PBS/water')
         input("Press enter to continue...")
         #Flush all lines
         for fc in flowcells.keys():
@@ -606,15 +606,15 @@ def do_flush():
             speed = flowcells[fc].pump_speed['flush']
             for port in hs.v24[fc].port_dict.keys():
                 if isinstance(port_dict[port], int):
-                    hs.message(True, 'Priming ' + str(port))
+                    hs.message('Priming ' + str(port))
                     hs.v24[fc].move(port)
                     hs.p[fc].pump(volume, speed)
 
-        hs.message(True, "Replace temporary flowcell with experiment flowcell and lock on to stage")
-        hs.message(True, "Place all valve input lines in correct reagent")
+        hs.message('Replace temporary flowcell with experiment flowcell and lock on to stage')
+        hs.message('Place all valve input lines in correct reagent')
         input("Press enter to continue...")
     else:
-        hs.message(True, "Lock experiment flowcells on to stage")
+        hs.message('Lock experiment flowcells on to stage')
         input("Press enter to continue...")
 
     for fc in flowcells.values():
@@ -675,7 +675,6 @@ def do_recipe(fc, virtual):
         # Incubate flowcell in reagent for set time
         elif instrument == 'HOLD':
             holdTime = float(command)*60
-            print(fc.position, ' is holding')
             log_message = 'Flowcell holding for ' + str(command) + ' min.'
             if not virtual:
                 fc.thread = threading.Timer(holdTime, fc.endHOLD)
@@ -700,9 +699,9 @@ def do_recipe(fc, virtual):
 
         # Block all further processes until user input
         elif instrument == 'STOP':
-            hs.message(True,'Paused')
+            hs.message('PySeq::Paused')
             input("press enter to continue...")
-            hs.message(True,'Continuing...')
+            hs.message('PySeq::Continuing...')
 
 
         #Signal to other flowcell that current flowcell reached signal event
@@ -713,7 +712,7 @@ def do_recipe(fc, virtual):
         # Start new action on current flowcell
         if fc.thread is not None and fc.cycle <= fc.total_cycles:
             fc.addEvent(instrument, command)
-            hs.message(True, AorB,'::cycle',fc.cycle,'::',log_message)
+            hs.message('PySeq::'+AorB+'::cycle'+str(fc.cycle)+'::'+log_message)
             thread_id = fc.thread.start()
         elif fc.thread is not None and fc.cycle > fc.total_cycles:
             fc.thread =  threading.Thread(target = time.sleep, args = (10,))
@@ -831,13 +830,13 @@ def IMAG(fc, n_Zplanes):
         hs.obj.move(hs.obj.focus_rough)
 
         # Autofocus
-        msg = AorB + '::cycle' + cycle+ '::' + str(section) + '::'
+        msg = 'PySeq::' + AorB + '::cycle' + cycle+ '::' + str(section) + '::'
         if hs.af:
-            hs.message(True, msg + 'Start Autofocus')
+            hs.message(msg + 'Start Autofocus')
             if hs.autofocus(pos):
-                hs.message(True, msg + 'Autofocus complete')
+                hs.message(msg + 'Autofocus complete')
             else:
-                hs.message(True, msg + 'Autofocus failed')
+                hs.message(msg + 'Autofocus failed')
 
         # Calculate objective positions to image
         if n_Zplanes > 1:
@@ -853,11 +852,11 @@ def IMAG(fc, n_Zplanes):
         hs.y.move(pos['y_initial'])
         hs.x.move(pos['x_initial'])
         hs.obj.move(obj_start)
-        hs.message(True, msg + 'Start Imaging')
+        hs.message(msg + 'Start Imaging')
 
         scan_time = hs.scan(pos['n_tiles'], n_Zplanes, pos['n_frames'], image_name)
         scan_time = str(int(scan_time/60))
-        hs.message(True, msg, 'Imaging completed in', scan_time, 'minutes')
+        hs.message(msg + 'Imaging completed in', scan_time, 'minutes')
 
     # Reset filters
     for color in hs.optics.cycle_dict.keys():
@@ -900,7 +899,7 @@ def IMAG_old(fc, n_Zplanes):
 
         # Find/Move to focal z stage position
         if fc.stage[section]['z pos'] is None:
-            hs.message(True, AorB+'::Finding rough focus of ' + str(section))
+            hs.message(AorB+'::Finding rough focus of ' + str(section))
 
             hs.y.move(y_center)
             hs.x.move(x_center)
@@ -916,7 +915,7 @@ def IMAG_old(fc, n_Zplanes):
                 hs.z.move(z_position)
 
         # Find Fine Focue with objective
-        logger.log(21, AorB+'::Finding fine focus of ' + str(section))
+        hs.message(21, AorB+'::Finding fine focus of ' + str(section))
 
         hs.y.move(y_center)
         hs.x.move(x_center)
@@ -990,10 +989,9 @@ def WAIT(AorB, event):
     start = time.time()
     flowcells[signaling_fc].signal_event = event                                # Set the signal event in the signal flowcell
     flowcells[signaling_fc].wait_thread.wait()                                  # Block until signal event in signal flowcell
-    hs.message(True, AorB+ '::cycle'+cycle+'::Flowcell ready to continue')
+    hs.message('PySeq::'+AorB+'::cycle'+cycle+'::Flowcell ready to continue')
     flowcells[signaling_fc].wait_thread.clear()                                 # Reset wait event
     stop = time.time()
-
     return stop-start
 
 ##########################################################
@@ -1002,7 +1000,7 @@ def WAIT(AorB, event):
 def do_shutdown():
     """Shutdown the HiSeq and flush all reagent lines if prompted."""
 
-    hs.message(True, 'Shutting down...')
+    hs.message('Shutting down...')
     for fc in flowcells.values():
         fc.wait_thread.set()
 
@@ -1011,9 +1009,9 @@ def do_shutdown():
     ##Flush all lines##
     flush_YorN = input("Flush lines? Y/N = ")
     if flush_YorN == 'Y':
-        hs.message(True, "Lock temporary flowcell on  stage")
-        hs.message(True, "Place all valve input lines in PBS/water")
-        input("Press enter to continue...")
+        hs.message('Lock temporary flowcell on  stage')
+        hs.message('Place all valve input lines in PBS/water')
+        input('Press enter to continue...')
 
         for fc in flowcells.keys():
             volume = flowcells[fc].flush_volume
@@ -1026,7 +1024,7 @@ def do_shutdown():
             hs.p[fc].command('OA0R')
             hs.p[fc].command('IR')
     else:
-        hs.message(True, 'Retrieve experiment flowcells')
+        hs.message('Retrieve experiment flowcells')
         input('Press any key to finish shutting down')
 
     for fc in flowcells.values():
@@ -1062,8 +1060,8 @@ def free_fc():
         flowcells[fc.waits_for].wait_thread.set()
         flowcells[fc.waits_for].signal_event = None
 
-    hs.message(True, 'Flowcells are waiting on each other,' +
-                   ' starting flowcell ' + fc.position)
+    hs.message('PySeq::Flowcells are waiting on each other starting flowcell',
+                fc.position)
 
     return fc.position
 

@@ -592,6 +592,8 @@ class HiSeq():
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
 
+        self.message('HiSeq:: Initializing cameras',)
+
         self.cam1 = Camera(0)
         self.cam2 = Camera(1)
 
@@ -602,13 +604,11 @@ class HiSeq():
         self.cam2.right_emission = 740
 
         # Initialize camera 1
-        self.message(True, 'Initializing camera 1',)
         self.cam1.setTDI()
         self.cam1.captureSetup()
         self.cam1.get_status()
 
         # Initialize Camera 2
-        self.message(True, 'Initializing camera 2')
         self.cam2.setTDI()
         self.cam2.captureSetup()
         self.cam2.get_status()
@@ -621,33 +621,34 @@ class HiSeq():
 
     def initializeInstruments(self):
         """Initialize x,y,z, & obj stages, pumps, valves, optics, and FPGA."""
+        msg = 'HiSeq::'
 
         #Initialize X Stage before Y Stage!
-        self.message('Initializing X & Y stages')
+        self.message(msg+'Initializing X & Y stages')
         #self.x.initialize()
         #TODO, make sure x stage is in correct place.
         self.x.move(30000)
         self.y.move(0)
-        self.message(True, 'Initializing lasers')
+        self.message(msg+'Initializing lasers')
         self.lasers['green'].initialize()
         self.lasers['red'].initialize()
-        self.message(True, 'Initializing pumps and valves')
+        self.message(msg+'Initializing pumps and valves')
         self.v10['A'].initialize()
         self.v10['B'].initialize()
         self.v24['A'].initialize()
         self.v24['B'].initialize()
-        self.message(True, 'Initializing FPGA')
+        self.message(msg+'Initializing FPGA')
 
 
         # Initialize Z, objective stage, and optics after FPGA
-        self.message(True, 'Initializing optics and Z stages')
+        self.message(msg+'Initializing optics and Z stages')
         self.z.move([0,0,0])
         self.obj.move(30000)
         self.obj.set_velocity(5)
         self.optics.initialize()
         self.f.write_position(0)
 
-        self.message(True, 'HiSeq initialized!')
+        self.message(msg+'HiSeq initialized!')
 
 
     def take_picture(self, n_frames, image_name = None):
@@ -671,6 +672,8 @@ class HiSeq():
 
         """
 
+        msg = 'HiSeq::TakePicture::'
+
         y = self.y
         x = self.x
         obj = self.obj
@@ -686,8 +689,10 @@ class HiSeq():
         #Make sure TDI is synced with Ystage
         y_pos = y.position
         if abs(y_pos - f.read_position()) > 10:
-            self.message(True, 'Attempting to sync TDI and stage')
+            self.message(msg, 'Attempting to sync TDI and stage')
             f.write_position(y.position)
+        else:
+            self.message(False, msg+'TDI synced with stage')
 
         #TO DO, double check gains and velocity are set
         #Set gains and velocity of image scanning for ystage
@@ -800,17 +805,19 @@ class HiSeq():
 
         i = 0
         if isinstance(args[0], bool):
-            if args[0]:
-                i = 1
+            screen = args[0]
+            i = 1
+        else:
+            screen = True
 
-        msg = 'HiSeq::'
+        msg = ''
         for a in args[i:]:
             msg += str(a) + ' '
 
         if self.logger is None:
             print(msg)
         else:
-            if i is 1:
+            if screen:
                 self.logger.log(21,msg)
             else:
                 self.logger.info(msg)
@@ -919,7 +926,7 @@ class HiSeq():
         start = time.time()
 
         for tile in range(n_tiles):
-            self.message(True, 'Tile', tile+1, 'of', n_tiles)
+            self.message('HiSeq::Scan::Tile'+str(tile+1)+'/'str(n_tiles))
             im_name = image_name + '_x' + str(self.x.position)
             stack_time = self.zstack(n_Zplanes, n_frames, im_name)           # Take a zstack
             self.x.move(self.x.position + 315)                                  # Move to next x position
@@ -956,6 +963,8 @@ class HiSeq():
 
         """
 
+        msg = 'HiSeq::OptimizeFilter::'
+
         # position stage
         self.y.move(pos_dict['y_initial'])
         self.x.move(pos_dict['x_initial'])
@@ -977,11 +986,11 @@ class HiSeq():
             self.optics.move_ex(color,f_order[i][0])
 
         # Focus on section
-        self.message(True, 'Starting Autofocus')
+        self.message(msg, 'Starting Autofocus')
         if self.autofocus(pos_dict):
-            self.message(True, 'Autofocus completed')
+            self.message(msg, 'Autofocus completed')
         else:
-            self.message(True, 'Autofocus failed')
+            self.message(msg, 'Autofocus failed')
 
         # Loop through filters and image section
         for f in range(n_filters+1):
@@ -994,13 +1003,13 @@ class HiSeq():
 
                 self.y.move(pos_dict['y_initial'])
                 self.x.move(pos_dict['x_initial'])
-                self.message(colors[0], 'filter set to', self.optics.ex[0])
-                self.message(colors[1], 'filter set to', self.optics.ex[1])
-                self.message(True, 'Starting imaging')
+                self.message(msg, colors[0], 'filter set to', self.optics.ex[0])
+                self.message(msg, colors[1], 'filter set to', self.optics.ex[1])
+                self.message(msg, 'Starting imaging')
                 img_time = self.scan(pos_dict['n_tiles'],1,
                                    pos_dict['n_frames'], image_name)
                 img_time /= 60
-                self.message(True, 'Imaging complete in ', img_time, 'min.')
+                self.message(msg, 'Imaging complete in ', img_time, 'min.')
 
     def move_stage_out(self):
         """Move stage out for loading/unloading flowcells."""

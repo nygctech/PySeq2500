@@ -159,7 +159,7 @@ class HiSeq():
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
 
-        self.message(True, 'Initializing cameras')
+        self.message('HiSeq::Initializing cameras')
         from . import dcam
 
         self.cam1 = dcam.HamamatsuCamera(0, logger = Logger)
@@ -204,40 +204,40 @@ class HiSeq():
 
     def initializeInstruments(self):
         """Initialize x,y,z, & obj stages, pumps, valves, optics, and FPGA."""
-
+        msg = 'HiSeq::'
         #Initialize X Stage before Y Stage!
-        self.message(True, 'Initializing X & Y stages')
+        self.message(msg+'Initializing X & Y stages')
         #self.x.initialize()
         #TODO, make sure x stage is in correct place.
         self.x.initialize() # Do it twice to make sure its centered!
         self.y.initialize()
-        self.message(True, 'Initializing lasers')
+        self.message(msg+'Initializing lasers')
         self.lasers['green'].initialize()
         self.lasers['red'].initialize()
-        self.message(True, 'Initializing pumps and valves')
+        self.message(msg+'Initializing pumps and valves')
 ##        self.p['A'].initialize()
 ##        self.p['B'].initialize()
 ##        self.v10['A'].initialize()
 ##        self.v10['B'].initialize()
 ##        self.v24['A'].initialize()
 ##        self.v24['B'].initialize()
-        self.message(True, 'Initializing FPGA')
+        self.message(msg+'Initializing FPGA')
         self.f.initialize()
 
         # Initialize Z, objective stage, and optics after FPGA
-        self.message(True, 'Initializing optics and Z stages')
+        self.message(msg+'Initializing optics and Z stages')
         self.z.initialize()
         self.obj.initialize()
         self.optics.initialize()
 
         #Sync TDI encoder with YStage
-        self.message(True, 'Syncing Y stage')
+        self.message(msg+'Syncing Y stage')
         while not self.y.check_position():
             time.sleep(1)
         self.y.position = self.y.read_position()
         self.f.write_position(0)
 
-        self.message(True, 'Initialized!')
+        self.message(msg+'Initialized!')
 
 
     def write_metadata(self, n_frames, image_name):
@@ -306,14 +306,14 @@ class HiSeq():
         if image_name is None:
             image_name = time.strftime('%Y%m%d_%H%M%S')
 
-
+        msg = 'HiSeq::TakePicture::'
         #Make sure TDI is synced with Ystage
         y_pos = y.position
         if abs(y_pos - f.read_position()) > 10:
-            self.message(True, 'Attempting to sync TDI and stage')
+            self.message(msg+'Attempting to sync TDI and stage')
             f.write_position(y.position)
         else:
-            self.message('TDI and stage are synced')
+            self.message(False, msg+'TDI and stage are synced')
 
         #TO DO, double check gains and velocity are set
         #Set gains and velocity of image scanning for ystage
@@ -385,16 +385,16 @@ class HiSeq():
 
         # Check if all frames were taken from camera 1 then save images
         if cam1.getFrameCount() != n_frames:
-            self.message('Cam1 frames = ', cam1.getFrameCount())
-            self.message(True, 'Cam1 image not taken')
+            self.message(False, msg, 'Cam1 frames = ', cam1.getFrameCount())
+            self.message(True, msg, 'Cam1 image not taken')
             image_complete = False
         else:
             cam1.saveImage(image_name, self.image_path)
             image_complete = True
         # Check if all frames were taken from camera 2 then save images
         if cam2.getFrameCount() != n_frames:
-            self.message('Cam2 frames = ', cam2.getFrameCount())
-            self.message(True, 'Cam2 image not taken')
+            self.message(False, msg, 'Cam2 frames = ', cam2.getFrameCount())
+            self.message(True, msg,  'Cam2 image not taken')
             image_complete += False
         else:
             cam2.saveImage(image_name, self.image_path)
@@ -437,6 +437,7 @@ class HiSeq():
                     summed over all channels
 
         """
+        msg = 'HiSeq::ObjectiveStack::'
 
         f = self.f
         obj = self.obj
@@ -499,7 +500,7 @@ class HiSeq():
         while obj.check_position() != obj.focus_stop:
            now = time.time()
            if now - start_time > 10:
-               self.message(True, 'Objective took too long to move.')
+               self.message(msg,'Objective took too long to move.')
                break
 
         # Wait for imaging
@@ -507,7 +508,7 @@ class HiSeq():
         while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
            now = time.time()
            if now - start_time > 10:
-               self.message(True, 'Imaging took too long.')
+               self.message(msg, 'Imaging took too long.')
                break
 
         # Close laser shutters
@@ -519,16 +520,16 @@ class HiSeq():
 
         # Check if received correct number of frames
         if cam1.getFrameCount() != n_frames:
-            self.message(True, 'Cam1::Images not taken')
-            self.message('Cam1::',cam1.getFrameCount(),'of',n_frames)
+            self.message(True, msg,'Cam1::Images not taken')
+            self.message(False,msg,'Cam1::',cam1.getFrameCount(),'of',n_frames)
             image_complete = False
         else:
             cam1_filesize = cam1.saveFocus(self.image_path)
             image_complete = True
         # Check if all frames were taken from camera 2 then save images
         if cam2.getFrameCount() != n_frames:
-            self.message(True, 'Cam2::Images not taken')
-            self.message('Cam2::',cam2.getFrameCount(),'of',n_frames)
+            self.message(True, msg, 'Cam2::Images not taken')
+            self.message(False,msg,'Cam2::',cam2.getFrameCount(),'of',n_frames)
             image_complete = False
         else:
             cam2_filesize = cam2.saveFocus(self.image_path)
@@ -549,7 +550,7 @@ class HiSeq():
     def reset_stage(self):
         """Home ystage and sync with TDI through the FPGA."""
 
-        self.message('Resetting FPGA and syncing with stage')
+        self.message('HiSeq::Resetting FPGA and syncing with stage')
         self.y.move(self.y.home)
         self.f.initialize()
         self.f.write_position(self.y.home)
@@ -558,6 +559,7 @@ class HiSeq():
     def move_stage_out(self):
         """Move stage out for loading/unloading flowcells."""
 
+        self.message('HiSeq::Moving stage out')
         self.z.move([0,0,0])
         self.x.move(self.x.home)
         self.y.move(self.y.min_y)
@@ -568,11 +570,11 @@ class HiSeq():
         opt_obj_pos = focus.autofocus(self, pos_dict)
         if opt_obj_pos:
             self.obj.move(opt_obj_pos)
-            self.message('Autofocus complete')
+            self.message('HiSeq::Autofocus complete')
             return True
         else:
             self.obj.move(self.obj.focus_rough)
-            self.message('Autofocus failed')
+            self.message('HiSeq::Autofocus failed')
             return False
 
     def autolevel(self, focal_points, obj_focus):
@@ -683,7 +685,7 @@ class HiSeq():
                     self.obj.move(self.obj.position + self.nyquist_obj)
                     self.y.move(y_pos)
                 else:
-                    self.message('WARNING::Image not taken')
+                    self.message('HiSeq::ZStack::WARNING::Image not taken')
                     # Reset stage and FPGA
                     self.reset_stage()
                     self.y.move(y_pos)
@@ -717,6 +719,7 @@ class HiSeq():
         start = time.time()
 
         for tile in range(n_tiles):
+            self.message('HiSeq::Scan::Tile'+str(tile+1)+'/'str(n_tiles))
             im_name = image_name + '_x' + str(self.x.position)
             stack_time = self.zstack(n_Zplanes, n_frames, im_name)           # Take a zstack
             self.x.move(self.x.position + 315)                                  # Move to next x position
@@ -924,11 +927,11 @@ class HiSeq():
             self.optics.move_ex(color,f_order[0][0])
 
         # Focus on section
-        self.message(True, 'Starting Autofocus')
+        self.message('HiSeq::OptimizeFilter::Starting Autofocus')
         if self.autofocus(pos_dict):
-            self.message(True, 'Autofocus completed')
+            self.message('HiSeq::OptimizeFilter::Autofocus completed')
         else:
-            self.message(True, 'Autofocus failed')
+            self.message('HiSeq::OptimizeFilter::Autofocus failed')
 
         # Loop through filters and image section
         for f in range(n_filters+1):
@@ -941,15 +944,14 @@ class HiSeq():
 
                 self.y.move(pos_dict['y_initial'])
                 self.x.move(pos_dict['x_initial'])
-                msg = ['Excitation filters =']
-                msg.append(colors[0], self.optics.ex[0])
-                msg.append(colors[1],self.optics.ex[1])
-                self.message(True, *msg)
-                self.message(True, 'Starting imaging')
+                msg = 'HiSeq::OptimizeFilter::Excitation filter'
+                self.message(msg, colors[0], self.optics.ex[0])
+                self.message(msg, colors[1], self.optics.ex[1])
+                self.message(msg, 'Starting imaging')
                 img_time = self.scan(pos_dict['n_tiles'],1,
                                    pos_dict['n_frames'], image_name)
                 img_time /= 60
-                self.message(True, 'Imaging complete in ', img_time, 'min.')
+                self.message(msg, 'Imaging complete in ', img_time, 'min.')
 
 
 
@@ -1069,24 +1071,26 @@ class HiSeq():
         """Print output text to logger or console.
 
            If there is no logger, text is printed to the console.
-           If a logger is assigned, and the first argument is true, text is
-           printed to the console, otherwise text is printed to the log file.
+           If a logger is assigned, and the first argument is False, text is
+           printed only the log, otherwise text is printed to the log & console.
 
         """
 
         i = 0
         if isinstance(args[0], bool):
-            if args[0]:
-                i = 1
+            screen = args[0]
+            i = 1
+        else:
+            screen = True
 
-        msg = 'HiSeq::'
+        msg = ''
         for a in args[i:]:
             msg = msg + str(a) + ' '
 
         if self.logger is None:
             print(msg)
         else:
-            if i is 1:
+            if screen:
                 self.logger.log(21,msg)
             else:
                 self.logger.info(msg)
