@@ -176,18 +176,20 @@ def normalize(im, scale_factor):
 
 def sum_images(images, logger = None):
     """Sum pixel values over channel images.
+
        The image with the largest signal to noise ratio is used as the
        reference. Images without significant positive kurtosis, ie pixels that
        deviate from mean value (assumed as background) are discarded. The
        remaining image histograms are matched to the reference. Finally, the
-       images are summed together.
+       images are summed together. The summed image is returned or if there is
+       no signal in all channels, False is returned.
 
        Parameters:
        - images (list): List of images to sum.
        - logger (logger): Logger object to record process.
 
        Return:
-       - array: Numpy array of summed image.
+       - array: Numpy array of summed image or False if no signal
 
     """
 

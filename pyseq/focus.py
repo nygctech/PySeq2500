@@ -162,12 +162,12 @@ def autofocus(hs, pos_dict):
         # Get stage positions on in-focus points
         focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
 
-        if focus_points:
+        if focus_points.any():
             opt_obj_pos = int(np.median(focus_points[:,2]))
         else:
-            message(log, True, 'Failed::Could not find focus')
+            message(log, True, 'FAILED::Could not find focus')
     else:
-        message(log, True, 'Failed::No signal in channels')
+        message(log, True, 'FAILED::No signal in channels')
 
     for f in files:
         remove(path.join(hs.image_path, f))
@@ -489,13 +489,13 @@ def fit_mixed_gaussian(hs, data):
                               int(hs.nyquist_obj/2))
             _focus = gaussian(_objsteps, results.x)
             optobjstep = int(_objsteps[np.argmax(_focus)])
-            return optobjstep
         else:
+            optobjstep = False
             if len(amp) == max_peaks:
                 message(hs.logger, name_, 'Bad fit')
-                return False
+                break
 
-
+    return optobjstep
 
 
 
@@ -525,7 +525,7 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
     #n_markers = 3 + int(min_n_markers/2/2048)
     #px_points = image.get_focus_points(im, scale, n_markers*10)
     name_ = 'GetFocusData::'
-    focus_points = np.empty(shape=(n_markers,4))
+    focus_points = np.full((n_markers,4), -1)
     i = 0
     n_obj = 0
     focus_data = None
@@ -549,7 +549,7 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
         if f_fs is not False:
            obj_pos = fit_mixed_gaussian(hs, f_fs)
            if obj_pos:
-               message(log, name_, 'Found point',str(n_obj),
+               message(log, name_, 'Found point', n_obj+1, '/', len(px_points),
                             'at x =',x_pos,'and y =',y_pos)
                ##################################################################
                # Save in focus frame
@@ -566,15 +566,12 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
                n_obj += 1
 
            else:
-               message(log,name_,'No Focus at point',n_obj,
-                           'at x =',x_pos,'and y =',y_pos)
+               message(log,name_,'No Focus at point',n_obj+1,
+                                 'at x =',x_pos,'and y =',y_pos)
 
         if i == len(px_points)-1:
-            n_obj = n_markers+1
             break
         else:
-            message(log, True, name_, 'Found', i,'/', len(px_points),
-                                      'focus points')
             i += 1
 
 
@@ -588,6 +585,14 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
 
     #centroid, normal = fit_plane(focus_points)
     #normal[2] = abs(normal[2])
+    if 0 < n_obj < n_markers:
+        message(log, True, name_, 'WARNING:: Only found', n_obj+1, '/',
+                             len(px_points), 'focal points')
+        focus_points == focus_points[focus_points[:,3] != -1,:]
+    elif n_obj == 0:
+        message(log, True, name_, 'WARNING:: Could not find any focal points')
+        return np.array(False)
+
 
     return focus_points
 
