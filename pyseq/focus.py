@@ -141,6 +141,7 @@ def autofocus(hs, pos_dict):
     start = time.time()
     log = hs.logger
 
+    # Rough Scan
     rough_ims, scale, files = rough_scan(hs, pos_dict['n_tiles'],
                                              pos_dict['n_frames'])
 
@@ -149,26 +150,26 @@ def autofocus(hs, pos_dict):
     sum_im = IA.sum_images(rough_ims,log)
 
     # Find pixels to focus on
-
     opt_obj_pos = False
     if sum_im:
         message(log, True, 'Finding potential focus positions')
         px_rows, px_cols = sum_im.shape
         n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
         ord_points = IA.get_focus_points(sum_im, scale, n_markers*10,log)
-
         message(log, True, 'Found',length(ord_points),'focus positions')
-        message(log, True, 'Finding optimal focus')
-        # Get stage positions on in-focus points
-        focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
 
+        # Get stage positions on in-focus points
+        message(log, True, 'Finding optimal focus')
+        focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
         if focus_points.any():
             opt_obj_pos = int(np.median(focus_points[:,2]))
         else:
             message(log, True, 'FAILED::Could not find focus')
+
     else:
         message(log, True, 'FAILED::No signal in channels')
 
+    # Remove rough focus images
     for f in files:
         remove(path.join(hs.image_path, f))
 

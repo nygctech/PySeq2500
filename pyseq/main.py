@@ -89,7 +89,6 @@ class Flowcell():
         self.cycle = 0                                                          # Current cycle
         self.total_cycles = 0                                                   # Total number of cycles for experiment
         self.history = [[],[],[]]                                               # summary of events in flowcell history
-        self.imaging = False
         self.sections = {}                                                      # coordinates of flowcell of sections to image
         self.stage = {}                                                         # stage positioning info for each section
         self.thread = None                                                      # threading to do parallel actions on flowcells
@@ -138,25 +137,25 @@ class Flowcell():
         if self.cycle > self.total_cycles:
             end_message = str(self.position + '::Completed ' +
                               str(self.total_cycles) + ' cycles')
-            self.thread = threading.Thread(target = logger.log,
-                                           args = (21, end_message,))
+            self.thread = threading.Thread(target = hs.message,
+                                           args = (True, end_message,))
             thread_id = self.thread.start()
         else:
             restart_message = str('Starting cycle ' + str(self.cycle) +
                                   ' on flowcell ' + self.position)
-            self.thread = threading.Thread(target = logger.log,
-                                           args = (21, restart_message,))
+            self.thread = threading.Thread(target = hs.message,
+                                           args = (True, restart_message,))
             thread_id = self.thread.start()
 
         return self.cycle
 
 
     def endHOLD(self):
-        """Ends hold for incubations in buffer, returns hold is False."""
-        self.hold = False
-        logger.log(21, fc.position+'::cycle'+str(fc.cycle)+'::Hold stopped')
+        """Ends hold for incubations in buffer, returns False."""
 
-        return self.hold
+        hs.message(True, self.position,'::cycle',self.cycle,'::Hold stopped')
+
+        return False
 
 
 
@@ -635,6 +634,7 @@ def do_recipe(fc, virtual):
 
        **Parameters:**
        - fc (flowcell): The current flowcell.
+       - virtual (bool): Flag for HiSeq simulation.
 
     """
 
@@ -675,11 +675,12 @@ def do_recipe(fc, virtual):
         # Incubate flowcell in reagent for set time
         elif instrument == 'HOLD':
             holdTime = float(command)*60
+            print(fc.position, ' is holding')
             log_message = 'Flowcell holding for ' + str(command) + ' min.'
             if not virtual:
                 fc.thread = threading.Timer(holdTime, fc.endHOLD)
             else:
-                fc.thread = threading.Timer(1, fc.endHOLD)
+                fc.thread = threading.Timer(holdTime/100/60, fc.endHOLD)
 
         # Wait for other flowcell to finish event before continuing with current flowcell
         elif instrument == 'WAIT':
@@ -688,7 +689,7 @@ def do_recipe(fc, virtual):
                 fc.thread = threading.Thread(target = WAIT,
                     args = (AorB, command,))
             else:
-                log_message = 'Skipping waiting for ' + command
+                #log_message = 'Skipping waiting for ' + command
                 fc.thread = threading.Thread(target = do_nothing)
 
         # Image the flowcell
@@ -699,9 +700,9 @@ def do_recipe(fc, virtual):
 
         # Block all further processes until user input
         elif instrument == 'STOP':
-            logger.log(21,'Paused')
+            hs.message(True,'Paused')
             input("press enter to continue...")
-            logger.log(21,'Continuing...')
+            hs.message(True,'Continuing...')
 
 
         #Signal to other flowcell that current flowcell reached signal event
@@ -712,15 +713,16 @@ def do_recipe(fc, virtual):
         # Start new action on current flowcell
         if fc.thread is not None and fc.cycle <= fc.total_cycles:
             fc.addEvent(instrument, command)
-            logger.log(21, AorB+'::cycle'+str(fc.cycle)+'::'+log_message)
+            hs.message(True, AorB,'::cycle',fc.cycle,'::',log_message)
             thread_id = fc.thread.start()
         elif fc.thread is not None and fc.cycle > fc.total_cycles:
-            fc.thread = threading.Thread(target = WAIT, args = (AorB, None,))
+            fc.thread =  threading.Thread(target = time.sleep, args = (10,))
 
-    # End of recipe
     elif fc.cycle <= fc.total_cycles:
+        # End of recipe
         fc.restart_recipe()
     elif fc.cycle > fc.total_cycles:
+        #End of experiment
         fc.thread =  threading.Thread(target = time.sleep, args = (10,))
         fc.thread.start()
 
@@ -810,7 +812,6 @@ def IMAG(fc, n_Zplanes):
 
     AorB = fc.position
     cycle = str(fc.cycle)
-    fc.imaging = True
     start = time.time()
 
     # Set filters
@@ -832,11 +833,11 @@ def IMAG(fc, n_Zplanes):
         # Autofocus
         msg = AorB + '::cycle' + cycle+ '::' + str(section) + '::'
         if hs.af:
-            logger.log(21, msg + 'Start Autofocus')
+            hs.message(True, msg + 'Start Autofocus')
             if hs.autofocus(pos):
-                logger.log(21, msg + 'Autofocus complete')
+                hs.message(True, msg + 'Autofocus complete')
             else:
-                logger.log(21, msg + 'Autofocus failed')
+                hs.message(True, msg + 'Autofocus failed')
 
         # Calculate objective positions to image
         if n_Zplanes > 1:
@@ -852,11 +853,11 @@ def IMAG(fc, n_Zplanes):
         hs.y.move(pos['y_initial'])
         hs.x.move(pos['x_initial'])
         hs.obj.move(obj_start)
-        logger.log(21, msg + 'Start Imaging')
+        hs.message(True, msg + 'Start Imaging')
 
         scan_time = hs.scan(pos['n_tiles'], n_Zplanes, pos['n_frames'], image_name)
         scan_time = str(int(scan_time/60))
-        logger.log(21, msg + 'Imaging completed in ' + scan_time + ' minutes')
+        hs.message(True, msg, 'Imaging completed in', scan_time, 'minutes')
 
     # Reset filters
     for color in hs.optics.cycle_dict.keys():
@@ -864,7 +865,6 @@ def IMAG(fc, n_Zplanes):
             hs.optics.move_em_in(True)
         else:
             hs.optics.move_ex(color, 'home')
-
 
 def IMAG_old(fc, n_Zplanes):
     """Image the flowcell at a number of z planes.
@@ -900,7 +900,7 @@ def IMAG_old(fc, n_Zplanes):
 
         # Find/Move to focal z stage position
         if fc.stage[section]['z pos'] is None:
-            logger.log(21, AorB+'::Finding rough focus of ' + str(section))
+            hs.message(True, AorB+'::Finding rough focus of ' + str(section))
 
             hs.y.move(y_center)
             hs.x.move(x_center)
@@ -932,8 +932,8 @@ def IMAG_old(fc, n_Zplanes):
         for col in colors:
             # Find optimal filter if filter not specified
             if hs.optics.cycle_dict[col][fc.cycle] is None:
-                logger.log(21, AorB+'::Finding optimal filter for ' +
-                               col + ' laser')
+                hs.message(True, AorB+'::Finding optimal filter for ' +
+                                 col + ' laser')
                 hs.y.move(y_center)
                 hs.x.move(x_center)
                 opt_filter = hs.optimize_filter(32)                             #Find optimal filter set on 32 frames on image
@@ -990,7 +990,7 @@ def WAIT(AorB, event):
     start = time.time()
     flowcells[signaling_fc].signal_event = event                                # Set the signal event in the signal flowcell
     flowcells[signaling_fc].wait_thread.wait()                                  # Block until signal event in signal flowcell
-    logger.log(21, AorB+ '::cycle'+cycle+'::Flowcell ready to continue')
+    hs.message(True, AorB+ '::cycle'+cycle+'::Flowcell ready to continue')
     flowcells[signaling_fc].wait_thread.clear()                                 # Reset wait event
     stop = time.time()
 
@@ -1062,7 +1062,7 @@ def free_fc():
         flowcells[fc.waits_for].wait_thread.set()
         flowcells[fc.waits_for].signal_event = None
 
-    logger.log(21, 'Flowcells are waiting on each other,' +
+    hs.message(True, 'Flowcells are waiting on each other,' +
                    ' starting flowcell ' + fc.position)
 
     return fc.position

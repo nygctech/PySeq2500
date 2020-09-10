@@ -688,8 +688,6 @@ class HiSeq():
         if abs(y_pos - f.read_position()) > 10:
             self.message(True, 'Attempting to sync TDI and stage')
             f.write_position(y.position)
-        else:
-            self.message('TDI and stage are synced')
 
         #TO DO, double check gains and velocity are set
         #Set gains and velocity of image scanning for ystage
