@@ -578,6 +578,8 @@ class HiSeq():
     def autolevel(self, focal_points, obj_focus):
         """Tilt the stage motors so the focal points are on a level plane.
 
+            # TODO: Improve autolevel, only makes miniscule improvement
+
            Parameters:
            - focal_points [int, int, int]: List of focus points.
            - obj_focus: Objective step of the level plane.
@@ -853,7 +855,7 @@ class HiSeq():
         return pos
 
     def px_to_step(self, row, col, pos_dict, scale):
-        '''Convert pixel coordinates in image to stage step position.
+        """Convert pixel coordinates in image to stage step position.
 
            Parameters:
            row_col ([int,int]): Row and column pixel position in image.
@@ -863,7 +865,7 @@ class HiSeq():
            Returns:
            [int, int]: X-stage and Y-stage step position respectively.
 
-        '''
+        """
         #print(row_col)
         #row = row_col[0]
         #col = row_col[1]
@@ -1064,7 +1066,13 @@ class HiSeq():
 
 
     def message(self, *args):
-        """Print output text to logger or console"""
+        """Print output text to logger or console.
+
+           If there is no logger, text is printed to the console.
+           If a logger is assigned, and the first argument is true, text is
+           printed to the console, otherwise text is printed to the log file.
+
+        """
 
         i = 0
         if isinstance(args[0], bool):

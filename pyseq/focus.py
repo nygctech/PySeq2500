@@ -13,6 +13,13 @@ import imageio
 import time
 
 def message(logger, *args):
+    """Print output text to logger or console.
+
+       If there is no logger, text is printed to the console.
+       If a logger is assigned, and the first argument is true, text is
+       printed to the console, otherwise text is printed to the log file.
+
+    """
 
     i = 0
     if isinstance(args[0], bool):
@@ -113,6 +120,24 @@ def message(logger, *args):
 #                     print('no data for motor ' + str(motor) + ' at ' + str(z))
 
 def autofocus(hs, pos_dict):
+    """Finds and returns the objective step for optimal focus.
+
+       The section defined by the *pos_dict* is imaged at a predefined objective
+       position. Channel images with signal are summed together into 1 image.
+       Ideal positions to focus on are extracted from the summed image. The
+       optimal focus objective step are found from a number of focus positions
+       and the median objective step is returned.
+
+       **Parameters:**
+       - hs (HiSeq): HiSeq object.
+       - pos_dict (dict): Dictionary of stage position information.
+
+       **Returns:**
+       - int: Objective step for optimal focus.
+
+     """
+
+
     start = time.time()
     log = hs.logger
 
@@ -148,8 +173,8 @@ def autofocus(hs, pos_dict):
         remove(path.join(hs.image_path, f))
 
     stop = time.time()
-    af_time = int(stop-start)
-    message(log, True, 'Completed in',af_time,'s')
+    af_time = int(stop-start)/60
+    message(log, True, 'Completed in',af_time,'minutes')
 
     return opt_obj_pos
 
@@ -263,7 +288,26 @@ def autofocus(hs, pos_dict):
 #     return z_pos, obj_pos
 
 def rough_scan(hs, n_tiles, n_frames, image_name = 'RoughScan'):
-    '''Image section at preset positions and return scaled image scan.'''
+    """Scan out of focus section and return stitched and normalized images.
+
+       The section is imaged at a predefined objective position. Multiple images
+       comprising the section are stitched together and possible scaled down (if
+       the images are larger the 256 kb) and then normalized.
+
+       **Parameters:**
+       - hs (HiSeq): HiSeq object.
+       - n_tiles (int): Number of x positions to image.
+       - n_frames (int): Number of frames to image.
+       - image_name (str): Common name for images, the default is 'RoughScan'.
+
+       **Returns:**
+       - list: Processed images of the section from 4 channels.
+       - int: Scale down factor of the images.
+       - list: Filenames of the raw images used to make the processed images.
+
+     """
+
+    name_ = 'RoughScan::'
     x_initial = hs.x.position
     y_initial = hs.y.position
     # Move to rough focus position
@@ -271,14 +315,14 @@ def rough_scan(hs, n_tiles, n_frames, image_name = 'RoughScan'):
     #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
     #hs.z.move(z_pos)
     # Take rough focus image
-    message(hs.logger, True, 'Scanning section')
+    message(hs.logger, True, name_, 'Scanning section')
     hs.scan(n_tiles, 1, n_frames, image_name)
     hs.y.move(y_initial)
     hs.x.move(x_initial)
     rough_ims = []
     files = []
     # Stitch rough focus image
-    message(hs.logger, True, 'Stitching & Normalizing images')
+    message(hs.logger, True, name_, 'Stitching & Normalizing images')
     for ch in hs.channels:
         df_x = IA.get_image_df(hs.image_path, 'c'+str(ch)+'_'+image_name)
         plane, scale_factor = IA.stitch(hs.image_path, df_x, scaled = True)
@@ -289,15 +333,21 @@ def rough_scan(hs, n_tiles, n_frames, image_name = 'RoughScan'):
 
 
 def format_focus(hs, focus_data):
-    '''Return valid and normalized focus frame file sizes.
+    """Return processed focus frame file sizes.
 
-       Parameters:
-       - focus (array): JPEG file sizes from N channels of cameras.
+       Objective positions are calculated for corresponding frames. The
+       objective position series of JPEG frame sizes from each camera are
+       determined to contain a signal if the kurtosis of the series is
+       significant. Series with signals are summed and normalized.
 
-       Returns:
-       - array: Valid and normalized focus frame file sizes.
+       **Parameters:**
+       - focus_data (Nx4 array): JPEG focus frame file sizes from the 4 cameras.
 
-    '''
+       **Returns:**
+       - array (Nx2): The 1st column is the objective step and the 2nd column is
+                      the corresponding processed frame size.
+
+    """
 
     name_ = 'FormatFocus::'
     if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
@@ -323,7 +373,7 @@ def format_focus(hs, focus_data):
     nrows, ncols = focus_data.shape
     for i in range(ncols):
         # test if there is a tail in data and add if True
-        kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
+        #kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
         kurt_z, pvalue = stats.kurtosistest(focus_data[:,i])
         if kurt_z > 1.96:
             message(hs.logger,name_,'Signal in', hs.channel[i], 'channel')
@@ -340,7 +390,7 @@ def format_focus(hs, focus_data):
 
 
 def gaussian(x, *args):
-    '''Gaussian function for curve fitting.'''
+    """Gaussian function for curve fitting."""
 
     name_ = 'Gaussian::'
     if len(args) == 1:
@@ -364,7 +414,7 @@ def gaussian(x, *args):
       return g_sum
 
 def res_gaussian(args, xfun, yfun):
-    '''Gaussian residual function for curve fitting.'''
+    """Gaussian residual function for curve fitting."""
 
     g_sum = gaussian(xfun, args)
 
@@ -372,23 +422,21 @@ def res_gaussian(args, xfun, yfun):
 
 
 def fit_mixed_gaussian(hs, data):
-    '''Fit focus data & return optimal objective focus step.
+    """Fit focus data & return optimal objective focus step.
 
        Focus objective step vs frame JPEG file size is fit to a mixed gaussian
        model. The optimal objective focus step is returned at step of the max
-       JPEG file size of the fit.
+       fit JPEG file. If the objective focus step is not returned, False is
+       returned.
 
-       Parameters:
-       - data (array nx2): Focus data where the 1st column are the objective
-                           steps and the 2 column are the valid and normalized
-                           focus frame JPEG file size.
+       **Parameters:**
+       - data (array Nx2): Focus data where the 1st column is the objective step
+                           and the 2nd column is the corresponding file size.
 
-       Returns:
-       int: The optimal focus objective step. If 1 or -1 is returned, the z
-            stage needs to be moved in the +ive or -ive direction to find an
-            optimal focus.
+       **Returns:**
+       int: Optimal focus objective step if found (False is returned if not).
 
-    '''
+    """
 
     name_ = 'FitMixedGaussian::'
     # initialize values
@@ -426,7 +474,8 @@ def fit_mixed_gaussian(hs, data):
         up_bounds = up_bounds.flatten()
 
         # Optimize parameters
-        results = least_squares(res_gaussian, p0, bounds=(lo_bounds,up_bounds), args=(data[:,0],data[:,1]))
+        results = least_squares(res_gaussian, p0, bounds=(lo_bounds,up_bounds),
+                                args=(data[:,0],data[:,1]))
 
         if not results.success:
             message(hs.logger,name_,results.message)
@@ -451,23 +500,23 @@ def fit_mixed_gaussian(hs, data):
 
 
 def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
-    '''Return points and unit normal that define the imaging plane.
+    """Return points and unit normal that define the imaging plane.
 
-         Loop through candidate focus px_points, and take an objective stack at
-         each position until n_markers with an optimal objective position have
-         been found.
+       Loop through candidate focus *px_points*, and take an objective stack at
+       each position until n_markers with an optimal objective position have
+       been found.
 
 
-         Parameters
-         px_points (2xN array): Row x Column position of candidate focal points
-         n_markers (int): Number of focus markers to find
-         scale (int): Scale of image px_points were found
+       **Parameters:**
+       - px_points (2xN array): Row x Column position of candidate focal points
+       - n_markers (int): Number of focus markers to find
+       - scale (int): Scale of image px_points were found
 
-         Returns
-         2xn_markers array, 3x1 array: X-stage, Y-stage step of focal position,
-                                       Unit normal of imaging plane
+       **Returns:**
+       - 2x*n_markers array*: The X-stage, Y-stage step of focal position.
 
-    '''
+    """
+
     #pos_dict= {'x_initial':hs.x.position,
     #           'y_initial':hs.y.position,
     #rough_ims, scale = rough_focus(hs, n_tiles, n_frames)
@@ -524,27 +573,27 @@ def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
             n_obj = n_markers+1
             break
         else:
-            message(log, True, name_,i,'/',len(px_points))
+            message(log, True, name_, 'Found', i,'/', len(px_points),
+                                      'focus points')
             i += 1
 
 
     # Convert stage step position microns
-    try:
-        focus_points[:,0] = focus_points[:,0]/hs.x.spum
-        focus_points[:,1] = focus_points[:,1]/hs.y.spum
-        focus_points[:,2] = focus_points[:,2]/hs.obj.spum
-    except:
-        focus_points = np.array([False])
+    # try:
+    #     focus_points[:,0] = focus_points[:,0]/hs.x.spum
+    #     focus_points[:,1] = focus_points[:,1]/hs.y.spum
+    #     focus_points[:,2] = focus_points[:,2]/hs.obj.spum
+    # except:
+    #     focus_points = np.array([False])
 
     #centroid, normal = fit_plane(focus_points)
     #normal[2] = abs(normal[2])
 
-    #return focal_points, normal, centroid
-    #return focus_data
     return focus_points
 
 
 def autolevel(hs, n_ip, centroid):
+    """Level stage, work in progress."""
 
     # Find normal vector of motor plane
     mp = np.array(hs.z.get_motor_points(),dtype = float)
@@ -625,18 +674,26 @@ def autolevel(hs, n_ip, centroid):
 
 
 def planeFit(points):
-    '''
+    """Fit points to a plane.
 
     Code copied from https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
 
-    p, n = planeFit(points)
+    Given an array, points, of shape (d,...) representing points in
+    d-dimensional space, fit an d-dimensional plane to the points.
 
-    Given an array, points, of shape (d,...)
-    representing points in d-dimensional space,
-    fit an d-dimensional plane to the points.
-    Return a point, p, on the plane (the point-cloud centroid),
-    and the normal, n.
-    '''
+    Example:
+    .. code-block:: python
+        p, n = planeFit(points)
+
+    **Parameters:**
+    - points (array): Points of shape (d,...) representing points in
+                      d-dimensional space.
+
+    **Returns:**
+    - array: Point, p, on the plane (the point-cloud centroid)
+    - array: Normal, n of the plane
+
+    """
 
     points = np.transpose(points)
 

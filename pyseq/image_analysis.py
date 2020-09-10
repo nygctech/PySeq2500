@@ -12,6 +12,13 @@ from skimage.util import img_as_ubyte
 import imageio
 
 def message(logger, *args):
+    """Print output text to logger or console.
+
+       If there is no logger, text is printed to the console.
+       If a logger is assigned, text is printed to the log file.
+
+    """
+
     msg = 'ImageAnalysis::'
     for a in args:
         msg += str(a) + ' '
@@ -23,15 +30,17 @@ def message(logger, *args):
 
 
 def get_image_df(image_path, image_name = None):
-    '''Get dataframe of rough focus images.
+    """Get dataframe of rough focus images.
 
-    Parameters:
-    dir (path): Directory where images are stored.
-    image_name (str): Name common to all images.
+       **Parameters:**
+       dir (path): Directory where images are stored.
+       image_name (str): Name common to all images.
 
-    Return
-    dataframe: Dataframe of image metadata with image names as index.
-    '''
+       **Returns:**
+       dataframe: Dataframe of image metadata with image names as index.
+
+    """
+
 
     all_names = listdir(image_path)
     if image_name is None:
@@ -83,17 +92,20 @@ def get_image_df(image_path, image_name = None):
     return metadata
 
 def stitch(dir, df_x, overlap = 0, scaled = False):
-    '''Stitch together scans.
+    """Stitch together scans.
 
-     Parameters
-     dir (path): Directory where image scans are stored.
-     df_x (df): Dataframe of metadata of image scans to stitch.
-     scaled (bool): True to autoscale images to ~256 Kb, False to not scale.
+       # TODO: Implement overlap
 
-     Returns
-     image: Stitched and scaled image.
+       **Parameters:**
+       dir (path): Directory where image scans are stored.
+       df_x (dataframe): Dataframe of metadata of image scans to stitch.
+       overlap (int): Number of pixels that overlap between adjacent tiles.
+       scaled (bool): True to autoscale images to ~256 Kb, False to not scale.
 
-    '''
+       **Returns:**
+       array: Stitched and scaled image.
+
+    """
 
     df_x = df_x.sort_values(by=['x'])
     scale_factor = None
@@ -123,19 +135,20 @@ def stitch(dir, df_x, overlap = 0, scaled = False):
     return plane, scale_factor
 
 def normalize(im, scale_factor):
-    '''Normalize scans.
+    """Normalize scans.
 
-     Images are normalized by matching histogram to strip with most contrast.
+       Images are normalized by matching histogram to strip with most contrast.
 
 
-     Parameters
-     im (array): Image as array
-     scale_factor (int): Downscale factor of image
+       **Parameters:**
+       im (array): Image as array.
+       scale_factor (int): Downscale factor of image.
 
-     Returns
-     image: Normalized image.
+       **Returns:**
+       image: Normalized image.
 
-    '''
+    """
+
     x_px = int(2048/scale_factor/8)
     n_strips = int(im.shape[1]/x_px)
     strip_contrast = np.empty(shape=(n_strips,))
@@ -162,20 +175,23 @@ def normalize(im, scale_factor):
     return plane
 
 def sum_images(images, logger = None):
-    '''Sum pixel values over channel images.
-       Image with largest signal to noise used a reference.
-       Images without significant kurtosis are discarded.
-       Remaining image histograms are matched to the reference.
-       Then the images are summed together.
+    """Sum pixel values over channel images.
+       The image with the largest signal to noise ratio is used as the
+       reference. Images without significant positive kurtosis, ie pixels that
+       deviate from mean value (assumed as background) are discarded. The
+       remaining image histograms are matched to the reference. Finally, the
+       images are summed together.
 
        Parameters:
        - images (list): List of images to sum.
+       - logger (logger): Logger object to record process.
 
        Return:
-       - array: Numpy array of average image.
+       - array: Numpy array of summed image.
 
-    '''
+    """
 
+    name_ = 'SumImages:'
     sum_im = None
     ref = None
 
@@ -186,10 +202,10 @@ def sum_images(images, logger = None):
         #kurt_z, pvalue = stats.kurtosistest(im, axis = None)
         kurt_z = stats.kurtosis(im, axis=None)
         if kurt_z > 3:
-            message(logger, 'sum_im::signal in channel',i)
+            message(logger, name_, 'Signal in channel',i)
             SNR = np.append(SNR,np.mean(im)/np.std(im))
         else:
-            message(logger, 'sum_im::no signal in channel',i)
+            message(logger, name_, 'No signal in channel',i)
             # Remove images without signal
             SNR = np.append(SNR, 0)
 
@@ -226,25 +242,27 @@ def sum_images(images, logger = None):
 
 
 def get_focus_points(im, scale, min_n_markers, p_sat = 99.9, log=None):
-    '''Get potential points to focus on.
+    """Get potential points to focus on.
 
        First 1000 of the brightest, unsaturated pixels are found.
-       Then the focus field of views with the top min_n_markers contrast are
+       Then the focus field of views with the top *min_n_markers* contrast are
        ordered based on the distance from each other, with the points farthest
        away from each other being first.
 
-       Parameters:
-       - im (array): Summed image across all channels with signal
+       **Parameters:**
+       - im (array): Summed image across all channels with signal.
        - scale (int): Factor at which the image is scaled down.
-       - min_n_markers (int): Minimum number of focus points desired.
-       - p_sat (float): Percentile to call pixels saturated
+       - min_n_markers (int): Minimun number of points desired, max is 1000.
+       - p_sat (float): Percentile to call pixels saturated.
+       - log (logger): Logger object to record process.
 
 
-       Returns:
-       - array: Row, Column list of ordered pixels to use as focus points
+       **Returns:**
+       - array: Row, Column list of ordered pixels to use as focus points.
 
-    '''
+    """
 
+    name_ = 'GetFocusPoints::'
     #score pixels
     px_rows, px_cols = im.shape
     px_sat = np.percentile(im, p_sat)
@@ -273,7 +291,7 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.9, log=None):
 
     # Subset to 1000 points
     n_markers = len(markers)
-    message(log, 'get_focus_points::Found',n_markers,'markers')
+    message(log, name_, 'Found', n_markers, 'markers')
     if n_markers > 1000:
       rand_markers = np.random.choice(range(n_markers), size = 1000)
       markers = markers[rand_markers,:]
@@ -290,14 +308,12 @@ def get_focus_points(im, scale, min_n_markers, p_sat = 99.9, log=None):
       c_score[row] = np.max(frame) - np.min(frame)
 
 
-    #resolution = 0.7
-    #marker_thresh = 3 + int((px_rows*px_cols*scale**2)**0.5*resolution/1000)*10
     # Get the minimum number of markers needed with the highest contrast
     if n_markers > min_n_markers:
       p_top = (1 - min_n_markers/n_markers)*100
     else:
       p_top = 0
-    message(log, 'get_focus_points::Used', p_top, 'percentile cutoff')
+    message(log, name_, 'Used', p_top, 'percentile cutoff')
     c_cutoff = np.percentile(c_score, p_top)
     c_markers = markers[c_score >= c_cutoff,:]
 
