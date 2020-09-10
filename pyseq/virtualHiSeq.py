@@ -941,6 +941,22 @@ class HiSeq():
             return False
 
     def optimize_filter(self, pos_dict, init_filter, n_filters):
+        """Image a section with different filters.
+
+           Images a section with all possible excitation filter set
+           combinations. The highest OD filters (lowest light intensity) are
+           imaged first. Lower OD filters are sequentially used to image the
+           section. The laser is blocked with the last filter. Upon completion
+           of imaging, users can inspect the images to ascertain which filter
+           set is optimal.
+
+           **Parameters:**
+           - pos_dict (dict): Dictionary of stage position information
+           - init_filter (int): Descending order position of highest OD filter
+           - n_filters (int): Number of filters to use for imaging
+
+        """
+
         # position stage
         self.y.move(pos_dict['y_initial'])
         self.x.move(pos_dict['x_initial'])
@@ -957,7 +973,6 @@ class HiSeq():
             f_order[i] = f_order[i][init_filter:init_filter+n_filters]
             f_order[i].append('home')
 
-        print(f_order)
         # Set optical filters
         for i, color in enumerate(colors):
             self.optics.move_ex(color,f_order[i][0])

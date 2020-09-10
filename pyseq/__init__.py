@@ -882,6 +882,23 @@ class HiSeq():
 
 
     def optimize_filter(self, pos_dict, init_filter, n_filters):
+        """Image a section with different filters.
+
+           Images a section with all possible excitation filter set
+           combinations. The highest OD filters (lowest light intensity) are
+           imaged first. Lower OD filters are sequentially used to image the
+           section. The laser is blocked with the last filter. Upon completion
+           of imaging, users can inspect the images to ascertain which filter
+           set is optimal.
+
+           **Parameters:**
+           - pos_dict (dict): Dictionary of stage position information
+           - init_filter (int): Descending order position of highest OD filter
+           - n_filters (int): Number of filters to use for imaging
+
+        """
+
+
         # position stage
         self.y.move(pos_dict['y_initial'])
         self.x.move(pos_dict['x_initial'])
@@ -936,7 +953,6 @@ class HiSeq():
 
     def optimize_filter_old(self, nframes, color, nbins = 256,
                         sat_threshold = 0.0005, signal_threshold = 20):
-
         """Finds and returns the best filter settings.
 
            Images a portion of the section with one laser at increasing laser
@@ -959,6 +975,7 @@ class HiSeq():
            - float: Optimal filter for specified laser.
 
          """
+
         # Save y position
         y_pos = self.y.position
 
@@ -1064,6 +1081,7 @@ class HiSeq():
                 self.logger.log(21,msg)
             else:
                 self.logger.info(msg)
+
 
 def contrast2(filename, channel, path, nbins=256):
     """Return the image contrast and fraction of pixels saturated.
