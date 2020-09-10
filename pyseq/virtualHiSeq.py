@@ -602,13 +602,13 @@ class HiSeq():
         self.cam2.right_emission = 740
 
         # Initialize camera 1
-        self.message('Initializing camera 1',)
+        self.message(True, 'Initializing camera 1',)
         self.cam1.setTDI()
         self.cam1.captureSetup()
         self.cam1.get_status()
 
         # Initialize Camera 2
-        self.message('Initializing camera 2')
+        self.message(True, 'Initializing camera 2')
         self.cam2.setTDI()
         self.cam2.captureSetup()
         self.cam2.get_status()
@@ -628,26 +628,26 @@ class HiSeq():
         #TODO, make sure x stage is in correct place.
         self.x.move(30000)
         self.y.move(0)
-        self.message('Initializing lasers')
+        self.message(True, 'Initializing lasers')
         self.lasers['green'].initialize()
         self.lasers['red'].initialize()
-        self.message('Initializing pumps and valves')
+        self.message(True, 'Initializing pumps and valves')
         self.v10['A'].initialize()
         self.v10['B'].initialize()
         self.v24['A'].initialize()
         self.v24['B'].initialize()
-        self.message('Initializing FPGA')
+        self.message(True, 'Initializing FPGA')
 
 
         # Initialize Z, objective stage, and optics after FPGA
-        self.message('Initializing optics and Z stages')
+        self.message(True, 'Initializing optics and Z stages')
         self.z.move([0,0,0])
         self.obj.move(30000)
         self.obj.set_velocity(5)
         self.optics.initialize()
         self.f.write_position(0)
 
-        self.message('HiSeq initialized!')
+        self.message(True, 'HiSeq initialized!')
 
 
     def take_picture(self, n_frames, image_name = None):
@@ -689,7 +689,7 @@ class HiSeq():
             self.message(True, 'Attempting to sync TDI and stage')
             f.write_position(y.position)
         else:
-            self.message(True, 'TDI and stage are synced')
+            self.message('TDI and stage are synced')
 
         #TO DO, double check gains and velocity are set
         #Set gains and velocity of image scanning for ystage
@@ -921,6 +921,7 @@ class HiSeq():
         start = time.time()
 
         for tile in range(n_tiles):
+            self.message(True, 'Tile', tile+1, 'of', n_tiles)
             im_name = image_name + '_x' + str(self.x.position)
             stack_time = self.zstack(n_Zplanes, n_frames, im_name)           # Take a zstack
             self.x.move(self.x.position + 315)                                  # Move to next x position

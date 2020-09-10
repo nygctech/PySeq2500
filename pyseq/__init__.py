@@ -159,6 +159,7 @@ class HiSeq():
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
 
+        self.message(True, 'Initializing cameras')
         from . import dcam
 
         self.cam1 = dcam.HamamatsuCamera(0, logger = Logger)
@@ -171,7 +172,6 @@ class HiSeq():
         self.cam2.right_emission = 740
 
         # Initialize camera 1
-        self.message('Initializing camera 1...')
         # self.cam1.setPropertyValue("exposure_time", 40.0)
         # self.cam1.setPropertyValue("binning", 1)
         # self.cam1.setPropertyValue("sensor_mode", 4)                            #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
@@ -186,7 +186,6 @@ class HiSeq():
         self.cam1.get_status()
 
         # Initialize Camera 2
-        self.message('Initializing camera 2...')
         # self.cam2.setPropertyValue("exposure_time", 40.0)
         # self.cam2.setPropertyValue("binning", 1)
         # self.cam2.setPropertyValue("sensor_mode", 4)                            #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
@@ -207,38 +206,38 @@ class HiSeq():
         """Initialize x,y,z, & obj stages, pumps, valves, optics, and FPGA."""
 
         #Initialize X Stage before Y Stage!
-        self.message('Initializing X & Y stages')
+        self.message(True, 'Initializing X & Y stages')
         #self.x.initialize()
         #TODO, make sure x stage is in correct place.
         self.x.initialize() # Do it twice to make sure its centered!
         self.y.initialize()
-        self.message('Initializing lasers')
+        self.message(True, 'Initializing lasers')
         self.lasers['green'].initialize()
         self.lasers['red'].initialize()
-        self.message('Initializing pumps and valves')
+        self.message(True, 'Initializing pumps and valves')
 ##        self.p['A'].initialize()
 ##        self.p['B'].initialize()
 ##        self.v10['A'].initialize()
 ##        self.v10['B'].initialize()
 ##        self.v24['A'].initialize()
 ##        self.v24['B'].initialize()
-        self.message('Initializing FPGA')
+        self.message(True, 'Initializing FPGA')
         self.f.initialize()
 
         # Initialize Z, objective stage, and optics after FPGA
-        self.message('Initializing optics and Z stages')
+        self.message(True, 'Initializing optics and Z stages')
         self.z.initialize()
         self.obj.initialize()
         self.optics.initialize()
 
         #Sync TDI encoder with YStage
-        self.message('Syncing Y stage')
+        self.message(True, 'Syncing Y stage')
         while not self.y.check_position():
             time.sleep(1)
         self.y.position = self.y.read_position()
         self.f.write_position(0)
 
-        self.message('Initialized!')
+        self.message(True, 'Initialized!')
 
 
     def write_metadata(self, n_frames, image_name):
@@ -313,6 +312,8 @@ class HiSeq():
         if abs(y_pos - f.read_position()) > 10:
             self.message(True, 'Attempting to sync TDI and stage')
             f.write_position(y.position)
+        else:
+            self.message('TDI and stage are synced')
 
         #TO DO, double check gains and velocity are set
         #Set gains and velocity of image scanning for ystage

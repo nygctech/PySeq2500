@@ -116,10 +116,10 @@ def autofocus(hs, pos_dict):
     start = time.time()
     log = hs.logger
 
-    message(log, True, 'Scanning section')
     rough_ims, scale, files = rough_scan(hs, pos_dict['n_tiles'],
                                              pos_dict['n_frames'])
 
+    message(log, True, 'Analyzing out of focus image')
     # Sum channels with signal
     sum_im = IA.sum_images(rough_ims,log)
 
@@ -271,12 +271,14 @@ def rough_scan(hs, n_tiles, n_frames, image_name = 'RoughScan'):
     #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
     #hs.z.move(z_pos)
     # Take rough focus image
+    message(hs.logger, True, 'Scanning section')
     hs.scan(n_tiles, 1, n_frames, image_name)
     hs.y.move(y_initial)
     hs.x.move(x_initial)
     rough_ims = []
     files = []
     # Stitch rough focus image
+    message(hs.logger, True, 'Stitching & Normalizing images')
     for ch in hs.channels:
         df_x = IA.get_image_df(hs.image_path, 'c'+str(ch)+'_'+image_name)
         plane, scale_factor = IA.stitch(hs.image_path, df_x, scaled = True)
