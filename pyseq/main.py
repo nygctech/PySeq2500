@@ -339,6 +339,7 @@ def initialize_hs(virtual):
         # HiSeq Settings
         hs.bundle_height = int(method.get('bundle height', fallback = 128))
         hs.af = method.get('autofocus', fallback = True)
+        hs.overlap = int(method.get('overlap', fallback = 0))
 
         # Set laser power
         laser_power = int(method.get('laser power', fallback = 10))
@@ -687,7 +688,7 @@ def do_recipe(fc, virtual):
                 fc.thread = threading.Thread(target = WAIT,
                     args = (AorB, command,))
             else:
-                #log_message = 'Skipping waiting for ' + command
+                log_message = 'Skip waiting for ' + command
                 fc.thread = threading.Thread(target = do_nothing)
 
         # Image the flowcell
@@ -851,9 +852,11 @@ def IMAG(fc, n_Zplanes):
         hs.y.move(pos['y_initial'])
         hs.x.move(pos['x_initial'])
         hs.obj.move(obj_start)
+        n_tiles = pos['n_tiles']
+        n_frames = pos['n_frames']
         hs.message(msg + 'Start Imaging')
 
-        scan_time = hs.scan(pos['n_tiles'], n_Zplanes, pos['n_frames'], image_name)
+        scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name, hs.overlap)
         scan_time = str(int(scan_time/60))
         hs.message(msg + 'Imaging completed in', scan_time, 'minutes')
 

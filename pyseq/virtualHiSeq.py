@@ -902,7 +902,7 @@ class HiSeq():
         return stop-start
 
 
-    def scan(self, n_tiles, n_Zplanes, n_frames, image_name=None):
+    def scan(self, n_tiles, n_Zplanes, n_frames, image_name=None, overlap=0):
         """Image a volume.
 
            Images a zstack at incremental x positions.
@@ -914,11 +914,14 @@ class HiSeq():
            - n_frames (int): Number of frames to image.
            - image_name (str): Common name for images, the default is a time
              stamp.
+           - overlap (int): Number of column pixels to overlap between tiles
 
            **Returns:**
            - int: Time it took to do scan in seconds.
 
         """
+        
+        dx = round((self.tile_width*1000-self.resolution*overlap)*self.x.spum)  #number of steps to move x stage
 
         if image_name is None:
             image_name = time.strftime('%Y%m%d_%H%M%S')
@@ -928,8 +931,8 @@ class HiSeq():
         for tile in range(n_tiles):
             self.message('HiSeq::Scan::Tile '+str(tile+1)+'/'+str(n_tiles))
             im_name = image_name + '_x' + str(self.x.position)
-            stack_time = self.zstack(n_Zplanes, n_frames, im_name)           # Take a zstack
-            self.x.move(self.x.position + 315)                                  # Move to next x position
+            stack_time = self.zstack(n_Zplanes, n_frames, im_name)              # Take a zstack
+            self.x.move(self.x.position + dx)                                   # Move to next x position
 
         stop = time.time()
 
