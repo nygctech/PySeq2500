@@ -136,15 +136,14 @@ class Flowcell():
         self.cycle += 1
         msg = 'PySeq::'+self.position+'::'
         if self.cycle > self.total_cycles:
-            end_message = msg+'Completed '+ str(self.total_cycles) + ' cycles'
-            self.thread = threading.Thread(target = hs.message,
-                                           args = (end_message,))
-            thread_id = self.thread.start()
+            hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
+            do_rinse(self)
         else:
             restart_message = msg+'Starting cycle '+str(self.cycle)
             self.thread = threading.Thread(target = hs.message,
                                            args = (restart_message,))
-            thread_id = self.thread.start()
+
+        thread_id = self.thread.start()
 
         return self.cycle
 
@@ -800,11 +799,11 @@ def IMAG(fc, n_Zplanes):
        Next, the stage is repositioned to scan the entire section and
        image the specified number of z planes.
 
-       Parameters:
+       **Parameters:**
        fc: The flowcell to image.
        n_Zplanes: The number of z planes to image.
 
-       Returns:
+       **Returns:**
        int: Time in seconds to scan the entire section.
 
     """
@@ -874,11 +873,11 @@ def IMAG_old(fc, n_Zplanes):
        Next, the stage is repositioned to scan the entire section and
        image the specified number of z planes.
 
-       Parameters:
+       **Parameters:**
        fc: The flowcell to image.
        n_Zplanes: The number of z planes to image.
 
-       Returns:
+       **Returns:**
        int: Time in seconds to scan the entire section.
 
     """
@@ -976,11 +975,11 @@ def IMAG_old(fc, n_Zplanes):
 def WAIT(AorB, event):
     """Hold the current flowcell until the specfied event in the other flowell.
 
-       Parameters:
+       **Parameters:**
        AorB (str): Flowcell position, A or B, to be held.
        event: Event in the other flowcell that releases the held flowcell.
 
-       Returns:
+       **Returns:**
        int: Time in seconds the current flowcell was held.
 
     """
@@ -994,15 +993,49 @@ def WAIT(AorB, event):
     stop = time.time()
     return stop-start
 
+def do_rinse(fc):
+    """Rinse flowcell with reagent specified in config file.
+
+       **Parameters:**
+       fc (flowcell): The flowcell to rinse.
+
+    """
+
+    method = config.get('experiment', 'method')                                 # Read method specific info
+    method = config[method]
+    port = method.get('rinse', fallback = None)
+
+    rinse = port in hs.v24[fc.position].port_dict
+
+    if rinse:
+        # Move valve
+        hs.message('PySeq::'+fc.position+'::Rinsing flowcell with', port)
+        fc.thread = threading.Thread(target = hs.v24[fc.position].move,
+                                     args = (port,))
+        fc.thread.start()
+
+        # Pump
+        volume = fc.flush_volume
+        speed = fc.pump_speed['reagent']
+        while fc.thread.is_alive():                                             # Wait till valve has moved
+            pass
+        fc.thread = threading.Thread(target = hs.p[fc.position].pump,
+                                     args = (volume, speed,))
+    else:
+        fc.thread = threading.Thread(target = do_nothing)
+
+
 ##########################################################
 ## Shut down system ######################################
 ##########################################################
 def do_shutdown():
     """Shutdown the HiSeq and flush all reagent lines if prompted."""
 
-    hs.message('Shutting down...')
     for fc in flowcells.values():
         fc.wait_thread.set()
+
+    hs.message('PySeq::Shutting down...')
+
 
     hs.z.move([0, 0, 0])
     hs.move_stage_out()

@@ -174,7 +174,7 @@ def autofocus(hs, pos_dict):
         remove(path.join(hs.image_path, f))
 
     stop = time.time()
-    af_time = int(stop-start)/60
+    af_time = int((stop-start)/60)
     message(log, True, 'Completed in',af_time,'minutes')
 
     return opt_obj_pos

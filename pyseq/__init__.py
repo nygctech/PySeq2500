@@ -719,7 +719,7 @@ class HiSeq():
         start = time.time()
 
         for tile in range(n_tiles):
-            self.message('HiSeq::Scan::Tile'+str(tile+1)+'/'str(n_tiles))
+            self.message('HiSeq::Scan::Tile '+str(tile+1)+'/'+str(n_tiles))
             im_name = image_name + '_x' + str(self.x.position)
             stack_time = self.zstack(n_Zplanes, n_frames, im_name)           # Take a zstack
             self.x.move(self.x.position + 315)                                  # Move to next x position
