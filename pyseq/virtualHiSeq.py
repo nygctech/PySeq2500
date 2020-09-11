@@ -592,7 +592,7 @@ class HiSeq():
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
 
-        self.message('HiSeq:: Initializing cameras',)
+        self.message('HiSeq::Initializing cameras')
 
         self.cam1 = Camera(0)
         self.cam2 = Camera(1)
@@ -920,7 +920,7 @@ class HiSeq():
            - int: Time it took to do scan in seconds.
 
         """
-        
+
         dx = round((self.tile_width*1000-self.resolution*overlap)*self.x.spum)  #number of steps to move x stage
 
         if image_name is None:

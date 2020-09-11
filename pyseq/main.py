@@ -1225,3 +1225,6 @@ if __name__ == 'pyseq.main':
         do_shutdown()                                                           # Shutdown HiSeq
     else:
         error('Total number of errors =', n_errors)
+
+def main():
+    pass

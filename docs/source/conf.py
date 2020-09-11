@@ -24,7 +24,7 @@ copyright = '2020, Kunal Pandit'
 author = 'Kunal Pandit'
 
 # The full version, including alpha/beta/rc tags
-release = '0.4'
+release = '0.5'
 
 # Flag to make index.rst the masterfile
 master_doc = 'index'

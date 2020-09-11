@@ -9,7 +9,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='pyseq2500',
-    version='0.4',
+    version='0.5',
     description='Control an Illumina HiSeq 2500 System',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -27,8 +27,10 @@ setup(
     python_requires='>=3.5',
     install_requires=['pyserial>=3', #add version numbers
                       'numpy',
+                      'pandas',
                       'scipy',
-                      'imageio'],
+                      'imageio',
+                      'scikit-image'],
     package_data={
         'pyseq': ['recipes/*'] },
     #package_data={  # Optional
@@ -36,7 +38,7 @@ setup(
     #},
     entry_points={
         'console_scripts': [
-            'pyseq=pyseq.main',
+            'pyseq = pyseq.main:main',
             ],
         },
     project_urls={

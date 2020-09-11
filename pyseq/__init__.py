@@ -1100,7 +1100,6 @@ class HiSeq():
             else:
                 self.logger.info(msg)
 
-
 def contrast2(filename, channel, path, nbins=256):
     """Return the image contrast and fraction of pixels saturated.
 

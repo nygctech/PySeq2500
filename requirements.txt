@@ -3,4 +3,4 @@ numpy
 pandas
 scipy
 imageio
-skimage
+scikit-image
