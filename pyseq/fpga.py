@@ -177,12 +177,12 @@ class FPGA():
 
         s = None
         if type(AorB) is str:
-            if AorB.upper() is 'A':
+            if AorB.upper() == 'A':
                 s = '0'
-            elif AorB.upper() is 'B':
+            elif AorB.upper() == 'B':
                 s = '1'
         elif type(AorB) is int:
-            if AorB is 0 or AorB is 1:
+            if AorB == 0 or AorB == 1:
                 s = str(AorB)
 
         m = None
@@ -199,7 +199,9 @@ class FPGA():
             if 1 <= value <= 255:
                 value = str(int(value))
 
-                if key is 'sweep':
+                if key == 'sweep':
                     response = self.command('LEDSWPRATE ' + value)
-                elif key is 'pulse':
+                elif key == 'pulse':
                     response = self.command('LEDPULSRATE ' + value)
+
+        return worked
