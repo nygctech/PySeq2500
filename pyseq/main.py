@@ -157,46 +157,6 @@ class Flowcell():
         return False
 
 
-def LED(AorB, indicate):
-    """Control front LEDs to communicate what the HiSeq is doing.
-
-       **Parameters:**
-       - AorB (str): Flowcell position, A or B.
-       - indicate (str): Current action of the HiSeq or state of the flowcell.
-
-        ===========  ===========  =============================
-        LED MODE      indicator   HiSeq Action / Flowcell State
-        ===========  ===========  ===================================================
-        off              off      The flowcell is not in use.
-        yellow          error     There is an error with the flowcell.
-        green          startup    The HiSeq is starting up or shutting down
-        pulse green     user      The HiSeq requires user input
-        blue            sleep     The flowcell is holding or waiting.
-        pulse blue      awake     HiSeq valve, pump, or temperature action on the flowcell.
-        sweep blue     imaging    HiSeq is imaging the flowcell.
-        ===========  ===========  ========================================
-
-       **Returns:**
-       - dict: Dictionary of flowcell position keys with flowcell object values.
-
-    """
-
-    if AorB in flowcells.keys():
-        if indicate == 'startup':
-            hs.f.LED(AorB, 'green')
-        elif indicate == 'user':
-            hs.f.LED(AorB, 'pulse green')
-        elif indicate == 'error':
-            hs.f.LED(AorB, 'yellow')
-        elif indicate == 'sleep':
-            hs.f.LED(AorB, 'blue')
-        elif indicate == 'awake':
-            hs.f.LED(AorB, 'pulse blue')
-        elif indicate == 'imaging':
-            hs.f.LED(AorB, 'sweep blue')
-        elif indicate == 'off':
-            hs.f.LED(AorB, 'off')
-
 ##########################################################
 ## Setup Flowcells #######################################
 ##########################################################
@@ -372,8 +332,6 @@ def initialize_hs(virtual):
     if n_errors is 0:
 
         hs.initializeInstruments()
-        LED('A', 'startup')
-        LED('B', 'startup')
         hs.initializeCams(logger)
 
         # HiSeq Settings
@@ -626,6 +584,48 @@ def check_filters(cycle_dict, ex_dict):
 
 
 
+def LED(AorB, indicate):
+    """Control front LEDs to communicate what the HiSeq is doing.
+
+       **Parameters:**
+       - AorB (str): Flowcell position, A or B.
+       - indicate (str): Current action of the HiSeq or state of the flowcell.
+
+        ===========  ===========  =============================
+        LED MODE      indicator   HiSeq Action / Flowcell State
+        ===========  ===========  ===================================================
+        off              off      The flowcell is not in use.
+        yellow          error     There is an error with the flowcell.
+        green          startup    The HiSeq is starting up or shutting down
+        pulse green     user      The HiSeq requires user input
+        blue            sleep     The flowcell is holding or waiting.
+        pulse blue      awake     HiSeq valve, pump, or temperature action on the flowcell.
+        sweep blue     imaging    HiSeq is imaging the flowcell.
+        ===========  ===========  ========================================
+
+       **Returns:**
+       - dict: Dictionary of flowcell position keys with flowcell object values.
+
+    """
+
+    if AorB in flowcells.keys():
+        if indicate == 'startup':
+            hs.f.LED(AorB, 'green')
+        elif indicate == 'user':
+            hs.f.LED(AorB, 'pulse green')
+        elif indicate == 'error':
+            hs.f.LED(AorB, 'yellow')
+        elif indicate == 'sleep':
+            hs.f.LED(AorB, 'blue')
+        elif indicate == 'awake':
+            hs.f.LED(AorB, 'pulse blue')
+        elif indicate == 'imaging':
+            hs.f.LED(AorB, 'sweep blue')
+        elif indicate == 'off':
+            hs.f.LED(AorB, 'off')
+
+
+
 ##########################################################
 ## Flush Lines ###########################################
 ##########################################################
@@ -640,36 +640,39 @@ def do_flush():
     flush_YorN = input("Prime lines? Y/N = ")
     hs.z.move([0,0,0])
     hs.move_stage_out()
-    if flush_YorN == 'Y':
+    if flush_YorN.upper() == 'Y':
         hs.message('Lock temporary flowcell(s) on to stage')
         hs.message('Place all valve input lines in PBS/water')
         input("Press enter to continue...")
 
-        # Move valve
-        hs.message('PySeq::'+fc.position+'::Rinsing flowcell with', port)
-        fc.thread = threading.Thread(target = hs.v24[fc.position].move,
-                                     args = (port,))
-        fc.thread.start()
-
-        # Pump
-        volume = fc.flush_volume
-        speed = fc.pump_speed['reagent']
-        while fc.thread.is_alive():                                             # Wait till valve has moved
-            pass
-        fc.thread = threading.Thread(target = hs.p[fc.position].pump,
-                                     args = (volume, speed,))
         #Flush all lines
-        for fc in flowcells.values():
-            AorB = fc.position
-            LED(AorB, 'startup')
-            volume = flowcells[AorB].flush_volume
-            speed = flowcells[AorB].pump_speed['flush']
-            for port in hs.v24[AorB].port_dict.keys():
+        while True:
+            AorB_ = [*flowcells.keys()][0]
+            volume = flowcells[AorB_].flush_volume
+            speed = flowcells[AorB_].pump_speed['flush']
+            for port in hs.v24[AorB_].port_dict.keys():
                 if isinstance(port_dict[port], int):
                     hs.message('Priming ' + str(port))
-                    fs.thread = thread.Th.v24[AorB].move(port)
-                    hs.p[AorB].pump(volume, speed)
-                    LED(AorB, 'user')
+                    for fc in flowcells.values():
+                        AorB = fc.position
+                        LED(AorB, 'startup')
+                        fc.thread = threading.Thread(target=hs.v24[AorB].move,
+                                                     args=(port,))
+                    alive = True
+                    while alive:
+                        for fc in flowcells.values():
+                            alive *= fc.thread.is_alive()
+                    for fc in flowcells.values():
+                        AorB = fc.position
+                        fc.thread = threading.Thread(target=hs.p[AorB].pump,
+                                                     args=(volume, speed,))
+                    alive = True
+                    while alive:
+                        for fc in flowcells.values():
+                            alive *= fc.thread.is_alive()
+            for AorB in flowcells.keys():
+                LED(AorB, 'user')
+            break
 
         hs.message('Replace temporary flowcell with experiment flowcell and lock on to stage')
         hs.message('Place all valve input lines in correct reagent')
