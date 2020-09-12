@@ -103,7 +103,7 @@ class FPGA():
     def read_position(self):
         """Read the y position of the encoder for TDI imaging.
 
-           ****Returns:****
+           **Returns:**
            - int: The y position of the encoder.
 
         """
@@ -146,5 +146,60 @@ class FPGA():
            - y_pos (int): The initial y position of the image.
 
         """
+
         self.command('TDIYARM3 ' + str(n_triggers) + ' ' +
                   str(y_pos + self.y_offset-10000) + ' 1')
+
+
+
+    def LED(self, AorB, mode, **kwargs):
+        """Set front LEDs.
+
+           **Parameters:**
+           - AorB (int/str): A or 1 for the left LED, B or 2 for the right LED.
+           - mode (str): Color / mode to set the LED to, see list below.
+           - kwargs: sweep (1-255): sweep rate
+                     pulse (1-255): pulse rate
+
+           **Available Colors/Modes:**
+           - off
+           - yellow
+           - green
+           - pulse green
+           - blue
+           - pulse blue
+           - sweep blue
+
+           **Returns:**
+           - bool: True if AorB and mode are valid, False if not.
+
+        """
+
+        s = None
+        if type(AorB) is str:
+            if AorB.upper() is 'A':
+                s = '0'
+            elif AorB.upper() is 'B':
+                s = '1'
+        elif type(AorB) is int:
+            if AorB is 0 or AorB is 1:
+                s = str(AorB)
+
+        m = None
+        if mode in self.led_dict:
+            m = self.led_dict[mode]
+
+        if s is not None and m is not None:
+            response = self.command('LEDMODE' + s + ' ' + m)
+            worked = True
+        else:
+            worked =  False
+
+        for key, value in kwargs.items():
+            if 1 <= value <= 255:
+                value = str(int(value))
+
+                if key is 'sweep':
+                    response = self.command('LEDSWPRATE ' + value)
+                elif key is 'pulse':
+                    response = self.command('LEDPULSRATE ' + value)

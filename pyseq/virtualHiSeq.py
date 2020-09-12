@@ -148,8 +148,9 @@ class OBJstage():
            is not in range, the velocity is not set and an error message is
            printed.
 
-           Parameters:
+           **Parameters:**
            - v (float): The velocity for the objective to move at in mm/s.
+
         """
 
         if v > self.min_v and v <= self.max_v:
@@ -162,10 +163,10 @@ class OBJstage():
     def set_focus_trigger(self, position):
         """Set trigger for an objective stack to determine focus position.
 
-           Parameters:
+           **Parameters:**
            - position (int): Step position to start imaging.
 
-           Returns:
+           **Returns:**
            - int: Current step position of the objective.
 
         """
@@ -177,6 +178,8 @@ class OBJstage():
 class FPGA():
     def __init__(self, ystage):
         self.y = ystage
+        self.led_dict = {'off':'0', 'yellow':'1', 'green':'3', 'pulse green':'4',
+                         'blue':'5', 'pulse blue':'6', 'sweep blue': '7'}
 
     def read_position(self):
         """Read the y position of the encoder for TDI imaging.
@@ -224,6 +227,58 @@ class FPGA():
 
     def command(self, text):
         return text
+
+    def LED(self, AorB, mode, **kwargs):
+        """Set front LEDs.
+
+           **Parameters:**
+           - AorB (int/str): A or 1 for the left LED, B or 2 for the right LED.
+           - mode (str): Color / mode to set the LED to, see list below.
+           - kwargs: sweep (1-255): sweep rate
+                     pulse (1-255): pulse rate
+
+           **Available Colors/Modes:**
+           - off
+           - yellow
+           - green
+           - pulse green
+           - blue
+           - pulse blue
+           - sweep blue
+
+           **Returns:**
+           - bool: True if AorB and mode are valid, False if not.
+
+        """
+
+        s = None
+        if type(AorB) is str:
+            if AorB.upper() is 'A':
+                s = '0'
+            elif AorB.upper() is 'B':
+                s = '1'
+        elif type(AorB) is int:
+            if AorB is 0 or AorB is 1:
+                s = str(AorB)
+
+        m = None
+        if mode in self.led_dict:
+            m = self.led_dict[mode]
+
+        if s is not None and m is not None:
+            response = self.command('LEDMODE' + s + ' ' + m)
+            worked = True
+        else:
+            worked =  False
+
+        for key, value in kwargs.items():
+            if 1 <= value <= 255:
+                value = str(int(value))
+                
+                if key is 'sweep':
+                    response = self.command('LEDSWPRATE ' + value)
+                elif key is 'pulse':
+                    response = self.command('LEDPULSRATE ' + value)
 
 
 class Laser():
