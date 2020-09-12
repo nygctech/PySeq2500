@@ -206,6 +206,12 @@ class HiSeq():
     def initializeInstruments(self):
         """Initialize x,y,z, & obj stages, pumps, valves, optics, and FPGA."""
         msg = 'HiSeq::'
+
+        self.message(msg+'Initializing FPGA')
+        self.f.initialize()
+        self.f.LED(1, 'green')
+        self.f.LED(2, 'green')
+        
         #Initialize X Stage before Y Stage!
         self.message(msg+'Initializing X & Y stages')
         #self.x.initialize()
@@ -216,14 +222,13 @@ class HiSeq():
         self.lasers['green'].initialize()
         self.lasers['red'].initialize()
         self.message(msg+'Initializing pumps and valves')
-##        self.p['A'].initialize()
-##        self.p['B'].initialize()
-##        self.v10['A'].initialize()
-##        self.v10['B'].initialize()
-##        self.v24['A'].initialize()
-##        self.v24['B'].initialize()
-        self.message(msg+'Initializing FPGA')
-        self.f.initialize()
+        self.p['A'].initialize()
+        self.p['B'].initialize()
+        self.v10['A'].initialize()
+        self.v10['B'].initialize()
+        self.v24['A'].initialize()
+        self.v24['B'].initialize()
+
 
         # Initialize Z, objective stage, and optics after FPGA
         self.message(msg+'Initializing optics and Z stages')

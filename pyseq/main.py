@@ -157,7 +157,45 @@ class Flowcell():
         return False
 
 
+def LED(AorB, indicate):
+    """Control front LEDs to communicate what the HiSeq is doing.
 
+       **Parameters:**
+       - AorB (str): Flowcell position, A or B.
+       - indicate (str): Current action of the HiSeq or state of the flowcell.
+
+        ===========  ===========  =============================
+        LED MODE      indicator   HiSeq Action / Flowcell State
+        ===========  ===========  ===================================================
+        off              off      The flowcell is not in use.
+        yellow          error     There is an error with the flowcell.
+        green          startup    The HiSeq is starting up or shutting down
+        pulse green     user      The HiSeq requires user input
+        blue            sleep     The flowcell is holding or waiting.
+        pulse blue      awake     HiSeq valve, pump, or temperature action on the flowcell.
+        sweep blue     imaging    HiSeq is imaging the flowcell.
+        ===========  ===========  ========================================
+
+       **Returns:**
+       - dict: Dictionary of flowcell position keys with flowcell object values.
+
+    """
+
+    if AorB in flowcells.keys():
+        if indicate == 'startup':
+            hs.f.LED(AorB, 'green')
+        elif indicate == 'user':
+            hs.f.LED(AorB, 'pulse green')
+        elif indicate == 'error':
+            hs.f.LED(AorB, 'yellow')
+        elif indicate == 'sleep':
+            hs.f.LED(AorB, 'blue')
+        elif indicate == 'awake':
+            hs.f.LED(AorB, 'pulse blue')
+        elif indicate == 'imaging':
+            hs.f.LED(AorB, 'sweep blue')
+        elif indicate == 'off':
+            hs.f.LED(AorB, 'off')
 
 ##########################################################
 ## Setup Flowcells #######################################
@@ -333,8 +371,10 @@ def initialize_hs(virtual):
 
     if n_errors is 0:
 
-        hs.initializeCams(logger)
         hs.initializeInstruments()
+        LED('A', 'startup')
+        LED('B', 'startup')
+        hs.initializeCams(logger)
 
         # HiSeq Settings
         hs.bundle_height = int(method.get('bundle height', fallback = 128))
@@ -592,6 +632,10 @@ def check_filters(cycle_dict, ex_dict):
 def do_flush():
     """Flush lines with all reagents in config if prompted."""
 
+    for AorB in ['A','B']:
+        if AorB in flowcells.keys():
+            LED(AorB, 'user')
+
     ## Flush lines
     flush_YorN = input("Prime lines? Y/N = ")
     hs.z.move([0,0,0])
@@ -600,15 +644,32 @@ def do_flush():
         hs.message('Lock temporary flowcell(s) on to stage')
         hs.message('Place all valve input lines in PBS/water')
         input("Press enter to continue...")
+
+        # Move valve
+        hs.message('PySeq::'+fc.position+'::Rinsing flowcell with', port)
+        fc.thread = threading.Thread(target = hs.v24[fc.position].move,
+                                     args = (port,))
+        fc.thread.start()
+
+        # Pump
+        volume = fc.flush_volume
+        speed = fc.pump_speed['reagent']
+        while fc.thread.is_alive():                                             # Wait till valve has moved
+            pass
+        fc.thread = threading.Thread(target = hs.p[fc.position].pump,
+                                     args = (volume, speed,))
         #Flush all lines
-        for fc in flowcells.keys():
-            volume = flowcells[fc].flush_volume
-            speed = flowcells[fc].pump_speed['flush']
-            for port in hs.v24[fc].port_dict.keys():
+        for fc in flowcells.values():
+            AorB = fc.position
+            LED(AorB, 'startup')
+            volume = flowcells[AorB].flush_volume
+            speed = flowcells[AorB].pump_speed['flush']
+            for port in hs.v24[AorB].port_dict.keys():
                 if isinstance(port_dict[port], int):
                     hs.message('Priming ' + str(port))
-                    hs.v24[fc].move(port)
-                    hs.p[fc].pump(volume, speed)
+                    fs.thread = thread.Th.v24[AorB].move(port)
+                    hs.p[AorB].pump(volume, speed)
+                    LED(AorB, 'user')
 
         hs.message('Replace temporary flowcell with experiment flowcell and lock on to stage')
         hs.message('Place all valve input lines in correct reagent')
@@ -663,6 +724,7 @@ def do_recipe(fc, virtual):
             log_message = 'Move to ' + command
             fc.thread = threading.Thread(target = hs.v24[AorB].move,
                 args = (command,))
+            LED(AorB, 'awake')
 
         # Pump reagent into flowcell
         elif instrument == 'PUMP':
@@ -671,7 +733,7 @@ def do_recipe(fc, virtual):
             log_message = 'Pumping ' + str(volume) + ' uL'
             fc.thread = threading.Thread(target = hs.p[AorB].pump,
                 args = (volume, speed,))
-
+            LED(AorB, 'awake')
         # Incubate flowcell in reagent for set time
         elif instrument == 'HOLD':
             holdTime = float(command)*60
@@ -680,7 +742,7 @@ def do_recipe(fc, virtual):
                 fc.thread = threading.Timer(holdTime, fc.endHOLD)
             else:
                 fc.thread = threading.Timer(holdTime/100/60, fc.endHOLD)
-
+            LED(AorB, 'sleep')
         # Wait for other flowcell to finish event before continuing with current flowcell
         elif instrument == 'WAIT':
             if fc.waits_for is not None:
@@ -690,16 +752,17 @@ def do_recipe(fc, virtual):
             else:
                 log_message = 'Skip waiting for ' + command
                 fc.thread = threading.Thread(target = do_nothing)
-
+            LED(AorB, 'sleep')
         # Image the flowcell
         elif instrument == 'IMAG':
             log_message = 'Imaging flowcell'
             fc.thread = threading.Thread(target = IMAG,
                 args = (fc,int(command),))
-
+            LED(AorB, 'imaging')
         # Block all further processes until user input
         elif instrument == 'STOP':
             hs.message('PySeq::Paused')
+            LED(AorB, 'user')
             input("press enter to continue...")
             hs.message('PySeq::Continuing...')
 
@@ -1036,6 +1099,7 @@ def do_shutdown():
 
     for fc in flowcells.values():
         fc.wait_thread.set()
+        LED(fc.position, 'startup')
 
     hs.message('PySeq::Shutting down...')
 
@@ -1043,13 +1107,18 @@ def do_shutdown():
     hs.z.move([0, 0, 0])
     hs.move_stage_out()
     ##Flush all lines##
+    for fc in flowcells.values():
+        LED(fc.position, 'user')
+
     flush_YorN = input("Flush lines? Y/N = ")
     if flush_YorN == 'Y':
         hs.message('Lock temporary flowcell on  stage')
         hs.message('Place all valve input lines in PBS/water')
         input('Press enter to continue...')
 
+
         for fc in flowcells.keys():
+            LED(AorB, 'startup')
             volume = flowcells[fc].flush_volume
             speed = flowcells[fc].pump_speed['flush']
             for port in hs.v24[fc].port_dict.keys():
@@ -1060,6 +1129,9 @@ def do_shutdown():
             hs.p[fc].command('OA0R')
             hs.p[fc].command('IR')
     else:
+        for fc in flowcells.values():
+            LED(fc.position, 'user')
+
         hs.message('Retrieve experiment flowcells')
         input('Press any key to finish shutting down')
 
@@ -1074,6 +1146,8 @@ def do_shutdown():
 
     # Turn off y stage motor
     hs.y.command('OFF')
+    for fc in flowcells.values():
+        LED(fc.position, 'off')
 
 
 
@@ -1105,6 +1179,10 @@ def free_fc():
 
 def integrate_fc_and_hs(port_dict):
     """Integrate flowcell info with hiseq configuration info."""
+
+    for AorB in ['A','B']:                                                      #Turn on LED for position not in use
+        if AorB not in flowcells.keys():
+            LED(AorB, 'off')
 
     method = config.get('experiment', 'method')                                 # Read method specific info
     method = config[method]
