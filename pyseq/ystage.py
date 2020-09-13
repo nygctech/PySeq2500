@@ -67,7 +67,7 @@ class Ystage():
         self.on = False
         self.position = 0
         self.home = 0
-        self.logger = None
+        self.logger = logger
 
 
     def initialize(self):

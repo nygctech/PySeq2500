@@ -448,7 +448,7 @@ class HamamatsuCamera():
         imageio.imwrite(join(image_path,right_name), right_image)
 
         n_bytes = self.frame_bytes*f
-        self.message(str(n_btyes) + ' bytes saved from camera ' + str(self.camera_id))
+        self.message(str(n_bytes) + ' bytes saved from camera ' + str(self.camera_id))
 
         return n_bytes
 

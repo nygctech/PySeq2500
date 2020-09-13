@@ -66,6 +66,8 @@ class FPGA():
         self.suffix = '\n'
         self.y_offset = 7000000
         self.logger = logger
+        self.led_dict = {'off':'0', 'yellow':'1', 'green':'3', 'pulse green':'4',
+                         'blue':'5', 'pulse blue':'6', 'sweep blue': '7'}        
 
 
     def initialize(self):
@@ -76,8 +78,9 @@ class FPGA():
         self.command('EX2HM')                                                   # Home excitation filter on laser line 2
         self.command('EM2I')                                                    # Move emission filter into light path
         self.command('SWLSRSHUT 0')                                             # Shutter lasers
-
-
+        self.LED(1,'off')
+        self.LED(2,'off')
+        
     def command(self, text):
         """Send commands to the FPGA and return the response.
 
@@ -178,11 +181,11 @@ class FPGA():
         s = None
         if type(AorB) is str:
             if AorB.upper() == 'A':
-                s = '0'
-            elif AorB.upper() == 'B':
                 s = '1'
+            elif AorB.upper() == 'B':
+                s = '2'
         elif type(AorB) is int:
-            if AorB == 0 or AorB == 1:
+            if AorB == 1 or AorB == 2:
                 s = str(AorB)
 
         m = None

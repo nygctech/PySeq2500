@@ -105,7 +105,7 @@ class OBJstage():
 
         """
 
-        if self.min_x <= position <= self.max_z:
+        if self.min_z <= position <= self.max_z:
             try:
                 while self.check_position() != position:
                     self.command('ZMV ' + str(position))                        # Move Objective

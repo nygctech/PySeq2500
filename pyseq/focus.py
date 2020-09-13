@@ -151,16 +151,16 @@ def autofocus(hs, pos_dict):
 
     # Find pixels to focus on
     opt_obj_pos = False
-    if sum_im:
+    if sum_im is not None:
         message(log, True, 'Finding potential focus positions')
         px_rows, px_cols = sum_im.shape
         n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
         ord_points = IA.get_focus_points(sum_im, scale, n_markers*10,log)
-        message(log, True, 'Found',length(ord_points),'focus positions')
+        message(log, True, 'Found',len(ord_points),'focus positions')
 
         # Get stage positions on in-focus points
         message(log, True, 'Finding optimal focus')
-        focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict)
+        focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict, log)
         if focus_points.any():
             opt_obj_pos = int(np.median(focus_points[:,2]))
         else:
@@ -377,7 +377,7 @@ def format_focus(hs, focus_data):
         #kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
         kurt_z, pvalue = stats.kurtosistest(focus_data[:,i])
         if kurt_z > 1.96:
-            message(hs.logger,name_,'Signal in', hs.channel[i], 'channel')
+            message(hs.logger,name_,'Signal in', hs.channels[i], 'channel')
             f_fd = f_fd + np.reshape(focus_data[0:n_f_frames,i], (n_f_frames,1))
 
     # Normalize
@@ -500,7 +500,7 @@ def fit_mixed_gaussian(hs, data):
 
 
 
-def get_focus_data(hs, px_points, n_markers, scale, pos_dict):
+def get_focus_data(hs, px_points, n_markers, scale, pos_dict, log=None):
     """Return points and unit normal that define the imaging plane.
 
        Loop through candidate focus *px_points*, and take an objective stack at

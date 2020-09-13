@@ -820,16 +820,16 @@ class HiSeq():
 
         # Check if all frames were taken from camera 1 then save images
         if cam1.getFrameCount() != n_frames:
-            message('Cam1 frames: ', cam1.getFrameCount())
-            message('Cam1 image not taken')
+            self.message('Cam1 frames: ', cam1.getFrameCount())
+            self.message('Cam1 image not taken')
             image_complete = False
         else:
             cam1.saveImage(image_name, self.image_path)
             image_complete = True
         # Check if all frames were taken from camera 2 then save images
         if cam2.getFrameCount() != n_frames:
-            message('Cam2 frames: ', cam2.getFrameCount())
-            message('Cam2 image not taken')
+            self.message('Cam2 frames: ', cam2.getFrameCount())
+            self.message('Cam2 image not taken')
             image_complete += False
         else:
             cam2.saveImage(image_name, self.image_path)

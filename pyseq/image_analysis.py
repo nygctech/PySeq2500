@@ -237,13 +237,11 @@ def sum_images(images, logger = None):
                 sum_im = _im.astype('uint16')
             else:
                 sum_im = np.add(sum_im, _im)
-    else:
-        sum_im = False
 
     return sum_im
 
 
-def get_focus_points(im, scale, min_n_markers, p_sat = 99.9, log=None):
+def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
     """Get potential points to focus on.
 
        First 1000 of the brightest, unsaturated pixels are found.

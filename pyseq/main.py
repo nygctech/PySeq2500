@@ -234,7 +234,7 @@ def parse_line(line):
     event = sections[0]                                                         # first section is event
     event = event[0:4]                                                          # event identified by first 4 characters
     command = sections[1]                                                       # second section is command
-    command = command.replace(' ','')                                           # remove space
+    command = command.strip()                                                   # remove space
 
     return event, command
 
@@ -507,9 +507,10 @@ def check_ports():
             while response:
                 response = input(
                     'Are all ports the same for every cycle? Y/N: ')
-                if response == 'Y':
+                if response.upper() == 'Y':
                     response = False
-                elif response == 'N':
+                elif response.upper() == 'N':
+                    response = False
                     error('ConfigFile::No variable ports listed')
 
     else:
@@ -637,9 +638,21 @@ def do_flush():
             LED(AorB, 'user')
 
     ## Flush lines
-    flush_YorN = input("Prime lines? Y/N = ")
+    response = True
+    while response:
+        flush_YorN = input("Prime lines? Y/N = ")
+        flush_YorN = flush_YorN.upper()
+        if flush_YorN == 'Y' or flush_YorN == 'N':
+            response = False
+            
+    for AorB in ['A','B']:
+        if AorB in flowcells.keys():
+            LED(AorB, 'startup')
     hs.z.move([0,0,0])
     hs.move_stage_out()
+    for AorB in ['A','B']:
+        if AorB in flowcells.keys():
+            LED(AorB, 'user')
     if flush_YorN.upper() == 'Y':
         hs.message('Lock temporary flowcell(s) on to stage')
         hs.message('Place all valve input lines in PBS/water')
