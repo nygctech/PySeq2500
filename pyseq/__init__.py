@@ -211,7 +211,7 @@ class HiSeq():
         self.f.initialize()
         self.f.LED(1, 'green')
         self.f.LED(2, 'green')
-        
+
         #Initialize X Stage before Y Stage!
         self.message(msg+'Initializing X & Y stages')
         #self.x.initialize()
@@ -568,6 +568,8 @@ class HiSeq():
         self.message('HiSeq::Moving stage out')
         self.z.move([0,0,0])
         self.x.move(self.x.home)
+        self.y.command('GAINS(5,10,7,1.5,0)')
+        self.y.command('V1')
         self.y.move(self.y.min_y)
 
     def autofocus(self, pos_dict):
