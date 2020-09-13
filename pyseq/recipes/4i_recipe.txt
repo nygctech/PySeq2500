@@ -31,4 +31,5 @@ PUMP:	2000		#Pump 2000 uL
 WAIT:	water		#Wait till other flowcell is washing with water
 PORT:	imaging		#Move valve to imaging buffer (port 5)
 PUMP:	750		#Pump 750 uL
+HOLD: STOP  #DELETE
 IMAG:	3		#image 15 z sections

@@ -228,9 +228,9 @@ def parse_line(line):
     """Parse line and return event (str) and command (str)."""
 
     comment_character = '#'
-    delimiter = '\t'
+    #delimiter = '\t'
     no_comment = line.split(comment_character)[0]                               # remove comment
-    sections = no_comment.split(delimiter)
+    sections = no_comment.split()
     event = sections[0]                                                         # first section is event
     event = event[0:4]                                                          # event identified by first 4 characters
     command = sections[1]                                                       # second section is command
@@ -432,12 +432,15 @@ def check_instructions():
             # Make sure hold time (minutes) is a number
             elif instrument == 'HOLD':
                 if command.isdigit() == False:
-                    error('Recipe::Invalid time on line', line_num)
-
-            # Warn user that HiSeq will completely stop with this command
-            elif instrument == 'STOP':
-                print('WARNING::HiSeq will stop until user input at line',
-                       line_num)
+                    if command != 'STOP':
+                        error('Recipe::Invalid time on line', line_num)
+                    else:
+                        print('WARNING::HiSeq will stop until user input at line',
+                               line_num)
+            # # Warn user that HiSeq will completely stop with this command
+            # elif instrument == 'STOP':
+            #     print('WARNING::HiSeq will stop until user input at line',
+            #            line_num)
 
             # Make sure the instrument name is valid
             else:
@@ -635,10 +638,10 @@ def userYN(question):
         answer = input(question + '? Y/N = ')
         answer = answer.upper().strip()
         if answer == 'Y':
-            reponse = False
+            response = False
             answer = True
         elif answer == 'N':
-            reponse = False
+            response = False
             answer = False
 
     return answer
@@ -757,12 +760,20 @@ def do_recipe(fc, virtual):
             LED(AorB, 'awake')
         # Incubate flowcell in reagent for set time
         elif instrument == 'HOLD':
-            holdTime = float(command)*60
-            log_message = 'Flowcell holding for ' + str(command) + ' min.'
-            if not virtual:
-                fc.thread = threading.Timer(holdTime, fc.endHOLD)
-            else:
-                fc.thread = threading.Timer(holdTime/100/60, fc.endHOLD)
+            if command.isdigit():
+                holdTime = float(command)*60
+                log_message = 'Flowcell holding for ' + str(command) + ' min.'
+                if not virtual:
+                    fc.thread = threading.Timer(holdTime, fc.endHOLD)
+                else:
+                    fc.thread = threading.Timer(holdTime/100/60, fc.endHOLD)
+            elif command == 'STOP':
+                hs.message('PySeq::Paused')
+                LED(AorB, 'user')
+                input("Press enter to continue...")
+                log_message = ('PySeq::Continuing...')
+                fc.thread = threading.Thread(target = do_nothing)
+
             LED(AorB, 'sleep')
         # Wait for other flowcell to finish event before continuing with current flowcell
         elif instrument == 'WAIT':
@@ -781,11 +792,11 @@ def do_recipe(fc, virtual):
                 args = (fc,int(command),))
             LED(AorB, 'imaging')
         # Block all further processes until user input
-        elif instrument == 'STOP':
-            hs.message('PySeq::Paused')
-            LED(AorB, 'user')
-            input("Press enter to continue...")
-            hs.message('PySeq::Continuing...')
+        # elif instrument == 'STOP':
+        #     hs.message('PySeq::Paused')
+        #     LED(AorB, 'user')
+        #     input("Press enter to continue...")
+        #     hs.message('PySeq::Continuing...')
 
 
         #Signal to other flowcell that current flowcell reached signal event
@@ -1130,7 +1141,7 @@ def do_shutdown():
     ##Flush all lines##
     LED('all', 'user')
 
-    flush_YorN = userYN("Flush lines? Y/N = ")
+    flush_YorN = userYN("Flush lines")
     if flush_YorN:
         hs.message('Lock temporary flowcell on  stage')
         hs.message('Place all valve input lines in PBS/water')
