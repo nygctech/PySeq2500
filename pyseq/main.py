@@ -506,15 +506,9 @@ def check_ports():
                     error('ConfigFile::Number of', variable, 'reagents does not match experiment cycles')
 
         else:
-            response = True
-            while response:
-                response = input(
-                    'Are all ports the same for every cycle? Y/N: ')
-                if response.upper() == 'Y':
-                    response = False
-                elif response.upper() == 'N':
-                    response = False
-                    error('ConfigFile::No variable ports listed')
+            same_ports = userYN('Are all ports the same for every cycle')
+            if not same_ports:
+                error('ConfigFile::No variable ports listed')
 
     else:
         print('WARNING::No ports are specified')
@@ -634,6 +628,21 @@ def LED(AorB, indicate):
         elif indicate == 'off':
             hs.f.LED(AorB, 'off')
 
+def userYN(question):
+
+    response = True
+    while response:
+        answer = input(question + '? Y/N = ')
+        answer = answer.upper().strip()
+        if answer == 'Y':
+            reponse = False
+            answer = True
+        elif answer == 'N':
+            reponse = False
+            answer = False
+
+    return answer
+
 
 
 ##########################################################
@@ -645,18 +654,12 @@ def do_flush():
     LED('all', 'user')
 
     ## Flush lines
-    response = True
-    while response:
-        flush_YorN = input("Prime lines? Y/N = ")
-        flush_YorN = flush_YorN.upper()
-        if flush_YorN == 'Y' or flush_YorN == 'N':
-            response = False
-
+    flush_YorN = userYN("Prime lines")
     LED('all', 'startup')
     hs.z.move([0,0,0])
     hs.move_stage_out()
     LED('all', 'user')
-    if flush_YorN.upper() == 'Y':
+    if flush_YorN:
         hs.message('Lock temporary flowcell(s) on to stage')
         hs.message('Place all valve input lines in PBS/water')
         input("Press enter to continue...")
@@ -781,7 +784,7 @@ def do_recipe(fc, virtual):
         elif instrument == 'STOP':
             hs.message('PySeq::Paused')
             LED(AorB, 'user')
-            input("press enter to continue...")
+            input("Press enter to continue...")
             hs.message('PySeq::Continuing...')
 
 
@@ -1127,8 +1130,8 @@ def do_shutdown():
     ##Flush all lines##
     LED('all', 'user')
 
-    flush_YorN = input("Flush lines? Y/N = ")
-    if flush_YorN == 'Y':
+    flush_YorN = userYN("Flush lines? Y/N = ")
+    if flush_YorN:
         hs.message('Lock temporary flowcell on  stage')
         hs.message('Place all valve input lines in PBS/water')
         input('Press enter to continue...')
