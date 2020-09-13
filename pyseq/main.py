@@ -467,12 +467,16 @@ def check_ports():
 
     # Make sure there are no duplicated names in the valve
     if len(valve.values()) != len(set(valve.values())):
-        error('ConfigFile: Port names are not unique')
+        error('ConfigFile: Reagent names are not unique')
 
     if len(valve) > 0:
         # Create port dictionary
         for port in valve.keys():
-            port_dict[valve[port]] = int(port)
+            try:
+                port_dict[valve[port]] = int(port)
+            except:
+                error('ConfigFile:List reagents as n (int) = name (str) ')
+
 
         # Add cycle variable port dictionary
         if cycle_variables is not None:
@@ -644,7 +648,7 @@ def do_flush():
         flush_YorN = flush_YorN.upper()
         if flush_YorN == 'Y' or flush_YorN == 'N':
             response = False
-            
+
     for AorB in ['A','B']:
         if AorB in flowcells.keys():
             LED(AorB, 'startup')
