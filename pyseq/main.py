@@ -642,9 +642,7 @@ def LED(AorB, indicate):
 def do_flush():
     """Flush lines with all reagents in config if prompted."""
 
-    for AorB in ['A','B']:
-        if AorB in flowcells.keys():
-            LED(AorB, 'user')
+    LED('all', 'user')
 
     ## Flush lines
     response = True
@@ -654,20 +652,17 @@ def do_flush():
         if flush_YorN == 'Y' or flush_YorN == 'N':
             response = False
 
-    for AorB in ['A','B']:
-        if AorB in flowcells.keys():
-            LED(AorB, 'startup')
+    LED('all', 'startup')
     hs.z.move([0,0,0])
     hs.move_stage_out()
-    for AorB in ['A','B']:
-        if AorB in flowcells.keys():
-            LED(AorB, 'user')
+    LED('all', 'user')
     if flush_YorN.upper() == 'Y':
         hs.message('Lock temporary flowcell(s) on to stage')
         hs.message('Place all valve input lines in PBS/water')
         input("Press enter to continue...")
 
         #Flush all lines
+        LED('all', 'startup')
         while True:
             AorB_ = [*flowcells.keys()][0]
             volume = flowcells[AorB_].flush_volume
@@ -677,7 +672,6 @@ def do_flush():
                     hs.message('Priming ' + str(port))
                     for fc in flowcells.values():
                         AorB = fc.position
-                        LED(AorB, 'startup')
                         fc.thread = threading.Thread(target=hs.v24[AorB].move,
                                                      args=(port,))
                     alive = True
@@ -692,8 +686,7 @@ def do_flush():
                     while alive:
                         for fc in flowcells.values():
                             alive *= fc.thread.is_alive()
-            for AorB in flowcells.keys():
-                LED(AorB, 'user')
+            LED('all', 'user')
             break
 
         hs.message('Replace temporary flowcell with experiment flowcell and lock on to stage')
@@ -1132,8 +1125,7 @@ def do_shutdown():
     hs.z.move([0, 0, 0])
     hs.move_stage_out()
     ##Flush all lines##
-    for fc in flowcells.values():
-        LED(fc.position, 'user')
+    LED('all', 'user')
 
     flush_YorN = input("Flush lines? Y/N = ")
     if flush_YorN == 'Y':
@@ -1141,9 +1133,8 @@ def do_shutdown():
         hs.message('Place all valve input lines in PBS/water')
         input('Press enter to continue...')
 
-
+        LED('all', 'startup')
         for fc in flowcells.keys():
-            LED(AorB, 'startup')
             volume = flowcells[fc].flush_volume
             speed = flowcells[fc].pump_speed['flush']
             for port in hs.v24[fc].port_dict.keys():
@@ -1154,8 +1145,7 @@ def do_shutdown():
             hs.p[fc].command('OA0R')
             hs.p[fc].command('IR')
     else:
-        for fc in flowcells.values():
-            LED(fc.position, 'user')
+        LED('all', 'user')
 
         hs.message('Retrieve experiment flowcells')
         input('Press any key to finish shutting down')
@@ -1171,8 +1161,7 @@ def do_shutdown():
 
     # Turn off y stage motor
     hs.y.command('OFF')
-    for fc in flowcells.values():
-        LED(fc.position, 'off')
+    LED('all', 'off')
 
 
 
@@ -1205,9 +1194,7 @@ def free_fc():
 def integrate_fc_and_hs(port_dict):
     """Integrate flowcell info with hiseq configuration info."""
 
-    for AorB in ['A','B']:                                                      #Turn on LED for position not in use
-        if AorB not in flowcells.keys():
-            LED(AorB, 'off')
+    LED('all', 'off')
 
     method = config.get('experiment', 'method')                                 # Read method specific info
     method = config[method]
