@@ -477,7 +477,6 @@ def check_ports():
             except:
                 error('ConfigFile:List reagents as n (int) = name (str) ')
 
-
         # Add cycle variable port dictionary
         if cycle_variables is not None:
             cycle_variables = cycle_variables.split(',')
@@ -593,7 +592,7 @@ def LED(AorB, indicate):
     """Control front LEDs to communicate what the HiSeq is doing.
 
        **Parameters:**
-       - AorB (str): Flowcell position, A or B.
+       - AorB (str): Flowcell position (A or B), or all.
        - indicate (str): Current action of the HiSeq or state of the flowcell.
 
         ===========  ===========  =============================
@@ -613,7 +612,13 @@ def LED(AorB, indicate):
 
     """
 
+    fc = []
     if AorB in flowcells.keys():
+        fc = [AorB]
+    elif AorB == 'all':
+        fc = [*flowcells.keys()]
+
+    for AorB in fc:
         if indicate == 'startup':
             hs.f.LED(AorB, 'green')
         elif indicate == 'user':
