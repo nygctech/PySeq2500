@@ -336,7 +336,7 @@ def initialize_hs(virtual):
 
         # HiSeq Settings
         hs.bundle_height = int(method.get('bundle height', fallback = 128))
-        hs.af = method.get('autofocus', fallback = True)
+        hs.AF = method.get('autofocus', fallback = 'partial')
         hs.overlap = int(method.get('overlap', fallback = 0))
 
         # Set laser power
@@ -714,12 +714,11 @@ def do_nothing():
 ##########################################################
 ## iterate over lines, send to pump, and print response ##
 ##########################################################
-def do_recipe(fc, virtual):
+def do_recipe(fc):
     """Do the next event in the recipe.
 
        **Parameters:**
        - fc (flowcell): The current flowcell.
-       - virtual (bool): Flag for HiSeq simulation.
 
     """
 
@@ -763,15 +762,15 @@ def do_recipe(fc, virtual):
             if command.isdigit():
                 holdTime = float(command)*60
                 log_message = 'Flowcell holding for ' + str(command) + ' min.'
-                if not virtual:
-                    fc.thread = threading.Timer(holdTime, fc.endHOLD)
-                else:
+                if hs.virtual:
                     fc.thread = threading.Timer(holdTime/100/60, fc.endHOLD)
+                else:
+                    fc.thread = threading.Timer(holdTime, fc.endHOLD)
             elif command == 'STOP':
                 hs.message('PySeq::Paused')
                 LED(AorB, 'user')
                 input("Press enter to continue...")
-                log_message = ('PySeq::Continuing...')
+                log_message = ('Continuing...')
                 fc.thread = threading.Thread(target = do_nothing)
 
             LED(AorB, 'sleep')
@@ -926,7 +925,7 @@ def IMAG(fc, n_Zplanes):
 
         # Autofocus
         msg = 'PySeq::' + AorB + '::cycle' + cycle+ '::' + str(section) + '::'
-        if hs.af:
+        if hs.AF:
             hs.message(msg + 'Start Autofocus')
             if hs.autofocus(pos):
                 hs.message(msg + 'Autofocus complete')
@@ -1312,7 +1311,7 @@ if __name__ == 'pyseq.main':
 
             for fc in flowcells.values():
                 if not fc.thread.is_alive():                                    # flowcell not busy, do next step in recipe
-                    do_recipe(fc, args_['virtual'])
+                    do_recipe(fc)
 
                 if fc.signal_event:                                             # check if flowcells are waiting on each other
                     stuck += 1

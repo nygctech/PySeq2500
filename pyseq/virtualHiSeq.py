@@ -1,5 +1,6 @@
 #!/usr/bin/python
 from os.path import join
+import importlib.resources as pkg_resources
 
 # HiSeq Simulater
 class Xstage():
@@ -610,9 +611,14 @@ class Camera():
 
 from . import focus
 from os import getcwd
+from os import listdir
+from os.path import getsize
+from os.path import dirname
+
 from math import ceil
 import time
 import warnings
+import pandas as pd
 
 class HiSeq():
     def __init__(self, Logger = None):
@@ -644,7 +650,9 @@ class HiSeq():
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
         self.channels = None
-
+        self.virtual = True
+        self.focus_data = join(dirname(__file__), 'focus_data')
+        self.AF = 'partial'
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
@@ -706,6 +714,12 @@ class HiSeq():
         self.f.write_position(0)
 
         self.message(msg+'HiSeq initialized!')
+
+    def obj_stack(self, n_frames = 232, velocity = 0.1):
+        focus_data = np.loadtxt(join(self.focus_data,'obj_stack_data.txt'))
+
+        return focus_data
+
 
 
     def take_picture(self, n_frames, image_name = None):

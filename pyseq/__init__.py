@@ -154,8 +154,9 @@ class HiSeq():
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
         self.channels = None
-        self.af = True                                                          # autofocus flag
+        self.AF = 'partial'                                              # autofocus routine
         self.overlap = 0
+        self.virtual = False                                                    # virtual flag
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""

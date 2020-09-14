@@ -6,3 +6,8 @@ include LICENSE.txt
 
 # Include recipes and configs
 recursive-include pyseq/recipes/ *.txt *.cfg
+
+# Include Focus Data
+recursive-include pyseq/focus_data/ *.txt
+recursive-include pyseq/focus_data/full *.tiff
+recursive-include pyseq/focus_data/partial *.tiff

@@ -12,31 +12,376 @@ from skimage.transform import downscale_local_mean
 import imageio
 import time
 
-def message(logger, *args):
-    """Print output text to logger or console.
+class Autofocus():
+    """Thought it would be easier to have a focusing class (maybe not).
 
-       If there is no logger, text is printed to the console.
-       If a logger is assigned, and the first argument is true, text is
-       printed to the console, otherwise text is printed to the log file.
+       **Attributes:**
+       - hs (HiSeq): HiSeq object.
+       - pos_dict (int): Stage position information of the section.
+       - rough_ims = Thumbnails of the focusing section.
+       - scale = Down scale factor for thumbnails
+       - files = List of images for focusing
+       - logger = Logger for communiction and recording
 
     """
 
-    i = 0
-    if isinstance(args[0], bool):
-        if args[0]:
-            i = 1
+    def __init__(self, hs, pos_dict):
+        self.hs = hs
+        self.pos_dict = pos_dict
+        self.rough_ims = []
+        self.scale = None
+        self.files = []
+        self.logger = hs.logger
 
-    msg = 'Autofocus::'
-    for a in args[i:]:
-        msg += str(a) + ' '
-
-    if logger is None:
-        print(msg)
-    else:
-        if i is 1:
-            logger.log(21, msg)
+        if hs.virtual:
+            self.image_path = hs.focus_data
         else:
-            logger.info(msg)
+            self.image_path = hs.image_path
+
+    def partial_scan(self, image_name = 'RoughScan'):
+        """Out of focus center scan of the section.
+
+           The middle full length of the section is imaged. The channel images
+           are scaled down (if the images are larger the 256 kb) and then
+           normalized.
+
+           **Parameters:**
+           - image_name (str): Common name for images, default is 'RoughScan'.
+
+           **Returns:**
+           - list: Processed images of the section from 4 channels.
+           - int: Scale down factor of the images.
+           - list: Filenames of the raw images used to make the processed images.
+
+         """
+
+        name_ = 'PartialScan::'
+        hs = self.hs
+        pos_dict = self.pos_dict
+
+        hs.x.move(pos_dict['x_center'])
+        x_initial = hs.x.position
+        y_initial = hs.y.position
+        # Move to rough focus position
+        #hs.obj.move(hs.obj.focus_rough)
+        #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
+        #hs.z.move(z_pos)
+        # Take rough focus image
+        self.message(name_+'Scanning section')
+        if hs.virtual:
+            im_path = path.join(self.image_path, 'partial')
+        else:
+            im_path = self.image_path
+            hs.scan(pos_dict['n_tiles'], 1, pos['n_frames'], image_name)
+        hs.y.move(y_initial)
+        hs.x.move(x_initial)
+
+        # Scale & Normalize partial focus image
+        self.message(name_+'Scaling & Normalizing images')
+        for ch in hs.channels:
+            df_x = IA.get_image_df(im_path, 'c'+str(ch)+'_'+image_name)
+            plane, scale = IA.stitch(im_path, df_x, scaled = True)
+            self.rough_ims.append(IA.normalize(plane, scale))
+            self.files += [*df_x.index]
+
+        self.scale = scale
+
+        return self.rough_ims, scale, self.files
+
+    def full_scan(self, image_name = 'RoughScan'):
+        """Scan entire out of focus section.
+
+           The section is imaged at a predefined objective position. Multiple
+           images comprising the section are stitched together and possiblly
+           scaled down (if the images are larger the 256 kb) and then
+           normalized.
+
+           **Parameters:**
+           - image_name (str): Common name for images, default is 'RoughScan'.
+
+           **Returns:**
+           - list: Processed images of the section from 4 channels.
+           - int: Scale down factor of the images.
+           - list: Filenames of the raw images used to make the processed images.
+
+         """
+
+        name_ = 'FullScan::'
+        hs = self.hs
+        pos_dict = self.pos_dict
+
+        x_initial = hs.x.position
+        y_initial = hs.y.position
+        # Move to rough focus position
+        #hs.obj.move(hs.obj.focus_rough)
+        #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
+        #hs.z.move(z_pos)
+        # Take rough focus image
+        self.message(name_+'Scanning section')
+        if hs.virtual:
+            im_path = path.join(self.image_path,'full')
+        else:
+            im_path = self.image_path
+            hs.scan(pos_dict['n_tiles'], 1, pos_dict['n_frames'], image_name)
+        hs.y.move(y_initial)
+        hs.x.move(x_initial)
+
+        # Stitch rough focus image
+        self.message(name_+'Stitching & Normalizing images')
+        for ch in hs.channels:
+            df_x = IA.get_image_df(im_path, 'c'+str(ch)+'_'+image_name)
+            plane, scale = IA.stitch(im_path, df_x, scaled = True)
+            self.rough_ims.append(IA.normalize(plane, scale))
+            self.files += [*df_x.index]
+
+        self.scale = scale
+
+        return self.rough_ims, scale, self.files
+
+    def get_focus_data(self, px_points, n_markers):
+        """Return points and unit normal that define the imaging plane.
+
+           Loop through candidate focus *px_points*, and take an objective stack
+           at each position until n_markers with an optimal objective position
+           have been found.
+
+           **Parameters:**
+           - px_points (2xN array): Row x Column position of candidate focal points
+           - n_markers (int): Number of focus markers to find
+
+           **Returns:**
+           - 4x*n_markers array*: X-stage step, Y-stage step, Obj step, and
+                                  index of focal position.
+
+        """
+
+        hs = self.hs
+        pos_dict = self.pos_dict
+        scale = self.scale
+        p2s = self.hs.px_to_step
+        name_ = 'GetFocusData::'
+
+        focus_points = np.full((n_markers,4), -1)
+        i = 0
+        n_obj = 0
+        focus_data = None
+        while n_obj < n_markers:
+        # Take obj_stack at focus points until n_markers have been found
+            px_pt = px_points[i,:]
+            [x_pos, y_pos] = p2s(px_pt[0], px_pt[1], pos_dict, scale)
+            hs.y.move(y_pos)
+            hs.x.move(x_pos)
+            fs = hs.obj_stack()
+
+            f_fs = self.format_focus(fs)
+            if f_fs is not False:
+               obj_pos = self.fit_mixed_gaussian(f_fs)
+               if obj_pos:
+                   self.message(name_+'Found focus point ', n_obj+1)
+                   self.message(False, name_+'Point at x =', x_pos,
+                                       'and y =',y_pos)
+
+                   ##################################################################
+                   # Save in focus frame
+    ##               in_focus_frame = np.argmin(abs(f_fs[:,0]-obj_pos))
+    ##               frame_name = '740_'+str(in_focus_frame)+'.jpeg'
+    ##               z_pos = ''
+    ##               for z in z_pos:
+    ##                   z_pos += str(z) + '_'
+    ##               os.rename(path.join(hs.image_path,frame_name), path.join(hs.image_path,
+    ##                         z_pos+str(px_pt[0])+'_'+str(px_pt[1])+'.jpeg'))
+                   ##################################################################
+
+                   focus_points[n_obj,:] = [x_pos, y_pos, obj_pos, i]
+                   n_obj += 1
+
+               else:
+                   self.message(False, name_+'No Focus at point',n_obj+1,
+                                 'at x =',x_pos,'and y =',y_pos)
+
+            if i == len(px_points)-1:
+                focus_points = focus_points[focus_points[:,3]>-1,:]
+                self.message(name_+'Only found',n_obj+1,'focus points')
+                break
+            else:
+                i += 1
+
+        return focus_points
+
+
+    def message(self, *args):
+        """Print output text to console (default) or log file.
+
+           If there is no logger, text is printed to the console.
+           If a logger is assigned, and the first argument is False, text is
+           printed to the log file, otherwise text is printed to the console.
+
+        """
+
+        i = 0
+        if isinstance(args[0], bool):
+            i = 1
+            screen = args[0]
+        else:
+            screen = True
+
+        msg = 'Autofocus::'
+        for a in args[i:]:
+            msg += str(a) + ' '
+
+        if self.logger is None:
+            print(msg)
+        else:
+            if screen:
+                self.logger.log(21, msg)
+            else:
+                self.logger.info(msg)
+
+    def delete_focus_images(self):
+        """Delete images used for focusing."""
+
+        if not self.hs.virtual:
+            for f in self.files:
+                remove(path.join(hs.image_path, f))
+
+    def format_focus(self, focus_data):
+        """Return processed focus frame file sizes.
+
+           Objective positions are calculated for corresponding frames. The
+           objective position series of JPEG frame sizes from each camera are
+           determined to contain a signal if the kurtosis of the series is
+           significant. Series with signals are summed and normalized.
+
+           **Parameters:**
+           - focus_data (Nx4 array): JPEG frame file sizes from the 4 cameras.
+
+           **Returns:**
+           - array (Nx2): The 1st column is the objective step and the 2nd
+                          column is the corresponding processed frame size.
+
+        """
+
+        name_ = 'FormatFocus::'
+        hs = self.hs
+
+        if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
+            message(hs.logger,name_,'Frame interval mismatch')
+
+        frame_interval = hs.cam1.getFrameInterval()
+        spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
+
+        # Remove frames after objective stops moving
+        n_frames = len(focus_data)
+        _frames = range(n_frames)
+        objsteps = hs.obj.focus_start + np.array(_frames)*spf
+        objsteps = objsteps[objsteps < hs.obj.focus_stop]
+
+
+        # Number of formatted frames
+        n_f_frames = len(objsteps)
+        objsteps = np.reshape(objsteps, (n_f_frames, 1))
+
+        #formatted focus data
+        f_fd = np.zeros(shape = (n_f_frames,1))
+
+        nrows, ncols = focus_data.shape
+        for i in range(ncols):
+            # test if there is a tail in data and add if True
+            #kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
+            kurt_z, pvalue = stats.kurtosistest(focus_data[:,i])
+            if kurt_z > 1.96:
+                self.message(False, name_,'Signal in', hs.channels[i], 'channel')
+                f_fd = f_fd + np.reshape(focus_data[0:n_f_frames,i], (n_f_frames,1))
+
+        # Normalize
+        if np.sum(f_fd) == 0:
+            return False
+        else:
+            f_fd = f_fd/ np.sum(f_fd)
+            f_fd = np.reshape(f_fd, (n_f_frames, 1))
+
+            return np.concatenate((objsteps,f_fd), axis=1)
+
+    def fit_mixed_gaussian(self, data):
+        """Fit focus data & return optimal objective focus step.
+
+           Focus objective step vs frame JPEG file size is fit to a mixed gaussian
+           model. The optimal objective focus step is returned at step of the max
+           fit JPEG file. If the objective focus step is not returned, False is
+           returned.
+
+           **Parameters:**
+           - data (array Nx2): Focus data where the 1st column is the objective step
+                               and the 2nd column is the corresponding file size.
+
+           **Returns:**
+           int: Optimal focus objective step if found (False is returned if not).
+
+        """
+
+        name_ = 'FitMixedGaussian::'
+        hs = self.hs
+
+        # initialize values
+        max_peaks = 4
+        # Initialize varibles
+        amp = []; amp_lb = []; amp_ub = []
+        cen = []; cen_lb = []; cen_ub = []
+        sigma = []; sigma_lb = []; sigma_ub = []
+        y = data[:,1]
+        SST = np.sum((y-np.mean(y))**2)
+        R2 = 0
+        tolerance = 0.9                                                             # Tolerance for R2
+        xfun = data[:,0]; yfun = data[:,1]
+
+        # Add peaks until fit reaches threshold
+        while len(amp) <= max_peaks and R2 < tolerance:
+            # set initial guesses
+            max_y = np.max(y)
+            amp.append(max_y*10000)
+            index = np.argmax(y)
+            y = np.delete(y, index)
+            index = np.where(data[:,1] == max_y)[0][0]
+            cen.append(data[index,0])
+            sigma.append(np.sum(data[:,1]**2)**0.5*10000)
+            p0 = np.array([amp, cen, sigma])
+            p0 = p0.flatten()
+
+            # set bounds
+            amp_lb.append(0); amp_ub.append(np.inf)
+            cen_lb.append(np.min(data[:,0])); cen_ub.append(np.max(data[:,0]))
+            sigma_lb.append(0); sigma_ub.append(np.inf)
+            lo_bounds = np.array([amp_lb, cen_lb, sigma_lb])
+            up_bounds = np.array([amp_ub, cen_ub, sigma_ub])
+            lo_bounds = lo_bounds.flatten()
+            up_bounds = up_bounds.flatten()
+
+            # Optimize parameters
+            results = least_squares(res_gaussian, p0, bounds=(lo_bounds,up_bounds),
+                                    args=(data[:,0],data[:,1]))
+
+            if not results.success:
+                self.message(False,name_,results.message)
+            else:
+                R2 = 1 - np.sum(results.fun**2)/SST
+                self.message(False,name_,'R2=',R2,'with',len(amp),'peaks')
+
+
+            if results.success and R2 > tolerance:
+                _objsteps = range(hs.obj.focus_start, hs.obj.focus_stop,
+                                  int(hs.nyquist_obj/2))
+                _focus = gaussian(_objsteps, results.x)
+                optobjstep = int(_objsteps[np.argmax(_focus)])
+            else:
+                optobjstep = False
+                if len(amp) == max_peaks:
+                    self.message(False, name_, 'Bad fit')
+                    break
+
+        return optobjstep
+
+
+
 
 # def calibrate(hs, pos_list):
 #
@@ -119,6 +464,7 @@ def message(logger, *args):
 #                 else:
 #                     print('no data for motor ' + str(motor) + ' at ' + str(z))
 
+
 def autofocus(hs, pos_dict):
     """Finds and returns the objective step for optimal focus.
 
@@ -139,43 +485,44 @@ def autofocus(hs, pos_dict):
 
 
     start = time.time()
-    log = hs.logger
+    # Scan section
+    af = Autofocus(hs, pos_dict)
+    if hs.AF == 'partial':
+        af.partial_scan()
+    elif hs.AF == 'full':
+        af.full_scan()
 
-    # Rough Scan
-    rough_ims, scale, files = rough_scan(hs, pos_dict['n_tiles'],
-                                             pos_dict['n_frames'])
-
-    message(log, True, 'Analyzing out of focus image')
+    af.message('Analyzing out of focus image')
     # Sum channels with signal
-    sum_im = IA.sum_images(rough_ims,log)
+    sum_im = IA.sum_images(af.rough_ims, hs.logger)
 
     # Find pixels to focus on
     opt_obj_pos = False
     if sum_im is not None:
-        message(log, True, 'Finding potential focus positions')
+        af.message('Finding potential focus positions')
         px_rows, px_cols = sum_im.shape
-        n_markers = 3 + int((px_rows*px_cols*scale**2)**0.5*hs.resolution/1000)
-        ord_points = IA.get_focus_points(sum_im, scale, n_markers*10,log)
-        message(log, True, 'Found',len(ord_points),'focus positions')
+        n_markers = int((px_rows*px_cols*af.scale**2)**0.5*hs.resolution/1000)
+        n_markers += 3
+        ord_points = IA.get_focus_points(sum_im, af.scale, n_markers*10,hs.logger)
+        af.message('Found',len(ord_points),'focus positions')
 
         # Get stage positions on in-focus points
-        message(log, True, 'Finding optimal focus')
-        focus_points = get_focus_data(hs, ord_points, n_markers, scale, pos_dict, log)
+        af.message('Finding optimal focus')
+        focus_points = af.get_focus_data(ord_points, n_markers)
         if focus_points.any():
             opt_obj_pos = int(np.median(focus_points[:,2]))
         else:
-            message(log, True, 'FAILED::Could not find focus')
+            af.message('FAILED::Could not find focus')
 
     else:
-        message(log, True, 'FAILED::No signal in channels')
+        af.message('FAILED::No signal in channels')
 
     # Remove rough focus images
-    for f in files:
-        remove(path.join(hs.image_path, f))
+    af.delete_focus_images()
 
     stop = time.time()
     af_time = int((stop-start)/60)
-    message(log, True, 'Completed in',af_time,'minutes')
+    af.message('Completed in',af_time,'minutes')
 
     return opt_obj_pos
 
@@ -288,106 +635,57 @@ def autofocus(hs, pos_dict):
 #
 #     return z_pos, obj_pos
 
-def rough_scan(hs, n_tiles, n_frames, image_name = 'RoughScan'):
-    """Scan out of focus section and return stitched and normalized images.
-
-       The section is imaged at a predefined objective position. Multiple images
-       comprising the section are stitched together and possible scaled down (if
-       the images are larger the 256 kb) and then normalized.
-
-       **Parameters:**
-       - hs (HiSeq): HiSeq object.
-       - n_tiles (int): Number of x positions to image.
-       - n_frames (int): Number of frames to image.
-       - image_name (str): Common name for images, the default is 'RoughScan'.
-
-       **Returns:**
-       - list: Processed images of the section from 4 channels.
-       - int: Scale down factor of the images.
-       - list: Filenames of the raw images used to make the processed images.
-
-     """
-
-    name_ = 'RoughScan::'
-    x_initial = hs.x.position
-    y_initial = hs.y.position
-    # Move to rough focus position
-    #hs.obj.move(hs.obj.focus_rough)
-    #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
-    #hs.z.move(z_pos)
-    # Take rough focus image
-    message(hs.logger, True, name_+'Scanning section')
-    hs.scan(n_tiles, 1, n_frames, image_name)
-    hs.y.move(y_initial)
-    hs.x.move(x_initial)
-    rough_ims = []
-    files = []
-    # Stitch rough focus image
-    message(hs.logger, True, name_+'Stitching & Normalizing images')
-    for ch in hs.channels:
-        df_x = IA.get_image_df(hs.image_path, 'c'+str(ch)+'_'+image_name)
-        plane, scale_factor = IA.stitch(hs.image_path, df_x, scaled = True)
-        rough_ims.append(IA.normalize(plane, scale_factor))
-        files += [*df_x.index]
-
-    return rough_ims, scale_factor, files
-
-
-def format_focus(hs, focus_data):
-    """Return processed focus frame file sizes.
-
-       Objective positions are calculated for corresponding frames. The
-       objective position series of JPEG frame sizes from each camera are
-       determined to contain a signal if the kurtosis of the series is
-       significant. Series with signals are summed and normalized.
-
-       **Parameters:**
-       - focus_data (Nx4 array): JPEG focus frame file sizes from the 4 cameras.
-
-       **Returns:**
-       - array (Nx2): The 1st column is the objective step and the 2nd column is
-                      the corresponding processed frame size.
-
-    """
-
-    name_ = 'FormatFocus::'
-    if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
-        message(hs.logger,name_,'Frame interval mismatch')
-
-    frame_interval = hs.cam1.getFrameInterval()
-    spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
-
-    # Remove frames after objective stops moving
-    n_frames = len(focus_data)
-    _frames = range(n_frames)
-    objsteps = hs.obj.focus_start + np.array(_frames)*spf
-    objsteps = objsteps[objsteps < hs.obj.focus_stop]
+# def rough_scan(hs, n_tiles, n_frames, image_name = 'RoughScan'):
+#     """Scan out of focus section and return stitched and normalized images.
+#
+#        The section is imaged at a predefined objective position. Multiple images
+#        comprising the section are stitched together and possible scaled down (if
+#        the images are larger the 256 kb) and then normalized.
+#
+#        **Parameters:**
+#        - hs (HiSeq): HiSeq object.
+#        - n_tiles (int): Number of x positions to image.
+#        - n_frames (int): Number of frames to image.
+#        - image_name (str): Common name for images, the default is 'RoughScan'.
+#
+#        **Returns:**
+#        - list: Processed images of the section from 4 channels.
+#        - int: Scale down factor of the images.
+#        - list: Filenames of the raw images used to make the processed images.
+#
+#      """
+#
+#     name_ = 'RoughScan::'
+#     x_initial = hs.x.position
+#     y_initial = hs.y.position
+#     # Move to rough focus position
+#     #hs.obj.move(hs.obj.focus_rough)
+#     #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
+#     #hs.z.move(z_pos)
+#     # Take rough focus image
+#     message(hs.logger, True, name_+'Scanning section')
+#     if not hs.virtual:
+#         hs.scan(n_tiles, 1, n_frames, image_name)
+#     hs.y.move(y_initial)
+#     hs.x.move(x_initial)
+#     rough_ims = []
+#     files = []
+#     # Stitch rough focus image
+#     message(hs.logger, True, name_+'Stitching & Normalizing images')
+#     for ch in hs.channels:
+#         if hs.virtual:
+#             im_path = hs.focus_data
+#         else:
+#             im_path = hs.image_path
+#         df_x = IA.get_image_df(im_path, 'c'+str(ch)+'_'+image_name)
+#         plane, scale_factor = IA.stitch(im_path, df_x, scaled = True)
+#         rough_ims.append(IA.normalize(plane, scale_factor))
+#         files += [*df_x.index]
+#
+#     return rough_ims, scale_factor, files
 
 
-    # Number of formatted frames
-    n_f_frames = len(objsteps)
-    objsteps = np.reshape(objsteps, (n_f_frames, 1))
 
-    #formatted focus data
-    f_fd = np.zeros(shape = (n_f_frames,1))
-
-    nrows, ncols = focus_data.shape
-    for i in range(ncols):
-        # test if there is a tail in data and add if True
-        #kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
-        kurt_z, pvalue = stats.kurtosistest(focus_data[:,i])
-        if kurt_z > 1.96:
-            message(hs.logger,name_,'Signal in', hs.channels[i], 'channel')
-            f_fd = f_fd + np.reshape(focus_data[0:n_f_frames,i], (n_f_frames,1))
-
-    # Normalize
-    if np.sum(f_fd) == 0:
-        return False
-    else:
-        f_fd = f_fd/ np.sum(f_fd)
-        f_fd = np.reshape(f_fd, (n_f_frames, 1))
-
-        return np.concatenate((objsteps,f_fd), axis=1)
 
 
 def gaussian(x, *args):
@@ -422,180 +720,6 @@ def res_gaussian(args, xfun, yfun):
     return yfun-g_sum
 
 
-def fit_mixed_gaussian(hs, data):
-    """Fit focus data & return optimal objective focus step.
-
-       Focus objective step vs frame JPEG file size is fit to a mixed gaussian
-       model. The optimal objective focus step is returned at step of the max
-       fit JPEG file. If the objective focus step is not returned, False is
-       returned.
-
-       **Parameters:**
-       - data (array Nx2): Focus data where the 1st column is the objective step
-                           and the 2nd column is the corresponding file size.
-
-       **Returns:**
-       int: Optimal focus objective step if found (False is returned if not).
-
-    """
-
-    name_ = 'FitMixedGaussian::'
-    # initialize values
-    max_peaks = 4
-    # Initialize varibles
-    amp = []; amp_lb = []; amp_ub = []
-    cen = []; cen_lb = []; cen_ub = []
-    sigma = []; sigma_lb = []; sigma_ub = []
-    y = data[:,1]
-    SST = np.sum((y-np.mean(y))**2)
-    R2 = 0
-    tolerance = 0.9                                                             # Tolerance for R2
-    xfun = data[:,0]; yfun = data[:,1]
-
-    # Add peaks until fit reaches threshold
-    while len(amp) <= max_peaks and R2 < tolerance:
-        # set initial guesses
-        max_y = np.max(y)
-        amp.append(max_y*10000)
-        index = np.argmax(y)
-        y = np.delete(y, index)
-        index = np.where(data[:,1] == max_y)[0][0]
-        cen.append(data[index,0])
-        sigma.append(np.sum(data[:,1]**2)**0.5*10000)
-        p0 = np.array([amp, cen, sigma])
-        p0 = p0.flatten()
-
-        # set bounds
-        amp_lb.append(0); amp_ub.append(np.inf)
-        cen_lb.append(np.min(data[:,0])); cen_ub.append(np.max(data[:,0]))
-        sigma_lb.append(0); sigma_ub.append(np.inf)
-        lo_bounds = np.array([amp_lb, cen_lb, sigma_lb])
-        up_bounds = np.array([amp_ub, cen_ub, sigma_ub])
-        lo_bounds = lo_bounds.flatten()
-        up_bounds = up_bounds.flatten()
-
-        # Optimize parameters
-        results = least_squares(res_gaussian, p0, bounds=(lo_bounds,up_bounds),
-                                args=(data[:,0],data[:,1]))
-
-        if not results.success:
-            message(hs.logger,name_,results.message)
-        else:
-            R2 = 1 - np.sum(results.fun**2)/SST
-            message(hs.logger,name_,'R2=',R2,'with',len(amp),'peaks')
-
-
-        if results.success and R2 > tolerance:
-            _objsteps = range(hs.obj.focus_start, hs.obj.focus_stop,
-                              int(hs.nyquist_obj/2))
-            _focus = gaussian(_objsteps, results.x)
-            optobjstep = int(_objsteps[np.argmax(_focus)])
-        else:
-            optobjstep = False
-            if len(amp) == max_peaks:
-                message(hs.logger, name_, 'Bad fit')
-                break
-
-    return optobjstep
-
-
-
-def get_focus_data(hs, px_points, n_markers, scale, pos_dict, log=None):
-    """Return points and unit normal that define the imaging plane.
-
-       Loop through candidate focus *px_points*, and take an objective stack at
-       each position until n_markers with an optimal objective position have
-       been found.
-
-
-       **Parameters:**
-       - px_points (2xN array): Row x Column position of candidate focal points
-       - n_markers (int): Number of focus markers to find
-       - scale (int): Scale of image px_points were found
-
-       **Returns:**
-       - 2x*n_markers array*: The X-stage, Y-stage step of focal position.
-
-    """
-
-    #pos_dict= {'x_initial':hs.x.position,
-    #           'y_initial':hs.y.position,
-    #rough_ims, scale = rough_focus(hs, n_tiles, n_frames)
-    #sum_im = image.sum_images(rough_ims)
-    #n_markers = ((2048*n_tiles)**2 + (n_frames*hs.bundle_height)**2)**0.5   # image size in px
-    #n_markers = 3 + int(min_n_markers/2/2048)
-    #px_points = image.get_focus_points(im, scale, n_markers*10)
-    name_ = 'GetFocusData::'
-    focus_points = np.full((n_markers,4), -1)
-    i = 0
-    n_obj = 0
-    focus_data = None
-    while n_obj < n_markers:
-    # Take obj_stack at focus points until n_markers have been found
-        px_pt = px_points[i,:]
-        [x_pos, y_pos] = hs.px_to_step(px_pt[0], px_pt[1], pos_dict, scale)
-        hs.y.move(y_pos)
-        hs.x.move(x_pos)
-        fs = hs.obj_stack()
-
-        # df = format_focus2(hs,fs)
-        # if focus_data is None:
-        #     focus_data = df
-        # else:
-        #     focus_data = focus_data.append(df)
-        #
-        # if any(df.kurtosis > 1.96):
-        #     n_obj += 1
-        f_fs = format_focus(hs, fs)
-        if f_fs is not False:
-           obj_pos = fit_mixed_gaussian(hs, f_fs)
-           if obj_pos:
-               message(log, name_, 'Found point', n_obj+1, '/', len(px_points),
-                            'at x =',x_pos,'and y =',y_pos)
-               ##################################################################
-               # Save in focus frame
-##               in_focus_frame = np.argmin(abs(f_fs[:,0]-obj_pos))
-##               frame_name = '740_'+str(in_focus_frame)+'.jpeg'
-##               z_pos = ''
-##               for z in z_pos:
-##                   z_pos += str(z) + '_'
-##               os.rename(path.join(hs.image_path,frame_name), path.join(hs.image_path,
-##                         z_pos+str(px_pt[0])+'_'+str(px_pt[1])+'.jpeg'))
-               ##################################################################
-               # TODO: REMOVE i AFTER TESTING
-               focus_points[n_obj,:] = [x_pos, y_pos, obj_pos, i]
-               n_obj += 1
-
-           else:
-               message(log,name_,'No Focus at point',n_obj+1,
-                                 'at x =',x_pos,'and y =',y_pos)
-
-        if i == len(px_points)-1:
-            break
-        else:
-            i += 1
-
-
-    # Convert stage step position microns
-    # try:
-    #     focus_points[:,0] = focus_points[:,0]/hs.x.spum
-    #     focus_points[:,1] = focus_points[:,1]/hs.y.spum
-    #     focus_points[:,2] = focus_points[:,2]/hs.obj.spum
-    # except:
-    #     focus_points = np.array([False])
-
-    #centroid, normal = fit_plane(focus_points)
-    #normal[2] = abs(normal[2])
-    if 0 < n_obj < n_markers:
-        message(log, True, name_, 'WARNING:: Only found', n_obj+1, '/',
-                             len(px_points), 'focal points')
-        focus_points == focus_points[focus_points[:,3] != -1,:]
-    elif n_obj == 0:
-        message(log, True, name_, 'WARNING:: Could not find any focal points')
-        return np.array(False)
-
-
-    return focus_points
 
 
 def autolevel(hs, n_ip, centroid):
