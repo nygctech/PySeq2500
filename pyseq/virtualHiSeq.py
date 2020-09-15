@@ -592,8 +592,8 @@ class Camera():
     def saveImage(self, image_name, image_path):
         # save text info as image data
         n_bytes = self.frames*self.bundle_height*2048*2*12
-        im1 = np.random.randint(2, size=(2048,2048), dtype='uint8')
-        im2 = np.random.randint(2, size=(2048,2048), dtype='uint8')
+        im1 = np.random.randint(2, size=(256,256), dtype='uint8')
+        im2 = np.random.randint(2, size=(256,256), dtype='uint8')
 
         left_name = 'c' + str(self.left_emission)+'_'+image_name+'.tiff'
         right_name = 'c' + str(self.right_emission)+'_'+image_name+'.tiff'
