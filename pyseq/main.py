@@ -57,8 +57,6 @@ class Flowcell():
        - history ([[int,],[str,],[str,]]): Timeline of flowcells events, the
          1st column is the timestamp, the 2nd column is the event, and the
          3rd column is an event specific detail.
-       - imaging (bool): True if the flowcell is being imaged, False if the
-         flowcell is not being imaged.
        - sections (dict): Dictionary of section names keys and coordinate
          positions of the sections on the flowcell values.
        - stage (dict): Dictionary of section names keys and stage positioning
@@ -71,6 +69,8 @@ class Flowcell():
        - pump_speed (dict): Dictionary of pump scenario keys and pump speed
          values.
        - flush_volume (int): Volume in uL to flush reagent lines.
+       - filters (dict): Dictionary of filter set at each cycle, c: em, ex1, ex2.
+       - image_counter (None/int)L Counter for multiple images per cycle.
 
     """
 
@@ -98,6 +98,7 @@ class Flowcell():
         self.pump_speed = {}
         self.flush_volume = None
         self.filters = {}                                                       # Dictionary of filter set at each cycle, c: em, ex1, ex2
+        self.image_counter = None                                               # Counter for multiple images per cycle
 
         while position not in ['A', 'B']:
             print(self.name + ' must be at position A or B')
@@ -134,6 +135,8 @@ class Flowcell():
             self.recipe.close()
         self.recipe = open(self.recipe_path)
         self.cycle += 1
+        if self.image_counter is not None:
+            self.image_counter = 0
         msg = 'PySeq::'+self.position+'::'
         if self.cycle > self.total_cycles:
             hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
@@ -157,11 +160,12 @@ class Flowcell():
         return False
 
 
+
 ##########################################################
 ## Setup Flowcells #######################################
 ##########################################################
 
-def setup_flowcells(first_line):
+def setup_flowcells(first_line, image_counter):
     """Read configuration file and create flowcells.
 
        **Parameters:**
@@ -192,6 +196,8 @@ def setup_flowcells(first_line):
             rs = int(method.get('reagent speed', fallback=40))
             fc.pump_speed['reagent'] = rs
             fc.total_cycles = int(config.get('experiment','cycles'))
+            if image_counter > 1:
+                fc.image_counter = 0
             flowcells[AorB] = fc
 
         # Add section to flowcell
@@ -227,14 +233,19 @@ def setup_flowcells(first_line):
 def parse_line(line):
     """Parse line and return event (str) and command (str)."""
 
+
     comment_character = '#'
     #delimiter = '\t'
     no_comment = line.split(comment_character)[0]                               # remove comment
     sections = no_comment.split()
-    event = sections[0]                                                         # first section is event
-    event = event[0:4]                                                          # event identified by first 4 characters
-    command = sections[1]                                                       # second section is command
-    command = command.strip()                                                   # remove space
+    if len(sections) == 2:
+        event = sections[0]                                                     # first section is event
+        event = event[0:4]                                                      # event identified by first 4 characters
+        command = sections[1]                                                   # second section is command
+        command = command.strip()                                               # remove space
+    else:
+        event = None
+        command = None
 
     return event, command
 
@@ -286,6 +297,38 @@ def setup_logger():
 
     return logger
 
+def write_obj_pos(section, cycle):
+
+    focus_config = configparser.ConfigParser()
+    if os.path.exists(join(hs.log_path, 'focus_config.cfg')):
+        focus_config.read(join(hs.log_path, 'focus_config.cfg'))
+
+    focus_config[section] = {cycle:hs.obj.position}
+    with open(join(hs.log_path, 'focus_config.cfg'), 'w') as configfile:
+        focus_config.write(configfile)
+
+    return configfile
+
+def get_obj_pos(section, cycle):
+    section = str(section)
+    cycle = str(cycle)
+    focus_config = configparser.ConfigParser()
+    obj_pos = None
+    if os.path.exists(join(hs.log_path, 'focus_config.cfg')):
+        focus_config.read(join(hs.log_path, 'focus_config.cfg'))
+        if focus_config.has_option(section, cycle):
+            try:
+                obj_pos = int(focus_config.get(section, cycle))
+                if hs.obj.min_z <= obj_pos <= hs.obj.max_z:
+                    pass
+                else:
+                    obj_pos = None
+            except:
+                obj_pos = None
+
+    return obj_pos
+
+
 ##########################################################
 ## Setup HiSeq ###########################################
 ##########################################################
@@ -323,6 +366,14 @@ def initialize_hs(virtual):
     for i, f in enumerate(focus_filters):
         if f not in hs.optics.ex_dict[hs.optics.colors[i]]:
             error('ConfigFile:: Focus filter not valid.')
+        else:
+            hs.optics.focus_filters[i] = focus_filters[i]
+
+    # Check Autofocus Settings
+    hs.AF = method.get('autofocus', fallback = 'partial once')
+    if hs.AF not in ['partial', 'partial once', 'full', 'full once', None]:
+        error('ConfigFile:: Auto focus method not valid.')
+
     # Assign output directory
     save_path = experiment['save path']
     experiment_name = experiment['experiment name']
@@ -340,7 +391,6 @@ def initialize_hs(virtual):
 
         # HiSeq Settings
         hs.bundle_height = int(method.get('bundle height', fallback = 128))
-        hs.AF = method.get('autofocus', fallback = 'partial')
         hs.overlap = int(method.get('overlap', fallback = 0))
 
         # Set laser power
@@ -402,9 +452,9 @@ def check_instructions():
     valid_wait.append('STOP')
 
     f = open(config['experiment']['recipe path'])
-    line_num = 1
 
-    for line in f:
+    image_counter = 0
+    for line_num, line in enumerate(f):
             instrument, command = parse_line(line)
 
             if instrument == 'PORT':
@@ -430,7 +480,8 @@ def check_instructions():
 
             # Make sure z planes is a number
             elif instrument == 'IMAG':
-                 if command.isdigit() == False:
+                image_counter += 1
+                if command.isdigit() == False:
                     error('Recipe::Invalid number of z planes on line', line_num)
 
             # Make sure hold time (minutes) is a number
@@ -450,10 +501,9 @@ def check_instructions():
             else:
                 error('Recipe::Bad instrument name on line',line_num)
 
-            line_num += 1
 
     f.close()
-    return first_line
+    return first_line, image_counter
 
 ##########################################################
 ## Check Ports ###########################################
@@ -930,11 +980,21 @@ def IMAG(fc, n_Zplanes):
         # Autofocus
         msg = 'PySeq::' + AorB + '::cycle' + cycle+ '::' + str(section) + '::'
         if hs.AF:
-            hs.message(msg + 'Start Autofocus')
-            if hs.autofocus(pos):
-                hs.message(msg + 'Autofocus complete')
+            obj_pos = get_obj_pos(section, cycle)
+            print('Image:', fc.image_counter, 'objective position', obj_pos)
+            if obj_pos is None:
+                pos['obj_pos'] = None
+                hs.message(msg + 'Start Autofocus')
+                if hs.autofocus(pos):
+                    hs.message(msg + 'Autofocus complete')
+                    pos['obj_pos'] = hs.obj.position
+                else:
+                    hs.message(msg + 'Autofocus failed')
+                    pos['obj_pos'] = None
             else:
-                hs.message(msg + 'Autofocus failed')
+                hs.obj.move(obj_pos)
+                pos['obj_pos'] = hs.obj.position
+            write_obj_pos(section, cycle)
 
         # Calculate objective positions to image
         if n_Zplanes > 1:
@@ -943,8 +1003,10 @@ def IMAG(fc, n_Zplanes):
             obj_start = hs.obj.position
 
         image_name = AorB
-        image_name = image_name + '_s' + str(section)
-        image_name = image_name + '_r' + cycle
+        image_name += '_s' + str(section)
+        image_name += '_r' + cycle
+        if fc.image_counter is not None:
+            image_name += '_' + str(fc.image_counter)
 
         # Scan section on flowcell
         hs.y.move(pos['y_initial'])
@@ -964,6 +1026,9 @@ def IMAG(fc, n_Zplanes):
             hs.optics.move_em_in(True)
         else:
             hs.optics.move_ex(color, 'home')
+
+    if fc.image_counter is not None:
+        fc.image_counter += 1
 
 def IMAG_old(fc, n_Zplanes):
     """Image the flowcell at a number of z planes.
@@ -1231,6 +1296,7 @@ def integrate_fc_and_hs(port_dict):
             pos = hs.position(AorB, fc.sections[section])
             fc.stage[section] = pos
             fc.stage[section]['z_pos'] = [z_pos, z_pos, z_pos]
+            fc.stage[section]['obj_pos'] = None
 
     return hs
 
@@ -1270,7 +1336,10 @@ def get_config(args):
         config_path, recipe_path = methods.return_method(method)
         config.read(config_path)
     elif os.path.isfile(method):
-            config.read(method)
+        config.read(method)
+        recipe_path = None
+    elif config.has_section(method):
+        recipe_path = None
     else:
         error('ConfigFile::Error reading method configuration')
         sys.exit()
@@ -1298,8 +1367,8 @@ if __name__ == 'pyseq.main':
     config = get_config(args_)                                                  # Get config file
     logger = setup_logger()                                                     # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
-    first_line = check_instructions()                                           # Checks instruction file is correct and makes sense
-    flowcells = setup_flowcells(first_line)                                     # Create flowcells
+    first_line, image_counter = check_instructions()                            # Checks instruction file is correct and makes sense
+    flowcells = setup_flowcells(first_line, image_counter)                      # Create flowcells
     hs = initialize_hs(args_['virtual'])                                        # Initialize HiSeq, takes a few minutes
     hs = integrate_fc_and_hs(port_dict)                                         # Integrate flowcell info with hs
 

@@ -154,7 +154,7 @@ class HiSeq():
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
         self.channels = None
-        self.AF = 'partial'                                              # autofocus routine
+        self.AF = 'partial'                                                     # autofocus routine
         self.overlap = 0
         self.virtual = False                                                    # virtual flag
 

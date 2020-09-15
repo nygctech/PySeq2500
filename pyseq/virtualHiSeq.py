@@ -342,6 +342,7 @@ class Optics():
         self.ex = [None, None]
         self.em_in = None
         self.colors = [colors[0], colors[1]]
+        self.focus_filters = [None, None]
         self.cycle_dict = {'em':{}, self.colors[0]:{}, self.colors[1]:{}}
         self.ex_dict = {
                         # EX1

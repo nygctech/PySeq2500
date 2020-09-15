@@ -11,6 +11,7 @@ from skimage.util import img_as_ubyte
 from skimage.transform import downscale_local_mean
 import imageio
 import time
+import configparser
 
 class Autofocus():
     """Thought it would be easier to have a focusing class (maybe not).
@@ -22,6 +23,7 @@ class Autofocus():
        - scale = Down scale factor for thumbnails
        - files = List of images for focusing
        - logger = Logger for communiction and recording
+       - config =
 
     """
 
@@ -380,6 +382,10 @@ class Autofocus():
 
         return optobjstep
 
+        def get_obj_step(section):
+            if self.config.has_section(section):
+                obj_step = int(self.config.get(section,))
+
 
 
 
@@ -477,6 +483,7 @@ def autofocus(hs, pos_dict):
        **Parameters:**
        - hs (HiSeq): HiSeq object.
        - pos_dict (dict): Dictionary of stage position information.
+       - obj_step (int/None): Escape autofocus and move to objective step
 
        **Returns:**
        - int: Objective step for optimal focus.
@@ -485,19 +492,29 @@ def autofocus(hs, pos_dict):
 
 
     start = time.time()
+    old_obj_pos = pos_dict['obj_pos']
     # Scan section
     af = Autofocus(hs, pos_dict)
     if hs.AF == 'partial':
         af.partial_scan()
+        old_obj_pos = None
     elif hs.AF == 'full':
         af.full_scan()
+        old_obj_pos = None
+    elif old_obj_pos is None:
+        if hs.AF == 'partial once':
+            af.partial_scan()
+        if hs.AF == 'full once':
+            af.full_scan()
 
-    af.message('Analyzing out of focus image')
-    # Sum channels with signal
-    sum_im = IA.sum_images(af.rough_ims, hs.logger)
+    if old_obj_pos is None:
+        af.message('Analyzing out of focus image')
+        # Sum channels with signal
+        sum_im = IA.sum_images(af.rough_ims, hs.logger)
+    else:
+        sum_im = None
 
     # Find pixels to focus on
-    opt_obj_pos = False
     if sum_im is not None:
         af.message('Finding potential focus positions')
         px_rows, px_cols = sum_im.shape
@@ -510,7 +527,7 @@ def autofocus(hs, pos_dict):
         # Move to focus filters
         image_filters = hs.optics.ex
         for i, color in enumerate(hs.optics.colors):
-            hs.optics.move_ex(color,hs.optics.focus_filter[i])
+            hs.optics.move_ex(color,hs.optics.focus_filters[i])
 
         # Get stage positions on in-focus points
         af.message('Finding optimal focus')
@@ -519,20 +536,25 @@ def autofocus(hs, pos_dict):
             opt_obj_pos = int(np.median(focus_points[:,2]))
         else:
             af.message('FAILED::Could not find focus')
-
+            opt_obj_pos = False
+    elif old_obj_pos is not None:
+        af.message('Using previous obsjective position')
+        opt_obj_pos = old_obj_pos
     else:
         af.message('FAILED::No signal in channels')
+        opt_obj_pos = False
 
-    # Remove rough focus images
-    af.delete_focus_images()
+    if old_obj_pos is not None:
+        # Remove rough focus images
+        af.delete_focus_images()
 
-    stop = time.time()
-    af_time = int((stop-start)/60)
-    af.message('Completed in',af_time,'minutes')
+        stop = time.time()
+        af_time = int((stop-start)/60)
+        af.message('Completed in',af_time,'minutes')
 
-    # Move to imaging filters
-    for i, color in enumerate(hs.optics.colors):
-        hs.optics.move_ex(color,image_filters[i])
+        # Move to imaging filters
+        for i, color in enumerate(hs.optics.colors):
+            hs.optics.move_ex(color,image_filters[i])
 
     return opt_obj_pos
 
