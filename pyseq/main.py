@@ -318,7 +318,11 @@ def initialize_hs(virtual):
 
     #Check filters for laser at each cycle are valid
     hs.optics.cycle_dict = check_filters(hs.optics.cycle_dict, hs.optics.ex_dict)
-
+    focus_filters = [float(method.get('focus filter 1', fallback = 2.0)),
+                     float(method.get('focus filter 2', fallback = 2.0))]
+    for i, f in enumerate(focus_filters):
+        if f not in hs.optics.ex_dict[hs.optics.colors[i]]:
+            error('ConfigFile:: Focus filter not valid.')
     # Assign output directory
     save_path = experiment['save path']
     experiment_name = experiment['experiment name']
@@ -908,7 +912,7 @@ def IMAG(fc, n_Zplanes):
     start = time.time()
 
     # Set filters
-    for color in hs.optics.cycle_dict.keys():
+    for color in hs.optics.colors:
         filter = hs.optics.cycle_dict[color][fc.cycle]
         if color is 'em':
             hs.optics.move_em_in(filter)

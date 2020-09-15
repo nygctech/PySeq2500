@@ -506,6 +506,12 @@ def autofocus(hs, pos_dict):
         ord_points = IA.get_focus_points(sum_im, af.scale, n_markers*10,hs.logger)
         af.message('Found',len(ord_points),'focus positions')
 
+
+        # Move to focus filters
+        image_filters = hs.optics.ex
+        for i, color in enumerate(hs.optics.colors):
+            hs.optics.move_ex(color,hs.optics.focus_filter[i])
+
         # Get stage positions on in-focus points
         af.message('Finding optimal focus')
         focus_points = af.get_focus_data(ord_points, n_markers)
@@ -523,6 +529,10 @@ def autofocus(hs, pos_dict):
     stop = time.time()
     af_time = int((stop-start)/60)
     af.message('Completed in',af_time,'minutes')
+
+    # Move to imaging filters
+    for i, color in enumerate(hs.optics.colors):
+        hs.optics.move_ex(color,image_filters[i])
 
     return opt_obj_pos
 

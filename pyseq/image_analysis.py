@@ -343,10 +343,6 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
 
 def make_image(im_path, df_x, comp):
 
-    save_path = join(im_path, 'stitched')
-    if not exists(save_path):
-        mkdir(save_path)
-
     df_x = df_x.sort_values(by=['x'])
     x_px = int(2048/8)
     n_strips = len(df_x)*8
@@ -371,15 +367,18 @@ def make_image(im_path, df_x, comp):
 
     name = df_x.index[ref_x]
     im = imageio.imread(path.join(im_path,name))
-    ref = im[:,(ref_strip)*x_px:(ref_strip+1)*x_px]
+    ref_start = int(ref_strip*x_px)
+    ref_stop = int((ref_strip+1)*x_px)
+    ref = im[:,ref_start:ref_stop]
 
     # stitch images
     plane = None
     for name, row in df_x.iterrows():
+        print('Stitching', name)
         im = imageio.imread(path.join(im_path,name))
         im = im[64:]                                                            # Remove whiteband artifact
 
-        for i in range(n_strips):
+        for i in range(8):
           # color compensate
           if comp[row.c]:
               c = comp[row.c]['c']
@@ -387,16 +386,17 @@ def make_image(im_path, df_x, comp):
               b = comp[row.c]['b']
               c_name = 'c' + str(c) + name[4:]
               c_im = imageio.imread(path.join(im_path,c_name))
+              c_im = c_im[64:]
               bleed = m*c_im+b                                                  # Calculate bleed over
               bg = np.zeros_like(c_im)
               for c_i in range(8):
                   c_start = c_i*x_px
                   c_stop = c_start+x_px
                   bg[:,c_start:c_stop] = np.mean(c_im[:,c_start:c_stop])
-              im = im - cross + bg                                              # Remove bleed over
+              im = im - bleed + bg                                              # Remove bleed over
 
           # match strip to reference
-          sub_im = im[:,(i)*x_px:(i+1)*x_px]
+          sub_im = im[:,i*x_px:(i+1)*x_px]
           sub_im = match_histograms(sub_im, ref)
           if plane is None:
             plane = sub_im
@@ -404,49 +404,6 @@ def make_image(im_path, df_x, comp):
             plane = np.append(plane, sub_im, axis = 1)
 
 
-    # Append scans together
-    if plane is None:
-        plane = im
-    else:
-        plane = np.append(plane, im, axis = 1)
-
     plane = plane.astype('int8')
-
-    """Normalize scans.
-
-       Images are normalized by matching histogram to strip with most contrast.
-
-
-       **Parameters:**
-       im (array): Image as array.
-       scale_factor (int): Downscale factor of image.
-
-       **Returns:**
-       image: Normalized image.
-
-    """
-
-    x_px = int(2048/scale_factor/8)
-    n_strips = int(im.shape[1]/x_px)
-    strip_contrast = np.empty(shape=(n_strips,))
-    col_contrast = np.max(im, axis = 0) - np.min(im, axis = 0)
-
-    # Find reference strip with max contrast
-    for i in range(n_strips):
-        strip_contrast[i] = np.mean(col_contrast[(i)*x_px:(i+1)*x_px])
-    ref_strip = np.argmax(strip_contrast)
-    ref = im[:,(ref_strip)*x_px:(ref_strip+1)*x_px]
-
-    plane = None
-    for i in range(n_strips):
-      sub_im = im[:,(i)*x_px:(i+1)*x_px]
-      sub_im = match_histograms(sub_im, ref)
-      if plane is None:
-        plane = sub_im
-      else:
-        plane = np.append(plane, sub_im, axis = 1)
-
-    plane = plane.astype('uint8')
-    plane = img_as_ubyte(plane)
 
     return plane

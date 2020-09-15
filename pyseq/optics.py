@@ -83,6 +83,7 @@ class Optics():
         self.suffix = '\n'
         self.colors = [colors[0], colors[1]]
         self.cycle_dict = {'em':{}, self.colors[0]:{}, self.colors[1]:{}}
+        self.focus_filters = [None, None]
         self.ex_dict = {
                         # EX1
                         self.colors[0]:
