@@ -223,6 +223,8 @@ def setup_flowcells(first_line, image_counter):
                     flowcell_list.index(fc)-1]
             if experiment['first flowcell'] not in flowcells:
                 error('ConfigFile::First flowcell does not exist')
+            if isinstance(image_counter, int):
+                error('Recipe::Need WAIT before IMAG with 2 flowcells.')
 
     return flowcells
 
@@ -454,6 +456,7 @@ def check_instructions():
     f = open(config['experiment']['recipe path'])
 
     image_counter = 0
+    wait_counter = 0
     for line_num, line in enumerate(f):
             instrument, command = parse_line(line)
 
@@ -475,12 +478,16 @@ def check_instructions():
 
             # Make sure wait command is valid
             elif instrument == 'WAIT':
+                wait_counter += 1
                 if command not in valid_wait:
                     error('Recipe::Invalid wait command on line', line_num)
 
             # Make sure z planes is a number
             elif instrument == 'IMAG':
-                image_counter += 1
+                image_counter = int(image_counter + 1)
+                # Flag to make check WAIT is used before IMAG for 2 flowcells
+                if wait_counter == image_counter:
+                    image_counter = float(image_counter)
                 if command.isdigit() == False:
                     error('Recipe::Invalid number of z planes on line', line_num)
 
@@ -500,7 +507,6 @@ def check_instructions():
             # Make sure the instrument name is valid
             else:
                 error('Recipe::Bad instrument name on line',line_num)
-
 
     f.close()
     return first_line, image_counter
@@ -981,7 +987,6 @@ def IMAG(fc, n_Zplanes):
         msg = 'PySeq::' + AorB + '::cycle' + cycle+ '::' + str(section) + '::'
         if hs.AF:
             obj_pos = get_obj_pos(section, cycle)
-            print('Image:', fc.image_counter, 'objective position', obj_pos)
             if obj_pos is None:
                 pos['obj_pos'] = None
                 hs.message(msg + 'Start Autofocus')
