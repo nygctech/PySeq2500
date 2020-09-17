@@ -457,57 +457,67 @@ def check_instructions():
 
     image_counter = 0
     wait_counter = 0
-    for line_num, line in enumerate(f):
-            instrument, command = parse_line(line)
+    line_num = 1
 
-            if instrument == 'PORT':
-                # Make sure ports in instruction files exist in port dictionary in config file
-                if command not in ports:
-                    error('Recipe::', command, 'on line', line_num,
-                          'is not listed as a reagent')
-
-                #Find line to start at for first cycle
-                if first_line == 0 and first_port is not None:
-                    if command.find(first_port) != -1:
-                        first_line = line_num
-
-            # Make sure pump volume is a number
-            elif instrument == 'PUMP':
-                if command.isdigit() == False:
-                    error('Recipe::Invalid volume on line', line_num)
-
-            # Make sure wait command is valid
-            elif instrument == 'WAIT':
-                wait_counter += 1
-                if command not in valid_wait:
-                    error('Recipe::Invalid wait command on line', line_num)
-
-            # Make sure z planes is a number
-            elif instrument == 'IMAG':
-                image_counter = int(image_counter + 1)
-                # Flag to make check WAIT is used before IMAG for 2 flowcells
-                if wait_counter == image_counter:
-                    image_counter = float(image_counter)
-                if command.isdigit() == False:
-                    error('Recipe::Invalid number of z planes on line', line_num)
-
-            # Make sure hold time (minutes) is a number
-            elif instrument == 'HOLD':
-                if command.isdigit() == False:
-                    if command != 'STOP':
-                        error('Recipe::Invalid time on line', line_num)
-                    else:
-                        print('WARNING::HiSeq will stop until user input at line',
-                               line_num)
-            # # Warn user that HiSeq will completely stop with this command
-            # elif instrument == 'STOP':
-            #     print('WARNING::HiSeq will stop until user input at line',
-            #            line_num)
-
-            # Make sure the instrument name is valid
+    for line in f:
+        instrument, command = parse_line(line)
+        while instrument is None:
+            line = f.readline()
+            line_num += 1
+            if line is None:
+                break
             else:
-                error('Recipe::Bad instrument name on line',line_num)
+                instrument, command = parse_line(line)
 
+        if instrument == 'PORT':
+            # Make sure ports in instruction files exist in port dictionary in config file
+            if command not in ports:
+                error('Recipe::', command, 'on line', line_num,
+                      'is not listed as a reagent')
+
+            #Find line to start at for first cycle
+            if first_line == 0 and first_port is not None:
+                if command.find(first_port) != -1:
+                    first_line = line_num
+
+        # Make sure pump volume is a number
+        elif instrument == 'PUMP':
+            if command.isdigit() == False:
+                error('Recipe::Invalid volume on line', line_num)
+
+        # Make sure wait command is valid
+        elif instrument == 'WAIT':
+            wait_counter += 1
+            if command not in valid_wait:
+                error('Recipe::Invalid wait command on line', line_num)
+
+        # Make sure z planes is a number
+        elif instrument == 'IMAG':
+            image_counter = int(image_counter + 1)
+            # Flag to make check WAIT is used before IMAG for 2 flowcells
+            if wait_counter == image_counter:
+                image_counter = float(image_counter)
+            if command.isdigit() == False:
+                error('Recipe::Invalid number of z planes on line', line_num)
+
+        # Make sure hold time (minutes) is a number
+        elif instrument == 'HOLD':
+            if command.isdigit() == False:
+                if command != 'STOP':
+                    error('Recipe::Invalid time on line', line_num)
+                else:
+                    print('WARNING::HiSeq will stop until user input at line',
+                           line_num)
+        # # Warn user that HiSeq will completely stop with this command
+        # elif instrument == 'STOP':
+        #     print('WARNING::HiSeq will stop until user input at line',
+        #            line_num)
+
+        # Make sure the instrument name is valid
+        else:
+            error('Recipe::Bad instrument name on line',line_num)
+
+        line_num += 1
     f.close()
     return first_line, image_counter
 
@@ -793,10 +803,15 @@ def do_recipe(fc):
 
 
     # get instrument and command
-    line = fc.recipe.readline()
-    if line:
-        instrument, command = parse_line(line)
+    instrument = None
+    while instrument is None:
+        line = fc.recipe.readline()
+        if line:
+            instrument, command = parse_line(line)
+        else:
+            break
 
+    if line:
         # Move reagent valve
         if instrument == 'PORT':
             #Move to cycle specific reagent if it is variable a reagent
