@@ -19,15 +19,16 @@ class Autofocus():
        **Attributes:**
        - hs (HiSeq): HiSeq object.
        - pos_dict (int): Stage position information of the section.
-       - rough_ims = Thumbnails of the focusing section.
-       - scale = Down scale factor for thumbnails
-       - files = List of images for focusing
-       - logger = Logger for communiction and recording
-       - config =
+       - rough_ims (list): Thumbnails of the focusing section.
+       - scale (int): Down scale factor for thumbnails.
+       - files (list): Filenames of images stitched for rough_ims.
+       - logger (logger): Logger object to log communication with HiSeq.
 
     """
 
     def __init__(self, hs, pos_dict):
+        """Constructor for the Autofocus object."""
+
         self.hs = hs
         self.pos_dict = pos_dict
         self.rough_ims = []
@@ -43,7 +44,8 @@ class Autofocus():
     def partial_scan(self, image_name = 'RoughScan'):
         """Out of focus center scan of the section.
 
-           The middle full length of the section is imaged. The channel images
+           The middle full length of the section is imaged at a predefined,
+           probably out of focus, objective position. The channel images
            are scaled down (if the images are larger the 256 kb) and then
            normalized.
 
@@ -141,7 +143,7 @@ class Autofocus():
         return self.rough_ims, scale, self.files
 
     def get_focus_data(self, px_points, n_markers):
-        """Return points and unit normal that define the imaging plane.
+        """Return stage position focal point at each pixel point.
 
            Loop through candidate focus *px_points*, and take an objective stack
            at each position until n_markers with an optimal objective position
@@ -307,17 +309,17 @@ class Autofocus():
     def fit_mixed_gaussian(self, data):
         """Fit focus data & return optimal objective focus step.
 
-           Focus objective step vs frame JPEG file size is fit to a mixed gaussian
-           model. The optimal objective focus step is returned at step of the max
-           fit JPEG file. If the objective focus step is not returned, False is
-           returned.
+           Focus objective step vs frame JPEG file size is fit to a mixed
+           gaussian model. The optimal objective focus step is returned at step
+           of the max fit JPEG file. If the objective focus step is not
+           returned, False is returned.
 
            **Parameters:**
            - data (array Nx2): Focus data where the 1st column is the objective step
                                and the 2nd column is the corresponding file size.
 
            **Returns:**
-           int: Optimal focus objective step if found (False is returned if not).
+           int: Optimal focus objective step if found (if not, False).
 
         """
 
@@ -483,7 +485,6 @@ def autofocus(hs, pos_dict):
        **Parameters:**
        - hs (HiSeq): HiSeq object.
        - pos_dict (dict): Dictionary of stage position information.
-       - obj_step (int/None): Escape autofocus and move to objective step
 
        **Returns:**
        - int: Objective step for optimal focus.
