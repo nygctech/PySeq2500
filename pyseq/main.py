@@ -18,7 +18,7 @@ from . import focus
 
                                                                                 # Global int to track # of errors during start up
 def error(*args):
-    """Print error to logger and/or console"""
+    """Keep count of errors and print to logger and/or console."""
 
     global n_errors
 
@@ -233,7 +233,11 @@ def setup_flowcells(first_line, image_counter):
 ## Parse lines from recipe ###############################
 ##########################################################
 def parse_line(line):
-    """Parse line and return event (str) and command (str)."""
+    """Parse line and return event (str) and command (str).
+
+       If line starts with the comment character, #, then None is return for
+       both event and command.
+    """
 
 
     comment_character = '#'
@@ -300,6 +304,21 @@ def setup_logger():
     return logger
 
 def write_obj_pos(section, cycle):
+    """Write the objective position used at *cycle* number for *section*.
+
+       The objective position is written to a config file. Each section in
+       config file corresponds to a section name on a flowcell. Each item in a
+       section is a cycle number with the objective position used to image at
+       that cycle.
+
+       **Parameters:**
+       - section (string): Name of the section.
+       - cycle (int): Cycle number.
+
+       **Returns:**
+       - file: Handle of the config file.
+
+     """
 
     focus_config = configparser.ConfigParser()
     if os.path.exists(join(hs.log_path, 'focus_config.cfg')):
@@ -312,6 +331,25 @@ def write_obj_pos(section, cycle):
     return configfile
 
 def get_obj_pos(section, cycle):
+    """Read the objective position at *cycle* number for *section*.
+
+       Used to specify/change the objective position used for imaging or
+       re-autofocus on the section next imaging round. Specifying the objective
+       position at a cycle prior to imaging will skip the autofocus routine and
+       start imaging the section at the specified objective position. If using
+       the 'partial once' or 'full once' autofocus routine and the objective
+       position is specifed as None at a cycle prior to imaging, the previously
+       used objective position will be discarded and a new objective position
+       will be found with the autofocus routine.
+
+       **Parameters:**
+       - section (string): Name of the section.
+       - cycle (int): Cycle number.
+
+       **Returns:**
+       - int: Objective position to use (or None if not specified)
+
+     """
     section = str(section)
     cycle = str(cycle)
     focus_config = configparser.ConfigParser()
@@ -424,6 +462,7 @@ def check_instructions():
        **Returns:**
        - first_line (int): Line number for the recipe to start from on the
        initial cycle.
+       - image_counter (int): The number of imaging steps.
 
     """
 
@@ -525,7 +564,9 @@ def check_instructions():
 ## Check Ports ###########################################
 ##########################################################
 def check_ports():
-    """Check for port errors and return a port dictionary."""
+    """Check for port errors and return a port dictionary.
+
+    """
 
     method = config.get('experiment', 'method')
     method = config[method]
@@ -593,7 +634,7 @@ def check_ports():
 def check_filters(cycle_dict, ex_dict):
     """Check filter section of config file.
 
-       **Exceptions:**
+       **Errors:**
        - Invalid Filter: System exits when a listed filter does not match
        configured filters on the HiSeq.
        - Duplicate Cycle: System exists when a filter for a laser is listed for
@@ -674,9 +715,6 @@ def LED(AorB, indicate):
         sweep blue     imaging    HiSeq is imaging the flowcell.
         ===========  ===========  ========================================
 
-       **Returns:**
-       - dict: Dictionary of flowcell position keys with flowcell object values.
-
     """
 
     fc = []
@@ -701,7 +739,10 @@ def LED(AorB, indicate):
         elif indicate == 'off':
             hs.f.LED(AorB, 'off')
 
+    return True
+
 def userYN(question):
+    "Ask a user a Yes/No question and return True if Yes, False if No."
 
     response = True
     while response:
@@ -894,69 +935,6 @@ def do_recipe(fc):
         fc.thread =  threading.Thread(target = time.sleep, args = (10,))
         fc.thread.start()
 
-def autofocus(n_tiles, n_frames):
-    # position stage before autofocus.
-
-    start = time.time()
-
-    image_name = time.strftime('%Y%m%d_%H%M%S')
-    x_init = hs.x.position
-    y_init = hs.y.position
-    # Take initial image to find focus positions
-    hs.scan(n_tiles, 1, n_frames, image_name)
-    # Gather scans
-    df_x = image.get_image_df(hs.image_path, image_name)
-    # Normalize and stitch scans
-    im = norm_and_stitch(hs.image_path,df_x, scaled = True)
-    # Get ROI in scan
-    roi = image.get_roi()
-    # Get focus pixels, first 3 are on edge, last is center
-    focus_px_4 = image.get_focus_pos(roi)
-    edge_px = focus_px_4[0:2,:]
-    center_px = focus_pos_4[3,:]
-    scale_factor = im[0,0]
-    focus_pos = []
-    for px in edge_px:
-        #shift edge px towards center
-        shift_px = image.shift_focus(px, center_px, scale_factor)
-        #Convert pixel to stage step positions
-        focus_pos.append(hs.px_to_step(shift_px, x_init, y_init, scale_factor))
-
-    # Find focal points
-    focal_points = np.empty(shape[3,3])
-    in_range = False
-    for i in range(3):
-        focal_points[i,0:1] = focus_pos[i,:]
-        hs.x.move(focus_pos[i,0])
-        hs.y.move(focus_pos[i,1])
-        counter = 0
-        while in_range is False or counter == 0:
-            # Loop until a frame with max focus is found
-            obj_range = 0
-            # Take objective stack
-            jpeg_size = hs.objstack()
-            jpeg_size = np.sum(jpeg_size, axis = 1)
-            # Find position that is most in focus
-            focus_steps.append(pyseq.find_focus(obj_range, jpeg_size))
-            counter += 1
-            if in_range is False:
-                if focal_point == -1:
-                    hs.z.move(down)
-                elif focal_point == 1:
-                    hs.z.move(up)
-                else:
-                    in_range = True
-
-    # level the stage so focus is at obj_focus
-    obj_focus = 31500
-    z_pos = hs.auto_level(focal_points, obj_focus)
-
-    stop = time.time()
-
-    return stop-start
-
-
-
 ##########################################################
 ## Image flowcell ########################################
 ##########################################################
@@ -1050,116 +1028,10 @@ def IMAG(fc, n_Zplanes):
     if fc.image_counter is not None:
         fc.image_counter += 1
 
-def IMAG_old(fc, n_Zplanes):
-    """Image the flowcell at a number of z planes.
 
-       For each section on the flowcell, the stage is first positioned
-       to the center of the section to find the optimal focus. Then if no
-       optical settings are listed, the optimal filter sets are found.
-       Next, the stage is repositioned to scan the entire section and
-       image the specified number of z planes.
 
-       **Parameters:**
-       fc: The flowcell to image.
-       n_Zplanes: The number of z planes to image.
-
-       **Returns:**
-       int: Time in seconds to scan the entire section.
-
-    """
-
-    AorB = fc.position
-    cycle = str(fc.cycle)
-    fc.imaging = True
-    start = time.time()
-    colors = hs.lasers.keys()
-
-    for section in fc.sections:
-        x_center = fc.stage[section]['x center']
-        y_center = fc.stage[section]['y center']
-        x_initial = fc.stage[section]['x initial']
-        y_initial = fc.stage[section]['y initial']
-        n_tiles = fc.stage[section]['n tiles']
-        n_frames = fc.stage[section]['n frames']
-
-        # Find/Move to focal z stage position
-        if fc.stage[section]['z pos'] is None:
-            hs.message(AorB+'::Finding rough focus of ' + str(section))
-
-            hs.y.move(y_center)
-            hs.x.move(x_center)
-            hs.optics.move_ex(colors[0], 0.6)
-            hs.optics.move_ex(colors[1], 0.9)
-            hs.optics.move_em_in(True)
-            Z,C = hs.rough_focus()
-            fc.stage[section]['z pos'] = hs.z.position[:]
-        else:
-            # Only move z stage if not in position
-            z_position = fc.stage[section]['z pos']
-            if not hs.z.in_position(z_position):
-                hs.z.move(z_position)
-
-        # Find Fine Focue with objective
-        hs.message(21, AorB+'::Finding fine focus of ' + str(section))
-
-        hs.y.move(y_center)
-        hs.x.move(x_center)
-        focus_filter_1 = method.get('focus filter 1', fallback = 1.6)
-        focus_filter_2 = method.get('focus filter 2', fallback = 2.0)
-        hs.optics.move_ex(colors[0], focus_filter_1)
-        hs.optics.move_ex(colors[0], focus_filter_2)
-        hs.optics.move_em_in(True)
-        Z,C = hs.fine_focus()
-        fc.stage[section]['obj pos'] = hs.obj.position
-
-        # Position excitation filters for lasers
-        for col in colors:
-            # Find optimal filter if filter not specified
-            if hs.optics.cycle_dict[col][fc.cycle] is None:
-                hs.message(True, AorB+'::Finding optimal filter for ' +
-                                 col + ' laser')
-                hs.y.move(y_center)
-                hs.x.move(x_center)
-                opt_filter = hs.optimize_filter(32)                             #Find optimal filter set on 32 frames on image
-                hs.optics.move_ex(col, opt_filter)
-            else:
-                hs.optics.move_ex(col, hs.optics.cycle_dict[col][fc.cycle])     #Move to filter specifed for current cycle
-
-        hs.optics.move_em_in(True)
-
-        # Calculate objective positions to image
-        if n_Zplanes > 1:
-            obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes/2)
-            #obj_step = hs.nyquist_obj
-            #obj_stop = int(hs.obj.position + hs.nyquist_obj*n_Zplanes/2)
-        else:
-            obj_start = hs.obj.position
-            #obj_step = 1000
-            #obj_stop = hs.obj.position + 10
-
-        image_name = AorB
-        image_name = image_name + '_s' + str(section)
-        image_name = image_name + '_r' + cycle
-
-        # Scan section on flowcell
-        hs.y.move(y_initial)
-        hs.x.move(x_initial)
-        hs.obj.move(obj_start)
-        logger.log(21, AorB + '::cycle'+cycle+'::Imaging ' + str(section))
-        scan_time = hs.scan(n_tiles, n_Zframes, n_frames, image_name)
-        scan_time = str(int(scan_time/60))
-        logger.log(21, AorB+'::cycle'+cycle+'::Took ' + scan_time +
-                       ' minutes ' + 'imaging ' + str(section))
-
-    fc.imaging = False
-    stop = time.time()
-    hs.z.move([0,0,0])
-
-    return stop-start
-
-# holds current flowcell until an event in the signal flowcell, returns time held
 def WAIT(AorB, event):
-    """Hold the current flowcell until the specfied event in the other flowell.
+    """Hold the flowcell *AorB* until the specfied event in the other flowell.
 
        **Parameters:**
        AorB (str): Flowcell position, A or B, to be held.
@@ -1294,7 +1166,7 @@ def free_fc():
 
 
 def integrate_fc_and_hs(port_dict):
-    """Integrate flowcell info with hiseq configuration info."""
+    """Integrate flowcell info with HiSeq configuration info."""
 
     LED('all', 'off')
 
