@@ -162,7 +162,8 @@ It is possible to also to specify ports in a seperate method config file.
 ```
 
 ### [cycles]
-Specify cycle specific reagents (optional). `variablereagent N = name`
+Specify cycle specific reagents (optional). 
+`variablereagent N = name`
 - variablereagent: cycle dependent reagent in recipe, specified in method config (string)
 - N: cycle (integer)
 - name: reagent used for variablereagent at cycle N (string)
@@ -175,7 +176,8 @@ Specify cycle specific reagents (optional). `variablereagent N = name`
 ```
 
 ### [filters]
-Specify cycle specific optical filters (optional). `lasercolor N = name`
+Specify cycle specific optical filters (optional). 
+`lasercolor N = name`
 The HiSeq uses neutral density filters to reduce the intensity of light.
 The `open` filter allows the laser to pass without reduction.
 The `'home` filter completely blocks the laser. 
@@ -183,12 +185,12 @@ The `'home` filter completely blocks the laser.
 - N: cycle (integer)
 - name: Optical density of filter to use (float/string), see table below.
 
-===========  =========================================
-laser color  filters (Optical Density, home = 0)
-===========  ========================================
-green (g/G)  open, 0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
-red (r,R)    open, 0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
-===========  ========================================
+            | 
+laser color | filters (Optical Density, home = 0)
+-----------:|  ----------------------------------------
+green (g/G) | open, 0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
+red (r,R)   | open, 0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
+
 
 ```
 [filters]
@@ -252,7 +254,8 @@ laser power = 400
 ```
 
 ### [reagents]
-Specify method required ports (optional). `N = name`
+Specify method required ports (optional). 
+`N = name`
 Useful if running the same method repeatedly and only some of the ports change from each experiment. 
 - N: port number (integer)
 - Name: name of reagent (string)
