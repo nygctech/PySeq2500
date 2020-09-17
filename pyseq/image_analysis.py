@@ -33,7 +33,7 @@ def get_image_df(image_path, image_name = None):
     """Get dataframe of rough focus images.
 
        **Parameters:**
-       dir (path): Directory where images are stored.
+       image_path (path): Directory where images are stored.
        image_name (str): Name common to all images.
 
        **Returns:**
@@ -104,6 +104,7 @@ def stitch(dir, df_x, overlap = 0, scaled = False):
 
        **Returns:**
        array: Stitched and scaled image.
+       int: Downscale factor the images were scaled by.
 
     """
 
@@ -179,7 +180,7 @@ def sum_images(images, logger = None):
 
        The image with the largest signal to noise ratio is used as the
        reference. Images without significant positive kurtosis, ie pixels that
-       deviate from mean value (assumed as background) are discarded. The
+       deviate from mean value (assumed as background), are discarded. The
        remaining image histograms are matched to the reference. Finally, the
        images are summed together. The summed image is returned or if there is
        no signal in all channels, False is returned.
@@ -342,6 +343,26 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
     return ord_points
 
 def make_image(im_path, df_x, comp):
+    """Make full scale, high quality, images.
+
+       Stitch and normalize images in *df_x*. If using color compensation
+       *comp*, include the linear model of the signal crosstalk from a lower
+       wavelength channel to a higher wavelength channel as such
+       {lower channel (nm, int): {'m': slope (float), 'b': constant (float),
+       upper channel (nm, int)}}.
+
+       # TODO: Implement overlap
+
+       **Parameters:**
+       im_path (path): Directory where image scans are stored.
+       df_x (dataframe): Dataframe of metadata of image scans to stitch.
+       comp (dict): Color compensation dictionary, optional.
+
+       **Returns:**
+       array: Stitched and scaled image.
+
+    """
+
 
     df_x = df_x.sort_values(by=['x'])
     x_px = int(2048/8)
