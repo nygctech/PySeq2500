@@ -193,7 +193,6 @@ The `'home` filter completely blocks the laser.
 - N: cycle (integer)
 - name: Optical density of filter to use (float/string), see table below.
 
-            | 
 laser color | filters (Optical Density)
 -----------:|  ----------------------------------------
 green (g/G) | open, 0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
@@ -263,7 +262,9 @@ laser power = 400
 
 ### [reagents]
 Specify method required ports (optional). 
+
 `N = name`
+
 Useful if running the same method repeatedly and only some of the ports change from each experiment. 
 - N: port number (integer)
 - Name: name of reagent (string)
