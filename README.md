@@ -136,7 +136,9 @@ first flowcell = A
 
 ### [sections]
 position of sections on flowcell as measured with slide ruler (required for imaging). 
+
 `section name = F: LLx, LLy, URx, URy`
+
 - section name: unique name/id of section to image (string)
 - F: flowcell section is on (A or B)
 - LLx: lower left x coordinate of section, use slide ruler (float)
@@ -151,7 +153,9 @@ section1 = A: 15.5, 45, 10.5, 35
 ### [reagents]
 Specify ports (optional). 
 It is possible to also to specify ports in a seperate method config file. 
+
 `N = name`
+
 - N: port number (integer)
 - Name: name of reagent (string)
 ```
@@ -163,7 +167,9 @@ It is possible to also to specify ports in a seperate method config file.
 
 ### [cycles]
 Specify cycle specific reagents (optional). 
+
 `variablereagent N = name`
+
 - variablereagent: cycle dependent reagent in recipe, specified in method config (string)
 - N: cycle (integer)
 - name: reagent used for variablereagent at cycle N (string)
@@ -177,8 +183,10 @@ Specify cycle specific reagents (optional).
 
 ### [filters]
 Specify cycle specific optical filters (optional). 
+
 `lasercolor N = name`
-The HiSeq uses neutral density filters to reduce the intensity of light.
+
+The HiSeq uses neutral density filters of various optical densities to reduce the intensity of light.
 The `open` filter allows the laser to pass without reduction.
 The `'home` filter completely blocks the laser. 
 - lasercolor: Color of laser line 
@@ -186,7 +194,7 @@ The `'home` filter completely blocks the laser.
 - name: Optical density of filter to use (float/string), see table below.
 
             | 
-laser color | filters (Optical Density, home = 0)
+laser color | filters (Optical Density)
 -----------:|  ----------------------------------------
 green (g/G) | open, 0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
 red (r,R)   | open, 0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
