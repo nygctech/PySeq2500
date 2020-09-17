@@ -239,9 +239,9 @@ def parse_line(line):
     comment_character = '#'
     #delimiter = '\t'
     no_comment = line.split(comment_character)[0]                               # remove comment
-    sections = no_comment.split()
+    sections = no_comment.split(':')
     if len(sections) == 2:
-        event = sections[0]                                                     # first section is event
+        event = sections[0].strip()                                             # first section is event
         event = event[0:4]                                                      # event identified by first 4 characters
         command = sections[1]                                                   # second section is command
         command = command.strip()                                               # remove space
