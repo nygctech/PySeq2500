@@ -183,15 +183,16 @@ Specify cycle specific reagents (optional).
 
 ### [filters]
 Specify cycle specific optical filters (optional). 
+If a filter is not specified for a cycle, **default focus filter 1** is used for the green laser and **default focus filter 2** is used for the red laser.
 
 `lasercolor N = name`
 
 The HiSeq uses neutral density filters of various optical densities to reduce the intensity of light.
 The `open` filter allows the laser to pass without reduction.
 The `'home` filter completely blocks the laser. 
-- lasercolor: Color of laser line 
+- lasercolor: color of laser line 
 - N: cycle (integer)
-- name: Optical density of filter to use (float/string), see table below.
+- name: optical density of filter to use (float/string), see table below.
 
 laser color | filters (Optical Density)
 -----------:|  ----------------------------------------
