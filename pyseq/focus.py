@@ -543,9 +543,9 @@ def autofocus(hs, pos_dict):
     # Remove rough focus images
     af.delete_focus_images()
 
-        stop = time.time()
-        af_time = int((stop-start)/60)
-        af.message('Completed in',af_time,'minutes')
+    stop = time.time()
+    af_time = int((stop-start)/60)
+    af.message('Completed in',af_time,'minutes')
 
     return opt_obj_pos
 
