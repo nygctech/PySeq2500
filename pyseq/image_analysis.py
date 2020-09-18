@@ -342,7 +342,7 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
 
     return ord_points
 
-def make_image(im_path, df_x, comp):
+def make_image(im_path, df_x, comp=None):
     """Make full scale, high quality, images.
 
        Stitch and normalize images in *df_x*. If using color compensation
@@ -399,30 +399,43 @@ def make_image(im_path, df_x, comp):
         im = imageio.imread(path.join(im_path,name))
         im = im[64:]                                                            # Remove whiteband artifact
 
-        for i in range(8):
-          # color compensate
-          if comp[row.c]:
-              c = comp[row.c]['c']
-              m = comp[row.c]['m']
-              b = comp[row.c]['b']
-              c_name = 'c' + str(c) + name[4:]
-              c_im = imageio.imread(path.join(im_path,c_name))
-              c_im = c_im[64:]
-              bleed = m*c_im+b                                                  # Calculate bleed over
-              bg = np.zeros_like(c_im)
-              for c_i in range(8):
-                  c_start = c_i*x_px
-                  c_stop = c_start+x_px
-                  bg[:,c_start:c_stop] = np.mean(c_im[:,c_start:c_stop])
-              im = im - bleed + bg                                              # Remove bleed over
+        # color compensate
+        if comp:
+              if comp[row.c]:
+                  c = comp[row.c]['c']
+                  m = comp[row.c]['m']
+                  b = comp[row.c]['b']
+                  c_name = 'c' + str(c) + name[4:]
+                  c_im = imageio.imread(path.join(im_path,c_name))
+                  c_im = c_im[64:]
+                  bleed = m*c_im+b                                                  # Calculate bleed over
+                  bleed = bleed.astype('int16')
+                  bg = np.zeros_like(c_im)
+                  for c_i in range(8):
+                      c_start = c_i*x_px
+                      c_stop = c_start+x_px
+                      bg[:,c_start:c_stop] = np.mean(c_im[:,c_start:c_stop])
 
-          # match strip to reference
-          sub_im = im[:,i*x_px:(i+1)*x_px]
+
+
+        for i in range(8):
+          if comp:
+              if comp[row.c]:
+                  sub_bleed = bleed[:,i*x_px:(i+1)*x_px]
+                  sub_bg = bg[:,i*x_px:(i+1)*x_px]
+                  sub_im = im[:,i*x_px:(i+1)*x_px]
+                  sub_im = sub_im - sub_bleed + sub_bg
+              else:
+                  sub_im = im[:,i*x_px:(i+1)*x_px]
+          else:
+              sub_im = im[:,i*x_px:(i+1)*x_px]
+
+
           sub_im = match_histograms(sub_im, ref)
           if plane is None:
-            plane = sub_im
+            plane = sub_im.astype('int8')
           else:
-            plane = np.append(plane, sub_im, axis = 1)
+            plane = np.append(plane, sub_im.astype('int8'), axis = 1)
 
 
     plane = plane.astype('int8')
