@@ -387,6 +387,7 @@ def make_image(im_path, df_x, comp=None):
     ref_strip = ref_strip_[ref_strip]
 
     name = df_x.index[ref_x]
+    print('Refernce is image:', name, 'strip', ref_strip)
     im = imageio.imread(path.join(im_path,name))
     ref_start = int(ref_strip*x_px)
     ref_stop = int((ref_strip+1)*x_px)
@@ -409,6 +410,7 @@ def make_image(im_path, df_x, comp=None):
                   c_im = imageio.imread(path.join(im_path,c_name))
                   c_im = c_im[64:]
                   bleed = m*c_im+b                                                  # Calculate bleed over
+                  #bleed = bleed.astype('int8')
                   bleed = bleed.astype('int16')
                   bg = np.zeros_like(c_im)
                   for c_i in range(8):
@@ -433,11 +435,13 @@ def make_image(im_path, df_x, comp=None):
 
           sub_im = match_histograms(sub_im, ref)
           if plane is None:
-            plane = sub_im.astype('int8')
+            #plane = sub_im.astype('int8')
+            plane = sub_im.astype('int16')
           else:
-            plane = np.append(plane, sub_im.astype('int8'), axis = 1)
+            #plane = np.append(plane, sub_im.astype('int8'), axis = 1)
+            plane = np.append(plane, sub_im.astype('int16'), axis = 1)
 
 
-    plane = plane.astype('int8')
+    #plane = plane.astype('int8')
 
     return plane

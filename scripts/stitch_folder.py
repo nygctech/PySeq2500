@@ -1,23 +1,44 @@
-from pyseq import image_analysis as ia
+#from pyseq import image_analysis as ia
+import sys
+sys.path.append('C:\\Users\\kpandit\\PySeq2500\\pyseq\\')
+
+import subprocess
+import time
+import image_analysis as ia
 from os.path import join, exists
 from os import mkdir
 import imageio
 
-path = '/Volumes/Faculty/Innovation Lab/Kunal/HiSeqExperiments/filter_optimization/Cy3+Cy5+AF700'
+###CHANGE ME###
+name = 'Cy3+Cy5+AF700'
+path = 'Y:\\Kunal\\HiSeqExperiments\\filter_optimization\\'
+scaled = False
+comp = False
+###############
+
+path = join(path, name)
+log_path = join(path,'logs',name+'.log')
 im_path = join(path, 'images')
-save_path = join(im_path, 'stitched')
+save_path = join(path, 'stitched')
 if not exists(save_path):
     mkdir(save_path)
 
+new_images = False
+while not new_images:
+    output = subprocess.run(['findstr', 'imaging completed', log_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+    if output.count('\r\n') > 0:
+        new_image = True
+    else:
+        time.sleep(100)
+        
 new = ia.get_image_df(im_path)
-#new = new.drop(index = new[new.s == 'ss11m'].index)
 
 # Compensation
-comp = {558: False,
-        610: {'m':1.01, 'b':6.67, 'c':558},
-        687: False,
-        740: {'m':1.17, 'b':-5.7, 'c':687}
-        }
+##comp = {558: False,
+##        610: {'m':1.01, 'b':6.67, 'c':558},
+##        687: False,
+##        740: {'m':1.17, 'b':-5.7, 'c':687}
+##        }
 
 scaled = False
 while len(new)>0:
@@ -40,7 +61,7 @@ while len(new)>0:
 
                     imageio.imwrite(join(save_path, im_name), plane)
 
-    df_old = new
-    df = ia.get_image_df(im_path)
-    new = []
+    old = new
+    new = ia.get_image_df(im_path)
+    new = old[old.eq(new).all(axis=1)==False]
     #new = df[df.ne(df_old).all(axis=1) == True]
