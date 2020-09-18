@@ -225,7 +225,7 @@ def setup_flowcells(first_line, image_counter):
                 error('ConfigFile::First flowcell does not exist')
             if isinstance(image_counter, int):
                 error('Recipe::Need WAIT before IMAG with 2 flowcells.')
-
+        
     return flowcells
 
 
@@ -1177,7 +1177,9 @@ def free_fc():
 def integrate_fc_and_hs(port_dict):
     """Integrate flowcell info with HiSeq configuration info."""
 
-    LED('all', 'off')
+    LED('A', 'off')
+    LED('B', 'off')
+    LED('all', 'green')
 
     method = config.get('experiment', 'method')                                 # Read method specific info
     method = config[method]

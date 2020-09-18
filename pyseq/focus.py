@@ -76,7 +76,7 @@ class Autofocus():
             im_path = path.join(self.image_path, 'partial')
         else:
             im_path = self.image_path
-            hs.scan(pos_dict['n_tiles'], 1, pos['n_frames'], image_name)
+            hs.scan(1, 1, pos_dict['n_frames'], image_name)
         hs.y.move(y_initial)
         hs.x.move(x_initial)
 
@@ -540,9 +540,8 @@ def autofocus(hs, pos_dict):
         af.message('FAILED::No signal in channels')
         opt_obj_pos = False
 
-    if old_obj_pos is not None:
-        # Remove rough focus images
-        af.delete_focus_images()
+    # Remove rough focus images
+    af.delete_focus_images()
 
         stop = time.time()
         af_time = int((stop-start)/60)
