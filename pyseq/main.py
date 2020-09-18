@@ -320,11 +320,21 @@ def write_obj_pos(section, cycle):
 
      """
 
+    section = str(section)
+    cycle = str(cycle)
     focus_config = configparser.ConfigParser()
     if os.path.exists(join(hs.log_path, 'focus_config.cfg')):
         focus_config.read(join(hs.log_path, 'focus_config.cfg'))
 
-    focus_config[section] = {cycle:hs.obj.position}
+    if section not in focus_config.sections():
+        focus_config.add_section(section)
+
+    focus_config.set(section, cycle, str(hs.obj.position))
+
+    for s in focus_config.sections():
+        print(s)
+        for i in focus_config.items(s):
+            print(i)
     with open(join(hs.log_path, 'focus_config.cfg'), 'w') as configfile:
         focus_config.write(configfile)
 
