@@ -797,6 +797,7 @@ def do_flush():
                         AorB = fc.position
                         fc.thread = threading.Thread(target=hs.v24[AorB].move,
                                                      args=(port,))
+                        fc.thread.start()
                     alive = True
                     while alive:
                         for fc in flowcells.values():
@@ -805,6 +806,7 @@ def do_flush():
                         AorB = fc.position
                         fc.thread = threading.Thread(target=hs.p[AorB].pump,
                                                      args=(volume, speed,))
+                        fc.thread.start()
                     alive = True
                     while alive:
                         for fc in flowcells.values():
@@ -1177,8 +1179,8 @@ def free_fc():
 def integrate_fc_and_hs(port_dict):
     """Integrate flowcell info with HiSeq configuration info."""
 
-    LED('A', 'off')
-    LED('B', 'off')
+    hs.f.LED('A', 'off')
+    hs.f.LED('B', 'off')
     LED('all', 'green')
 
     method = config.get('experiment', 'method')                                 # Read method specific info
@@ -1273,6 +1275,7 @@ if __name__ == 'pyseq.main':
     first_line, image_counter = check_instructions()                            # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, image_counter)                      # Create flowcells
     hs = initialize_hs(args_['virtual'])                                        # Initialize HiSeq, takes a few minutes
+    
     hs = integrate_fc_and_hs(port_dict)                                         # Integrate flowcell info with hs
 
     if n_errors is 0:

@@ -206,11 +206,11 @@ class Pump():
         """
 
         if volume > self.max_volume:
-            write_log('Volume is too large, only pumping ' +
+            self.write_log('Volume is too large, only pumping ' +
                        str(self.max_volume))
             volume = self.max_volume
         elif volume < self.min_volume:
-            write_log('Volume is too small, pumping ' +
+            self.write_log('Volume is too small, pumping ' +
                        str(self.min_volume))
             volume = self.min_volume
 
@@ -227,10 +227,10 @@ class Pump():
 
         if sps < self.min_speed:
             sps = self.min_speed
-            write_log('Speed is too slow, increased to' + str(sps) + 'steps/s')
+            self.write_log('Speed is too slow, increased to' + str(sps) + 'steps/s')
         elif sps > self.max_speed:
             sps = self.max_speed
-            write_log('Speed is too fast, decreased to' + str(sps) + 'steps/s')
+            self.write_log('Speed is too fast, decreased to' + str(sps) + 'steps/s')
 
         return int(sps)
 
