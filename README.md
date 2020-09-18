@@ -40,7 +40,7 @@ hs.l2.get_power()                   #Get red laser power   (mW i think)
 
 # Image acquisition
 
-The following code takes a picture from each of the cameras, splits each image into 2, saves all 4 images as tiffs, and writes a metadata textfile. 
+The following code takes a picture from each of the cameras, splits each image into 2, saves all 4 images as tiffs, and writes a metadata textfile.
 Images and metafile are saved in the directory set in `hs.image_path`.
 
 ```python
@@ -51,7 +51,7 @@ hs.image_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\Images\\'
 hs.take_picture(32, 128) # take_picture(# frames, bundle height, image_name)
 ```
 
-Names of the images are `hs.cam1.left_emission + image_name`. The name of the metafile is just `image_name`. The `image_name` 
+Names of the images are `hs.cam1.left_emission + image_name`. The name of the metafile is just `image_name`. The `image_name`
 argument is optional, if not used it defaults to a time stamp.
 
 Currently all of the image prefixes (`camN.L/R_emission`) are set to the emission wavelength in `hs.InitializeCams()`
@@ -60,7 +60,7 @@ The images are `# frames` x `bundle height` rows of pixels (length of scan) and 
 Changing the `# frames` is the best way to change the length of the scan.
 Only certain values are acceptable for the bundle height, the default, which Illumina uses, is 128.
 
-The metadata textfile contains info like time, stage position, laser power, filter settings. 
+The metadata textfile contains info like time, stage position, laser power, filter settings.
 
 # Moving the stage
 
@@ -70,34 +70,34 @@ The metadata textfile contains info like time, stage position, laser power, filt
 hs.y.move(Y)         # Y should be a number between -7000000 and 7500000
 hs.x.move(X)         # X should be between 1000 and 50000
 hs.z.move([Z, Z, Z]) # Z should be between 0 and 25000
- 
+
 hs.obj.move(O)       # O should be between 0 and 65000
 ```
- 
-To move the stage out to load slides onto it is `hs.move_stage_out()`. 
+
+To move the stage out to load slides onto it is `hs.move_stage_out()`.
 
 Generally, when moving the stage, position the stage in the y direction first, into the hiseq, and then position it in the x direction because there are some knobs at the front of the hiseq that the stage can run into.
- 
+
 During `hs.intializeInstruments()`, the staged is homed to **Y=0, X=30000, Z=0, and O=30000** (although there is no homing for the objective).
-  
+
 # Setting up optics
-Before taking a picture, the laser power should be set, the excitation filters should be set, and the emission filter should be in the light path. 
- 
+Before taking a picture, the laser power should be set, the excitation filters should be set, and the emission filter should be in the light path.
+
 ## Lasers
 
 ```python
 hs.l1.set_power(100) # sets laser 1 (green) to 100 mW
 hs.l2.set_power(100) # sets laser 2 (red) to 100 mW
- 
+
 hs.l1.get_power() # returns the power of laser 1 and stores it in hs.l1.power
 hs.l2.get_power() # returns the power of laser 2 and stores it in hs.l2.power
 ```
 
 During `hs.initializeInstruments()`, both lasers are set to 10 mW
- 
+
 ## Filters
 
-During `hs.initializeInstruments()`, the excitation filters are homed to the block position and the emission filter is moved into the light path. 
+During `hs.initializeInstruments()`, the excitation filters are homed to the block position and the emission filter is moved into the light path.
 
 ```python
 hs.optics.move_ex(N, filter)		#  moves the excitation filter wheel in the N (1 or 2) light path to the filter.
@@ -110,7 +110,7 @@ The following files are necessary to automate a method on a HiSeq 2500 System.
  1. experiment config
  1. method recipe
  1. method config (optional)
- 
+
 ## Experiment Config
 The experiment config has 4 sections.
 ```
@@ -135,7 +135,7 @@ first flowcell = A
 ```
 
 ### [sections]
-position of sections on flowcell as measured with slide ruler (required for imaging). 
+position of sections on flowcell as measured with slide ruler (required for imaging).
 
 `section name = F: LLx, LLy, URx, URy`
 
@@ -151,8 +151,8 @@ section1 = A: 15.5, 45, 10.5, 35
 ```
 
 ### [reagents]
-Specify ports (optional). 
-It is possible to also to specify ports in a seperate method config file. 
+Specify ports (optional).
+It is possible to also to specify ports in a seperate method config file.
 
 `N = name`
 
@@ -166,7 +166,7 @@ It is possible to also to specify ports in a seperate method config file.
 ```
 
 ### [cycles]
-Specify cycle specific reagents (optional). 
+Specify cycle specific reagents (optional).
 
 `variablereagent N = name`
 
@@ -182,15 +182,15 @@ Specify cycle specific reagents (optional).
 ```
 
 ### [filters]
-Specify cycle specific optical filters (optional). 
+Specify cycle specific optical filters (optional).
 If a filter is not specified for a cycle, **default focus filter 1** is used for the green laser and **default focus filter 2** is used for the red laser.
 
 `lasercolor N = name`
 
 The HiSeq uses neutral density filters of various optical densities to reduce the intensity of light.
 The `open` filter allows the laser to pass without reduction.
-The `'home` filter completely blocks the laser. 
-- lasercolor: color of laser line 
+The `'home` filter completely blocks the laser.
+- lasercolor: color of laser line
 - N: cycle (integer)
 - name: optical density of filter to use (float/string), see table below.
 
@@ -213,7 +213,7 @@ R 1 = 2.0
 ### [`method name`]
 Method specific HiSeq settings (optional)  
 Must match the `method` item in the **[experiment]** section.
-Instead of a method specific section in the experiment config file, a seperate method config file may be used. 
+Instead of a method specific section in the experiment config file, a seperate method config file may be used.
 
 See **Method Config** below for details.
 
@@ -222,10 +222,10 @@ The method config file has 2 possible sections.
 Instead of a seperate method config file, a method specific section in the experiment config file may be used (in which case only use 1 **[reagent]** section).
 ```
 ['method name'] #required
-[reagents] #optional, 
+[reagents] #optional,
 ```
 ### [`method name`]
-HiSeq settings specific to the method. 
+HiSeq settings specific to the method.
 The name of this section should match the name of the method.
 The only required key in this section is **recipe** that has the path to the method recipe as its value.
 ```
@@ -240,7 +240,7 @@ The other keys are optional.
 - **first port**: port to start recipe at on first cycle (string)
 - **barrels per lane**: number of syringe barrels that are used per lane on flowcell (integer), default is 8
 - **laser power**: set power of laser in mW (integer), default is 10
-- **z posiiton**: step of tilt motors when imaging (integer), default is 21500
+- **z position**: step of tilt motors when imaging (integer), default is 21500
 - **focus filter 1**: filter for green laser for autofocus routine, default is 2.0
 - **focus filter 2**: filter for red laser for autofocus routine, default is 2.0
 - **default em filter**: emission filter used for imaging, True for in path, False for out of path (bool), default is True
@@ -262,11 +262,11 @@ laser power = 400
 ```
 
 ### [reagents]
-Specify method required ports (optional). 
+Specify method required ports (optional).
 
 `N = name`
 
-Useful if running the same method repeatedly and only some of the ports change from each experiment. 
+Useful if running the same method repeatedly and only some of the ports change from each experiment.
 - N: port number (integer)
 - Name: name of reagent (string)
 ```
@@ -308,7 +308,7 @@ IMAG: 15
 
 # Run an automated experiment
 Start a method on a HiSeq2500 System from the command line.
-All arguments are optional. 
+All arguments are optional.
 ```
 usage: pyseq [-h] [-config PATH] [-name NAME] [-output PATH] [-list]
              [-method METHOD] [-virtual]
@@ -349,5 +349,3 @@ The example here is to see the config and recipe for a method called 4i.
 ```
 pyseq -m 4i
 ```
-
-

@@ -960,14 +960,6 @@ def IMAG(fc, n_Zplanes):
     cycle = str(fc.cycle)
     start = time.time()
 
-    # Set filters
-    for color in hs.optics.colors:
-        filter = hs.optics.cycle_dict[color][fc.cycle]
-        if color is 'em':
-            hs.optics.move_em_in(filter)
-        else:
-            hs.optics.move_ex(color, filter)
-
     #Image sections on flowcell
     for section in fc.sections:
         pos = fc.stage[section]
@@ -981,6 +973,9 @@ def IMAG(fc, n_Zplanes):
         if hs.AF:
             obj_pos = get_obj_pos(section, cycle)
             if obj_pos is None:
+                # Move to focus filters
+                for i, color in enumerate(hs.optics.colors):
+                    hs.optics.move_ex(color,hs.optics.focus_filters[i])
                 pos['obj_pos'] = None
                 hs.message(msg + 'Start Autofocus')
                 if hs.autofocus(pos):
@@ -1012,6 +1007,15 @@ def IMAG(fc, n_Zplanes):
         hs.obj.move(obj_start)
         n_tiles = pos['n_tiles']
         n_frames = pos['n_frames']
+
+        # Set filters
+        for color in hs.optics.colors:
+            filter = hs.optics.cycle_dict[color][fc.cycle]
+            if color is 'em':
+                hs.optics.move_em_in(filter)
+            else:
+                hs.optics.move_ex(color, filter)
+
         hs.message(msg + 'Start Imaging')
 
         scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name, hs.overlap)
