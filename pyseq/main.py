@@ -1174,7 +1174,7 @@ def integrate_fc_and_hs(port_dict):
     method = config[method]
     variable_ports = method.get('variable reagents', fallback = None)
     z_pos = int(method.get('z position', fallback = 21500))
-    n_barrels = int(method.get('barrels per lane', 8))                          # Get method specific pump barrels per lane, fallback to 8
+    n_barrels = int(method.get('barrels per lane', fallback = 8))               # Get method specific pump barrels per lane, fallback to 8
 
     for fc in flowcells.values():
         AorB = fc.position
