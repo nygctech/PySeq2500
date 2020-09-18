@@ -331,10 +331,6 @@ def write_obj_pos(section, cycle):
 
     focus_config.set(section, cycle, str(hs.obj.position))
 
-    for s in focus_config.sections():
-        print(s)
-        for i in focus_config.items(s):
-            print(i)
     with open(join(hs.log_path, 'focus_config.cfg'), 'w') as configfile:
         focus_config.write(configfile)
 
@@ -986,7 +982,6 @@ def IMAG(fc, n_Zplanes):
                 # Move to focus filters
                 for i, color in enumerate(hs.optics.colors):
                     hs.optics.move_ex(color,hs.optics.focus_filters[i])
-                pos['obj_pos'] = None
                 hs.message(msg + 'Start Autofocus')
                 if hs.autofocus(pos):
                     hs.message(msg + 'Autofocus complete')

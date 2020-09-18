@@ -496,6 +496,7 @@ def autofocus(hs, pos_dict):
     old_obj_pos = pos_dict['obj_pos']
     # Scan section
     af = Autofocus(hs, pos_dict)
+
     if hs.AF == 'partial':
         af.partial_scan()
         old_obj_pos = None
@@ -533,7 +534,7 @@ def autofocus(hs, pos_dict):
             af.message('FAILED::Could not find focus')
             opt_obj_pos = False
     elif old_obj_pos is not None:
-        af.message('Using previous obsjective position')
+        af.message('Using previous objective position')
         opt_obj_pos = old_obj_pos
     else:
         af.message('FAILED::No signal in channels')
