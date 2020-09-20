@@ -8,21 +8,19 @@ import image_analysis as ia
 import subprocess
 import time
 from os.path import join, exists, basename
-from os import mkdir
+from os import mkdir, getcwd
 import imageio
 
 
-if __name__ == '__main__':
-    main()
-
-
-
-def wait_for_new_images(log_path, sleep_time = 100):
+def wait_for_new_images(log_path, im_path, n_old_images, sleep_time = 100):
+    ftime = time.asctime(time.localtime(time.time()))
+    print(ftime,' - Waiting for new images')
     new_images = False
     while not new_images:
-        output = subprocess.run(['findstr', 'imaging completed', log_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
-        if output.count('\r\n') > 0:
-            new_image = True
+        output = subprocess.run(['findstr', 'Imaging completed', log_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        image_count = output.count('\r\n')
+        if image_count > n_old_images:
+            new_images = True
         else:
             time.sleep(sleep_time)
 
@@ -32,7 +30,7 @@ def wait_for_new_images(log_path, sleep_time = 100):
 
     new = ia.get_image_df(im_path)
 
-    return new
+    return new, image_count
 
 # Compensation
 ##comp = {558: False,
@@ -41,11 +39,13 @@ def wait_for_new_images(log_path, sleep_time = 100):
 ##        740: {'m':1.17, 'b':-5.7, 'c':687}
 ##        }
 def main(compensation = False):
-    exp_dir = os.getcwd()
-    comp = False
+    #exp_path = getcwd()
+    exp_path = 'Y:\\Kunal\\HiSeqExperiments\\elution\\'
+    exp_path = join(exp_path, 'MouseSucrosePriming')
+    name = basename(exp_path)
+    print('Autostitching', name)
+    log_path = join(exp_path,'logs',name+'.log')
 
-    log_path = join(exp_dir,'logs',name+'.log')
-    name = basename(exp_dir)
     im_path = join(exp_path, 'images')
     stitch_path = join(exp_path, 'stitched')
     thumb_path = join(exp_path, 'thumbnails')
@@ -54,7 +54,9 @@ def main(compensation = False):
     if not exists(thumb_path):
         mkdir(thumb_path)
 
-    new = wait_for_new_images(log_path)
+    n_old_images = 0
+    new, n_old_images = wait_for_new_images(log_path, im_path, n_old_images)
+    old =  new.iloc[0:0,:].copy()
     while len(new)>0:
         for s in set(new.s):
             df_s = new[new.s == s]
@@ -65,16 +67,23 @@ def main(compensation = False):
                     for c in set(df_o.c):
                         df_x = df_o[df_o.c == c]
                         # Make full resolution images
+                        ftime = time.asctime(time.localtime(time.time()))
                         im_name = 'c'+str(c)+'_'+s+'_r'+str(r)+'.tiff'
-                        print('Making ' + im_name)
-                        plane = ia.make_image(im_path, df_x, comp)
+                        print(ftime, ' - Making ' + im_name)
+                        plane = ia.make_image(im_path, df_x, compensation)
                         imageio.imwrite(join(stitch_path, im_name), plane)
                         # Make thumbnails
-                        plane, scale = ia.stitch(im_path, df_x, True)
+                        plane, scale = ia.stitch(im_path, df_x, scaled = True)
                         plane = ia.normalize(plane, scale)
                         im_name = 'c'+str(c)+'_'+s+'_r'+str(r)+'_f'+str(scale)+'.tiff'
                         imageio.imwrite(join(thumb_path, im_name), plane)
+        old = old.append(new)
+        print(old)
+        new, n_old_images = wait_for_new_images(log_path, im_path, n_old_images, sleep_time = 10)
+        new = new[new.eq(old).all(axis=1)==False]
+        print(new)
 
-        old = new
-        new = wait_for_new_images(log_path)
-        new = old[old.eq(new).all(axis=1)==False]
+
+
+if __name__ == '__main__':
+    main()
