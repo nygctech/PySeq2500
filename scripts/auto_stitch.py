@@ -78,10 +78,8 @@ def main(compensation = False):
                         im_name = 'c'+str(c)+'_'+s+'_r'+str(r)+'_f'+str(scale)+'.tiff'
                         imageio.imwrite(join(thumb_path, im_name), plane)
         old = old.append(new)
-        print(old)
         new, n_old_images = wait_for_new_images(log_path, im_path, n_old_images, sleep_time = 10)
         new = new[new.eq(old).all(axis=1)==False]
-        print(new)
 
 
 
