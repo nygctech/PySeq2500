@@ -183,7 +183,7 @@ class Autofocus():
                if obj_pos:
                    self.message(name_+'Found focus point ', n_obj+1)
                    self.message(False, name_+'Point at x =', x_pos,
-                                       'and y =',y_pos)
+                                       'y =',y_pos,'obj =', obj_pos )
 
                    ##################################################################
                    # Save in focus frame
@@ -246,7 +246,7 @@ class Autofocus():
 
         if not self.hs.virtual:
             for f in self.files:
-                remove(path.join(hs.image_path, f))
+                remove(path.join(self.hs.image_path, f))
 
     def format_focus(self, focus_data):
         """Return processed focus frame file sizes.
