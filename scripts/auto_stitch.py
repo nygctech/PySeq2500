@@ -1,116 +1,80 @@
-import os
+#!/usr/bin/env python
+
+#from pyseq import image_analysis as ia
+import sys
+sys.path.append('C:\\Users\\kpandit\\PySeq2500\\pyseq\\')
+import image_analysis as ia
+
 import subprocess
-from os.path import join
-import numpy as np
-from pyseq import image_analysis as ia
-
-###CHANGE ME###
-
-path = 'Y:\\Kunal\\HiSeqExperiments\\filter_optimization\\Cy3+Cy5+AF700'
+import time
+from os.path import join, exists, basename
+from os import mkdir
+import imageio
 
 
-
-#########
-
-output = subprocess.run(['findstr', 'imaging completed', log], stdout=subpro
-cess.PIPE).stdout.decode('utf-8')
-section = 5
-cycle = 1
-
-df = ia.get_image_df(path, images)
-
-def get_image_info(path):
-    dir_list = os.listdir(path)
-    img_list = []
-    channels = []
-    flowcells = []
-    sections = []
-    cycles = []
-    x = []
-    o = []
-    for i in dir_list:
-        if i.endswith('tiff'):
-            
-            img_list.append(i)
-            
-            img_name = np.array(i.split('_'))
-            n = np.array(range(len(img_name)))
-            
-            if img_name[0] not in channels:
-                channels.append(img_name[0])
-                
-            if img_name[1] not in flowcells:
-                flowcells.append(img_name[1])
-
-            section_name = img_name[2] + '_' + img_name[3]    
-            if section_name not in sections:
-                sections.append(section_name)
-
-            if img_name[4] not in cycles:
-                cycles.append(img_name[4])
-
-            if img_name[5] not in x:
-                x.append(img_name[5])
-
-            obj_pos = img_name[6].split('.')[0]
-            if obj_pos not in o:
-                o.append(obj_pos)
-
-    x.sort()
-    
-    return img_list, channels, flowcells, sections, cycles, x, o
+if __name__ == '__main__':
+    main()
 
 
-path = path + 'section' + str(section) + '\\cycle'+str(cycle)+'\\'
-img_list, channels, flowcells, sections, cycles, xpos, opos = get_image_info(path)
 
-print(channels)
-print(flowcells)
-print(sections)
-print(cycles)
-print(xpos)
-print(opos)
+def wait_for_new_images(log_path, sleep_time = 100):
+    new_images = False
+    while not new_images:
+        output = subprocess.run(['findstr', 'imaging completed', log_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        if output.count('\r\n') > 0:
+            new_image = True
+        else:
+            time.sleep(sleep_time)
 
+        complete = subprocess.run(['findstr', 'PySeq::Shutting down', log_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        if len(complete) > 0:
+            break
 
-crop = False
-preview = True
+    new = ia.get_image_df(im_path)
 
-crop_width = 6516
-crop_height = 6936
-crop_x = 2920
-crop_y = 804
+    return new
 
-if preview:
-    opos = [opos[0]]
-    crop = False
+# Compensation
+##comp = {558: False,
+##        610: {'m':1.01, 'b':6.67, 'c':558},
+##        687: False,
+##        740: {'m':1.17, 'b':-5.7, 'c':687}
+##        }
+def main(compensation = False):
+    exp_dir = os.getcwd()
+    comp = False
 
+    log_path = join(exp_dir,'logs',name+'.log')
+    name = basename(exp_dir)
+    im_path = join(exp_path, 'images')
+    stitch_path = join(exp_path, 'stitched')
+    thumb_path = join(exp_path, 'thumbnails')
+    if not exists(stitch_path):
+        mkdir(stitch_path)
+    if not exists(thumb_path):
+        mkdir(thumb_path)
 
-for f in flowcells:
-    for s in sections:
-        for cy in cycles:
-            for o in opos:
-                for ch in channels:
-                    
-                    command = 'magick '
-                    command += 'montage -tile x1 -geometry +0+0 '
-                    
-                    for x in xpos:
-                        img_name = ch+'_'+f+'_'+s+'_'+cy+'_'+x+'_'+o+'.tiff'
-                        command += path + img_name + ' '
+    new = wait_for_new_images(log_path)
+    while len(new)>0:
+        for s in set(new.s):
+            df_s = new[new.s == s]
+            for r in set(df_s.r):
+                df_r = df_s[df_s.r == r]
+                for o in set(df_r.o):
+                    df_o = df_r[df_r.o == o]
+                    for c in set(df_o.c):
+                        df_x = df_o[df_o.c == c]
+                        # Make full resolution images
+                        im_name = 'c'+str(c)+'_'+s+'_r'+str(r)+'.tiff'
+                        print('Making ' + im_name)
+                        plane = ia.make_image(im_path, df_x, comp)
+                        imageio.imwrite(join(stitch_path, im_name), plane)
+                        # Make thumbnails
+                        plane, scale = ia.stitch(im_path, df_x, True)
+                        plane = ia.normalize(plane, scale)
+                        im_name = 'c'+str(c)+'_'+s+'_r'+str(r)+'_f'+str(scale)+'.tiff'
+                        imageio.imwrite(join(thumb_path, im_name), plane)
 
-                    if crop:
-                        command += path + 'temp.tiff'
-                        os.system(command)
-                        
-                        command = 'magick '
-                        command += path + 'temp.tiff '
-                        command +=  '-crop ' + str(crop_width) + 'x' + str(crop_height)
-                        command += '+' + str(crop_x) + '+' + str(crop_y) + ' '
-                        
-                    stitch_name = ch+'_'+f+'_'+s+'_'+cy+'_'+o+'.tiff'
-                    command += path + stitch_name
-                    os.system(command)
-
-                        
-                        
-        
+        old = new
+        new = wait_for_new_images(log_path)
+        new = old[old.eq(new).all(axis=1)==False]

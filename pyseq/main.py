@@ -225,7 +225,7 @@ def setup_flowcells(first_line, image_counter):
                 error('ConfigFile::First flowcell does not exist')
             if isinstance(image_counter, int):
                 error('Recipe::Need WAIT before IMAG with 2 flowcells.')
-        
+
     return flowcells
 
 
@@ -1077,6 +1077,7 @@ def do_rinse(fc):
     rinse = port in hs.v24[fc.position].port_dict
 
     if rinse:
+        LED(fc.position, 'awake')
         # Move valve
         hs.message('PySeq::'+fc.position+'::Rinsing flowcell with', port)
         fc.thread = threading.Thread(target = hs.v24[fc.position].move,
@@ -1101,8 +1102,9 @@ def do_shutdown():
     """Shutdown the HiSeq and flush all reagent lines if prompted."""
 
     for fc in flowcells.values():
-        fc.wait_thread.set()
-        LED(fc.position, 'startup')
+        while.fc.thread.is_alive()
+            fc.wait_thread.set()
+            LED(fc.position, 'startup')
 
     hs.message('PySeq::Shutting down...')
 
@@ -1275,7 +1277,7 @@ if __name__ == 'pyseq.main':
     first_line, image_counter = check_instructions()                            # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, image_counter)                      # Create flowcells
     hs = initialize_hs(args_['virtual'])                                        # Initialize HiSeq, takes a few minutes
-    
+
     hs = integrate_fc_and_hs(port_dict)                                         # Integrate flowcell info with hs
 
     if n_errors is 0:
