@@ -39,9 +39,7 @@ def wait_for_new_images(log_path, im_path, n_old_images, sleep_time = 100):
 ##        740: {'m':1.17, 'b':-5.7, 'c':687}
 ##        }
 def main(compensation = False):
-    #exp_path = getcwd()
-    exp_path = 'Y:\\Kunal\\HiSeqExperiments\\elution\\'
-    exp_path = join(exp_path, 'MouseSucrosePriming')
+    exp_path = getcwd()
     name = basename(exp_path)
     print('Autostitching', name)
     log_path = join(exp_path,'logs',name+'.log')
