@@ -111,9 +111,9 @@ class OBJstage():
                     self.command('ZMV ' + str(position))                        # Move Objective
 
             except:
-                print('Error moving objective stage')
+                self.write_log('ERROR::Could not move objective')
         else:
-            print('Objective position out of range')
+            self.write_log('ERROR::Objective position out of range')
 
 
     def check_position(self):
@@ -134,7 +134,7 @@ class OBJstage():
             self.position = position
             return position
         except:
-            print('Error reading position of objective')
+            self.write_log('WARNING:: Could not read objective position')
             return None
 
 
@@ -155,7 +155,7 @@ class OBJstage():
             v = int(v * 1288471)                                                #steps/mm
             self.command('ZSTEP ' + str(v))                                     # Set velocity
         else:
-            print('Objective velocity out of range')
+            self.write_log('ERROR::Objective velocity out of range')
 
     def set_focus_trigger(self, position):
         """Set trigger for an objective stack to determine focus position.
@@ -172,3 +172,9 @@ class OBJstage():
         self.command('ZYT 0 3')
 
         return self.check_position()
+
+    def write_log(self, text):
+        """Write messages to the log."""
+
+        if self.logger is not None:
+            self.logger.info('OBJstage::'+text)

@@ -387,7 +387,7 @@ def make_image(im_path, df_x, comp=None):
     ref_strip = ref_strip_[ref_strip]
 
     name = df_x.index[ref_x]
-    print('Refernce is image:', name, 'strip', ref_strip)
+    print('Reference is image:', name, 'strip', ref_strip)
     im = imageio.imread(path.join(im_path,name))
     ref_start = int(ref_strip*x_px)
     ref_stop = int((ref_strip+1)*x_px)
