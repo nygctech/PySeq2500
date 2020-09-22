@@ -1,20 +1,32 @@
 #!/usr/bin/python
 """Illumina HiSeq 2500 System :: Pump
-Uses command set from Kloehn VersaPump3
 
-**Examples:**
+   Uses command set from Kloehn VersaPump3
 
-.. code-block::python
+   **Example:**
 
-    #Create pump object
-    import pyseq
-    pumpA = pyseq.pump.Pump('COM10','pumpA')
-    #Initialize pump
-    pumpA.initialize()
-    #Pump 2000 uL at 4000 uL/min
-    pumpA.pump(2000,4000)
+    .. code-block:: python
 
-Kunal Pandit 9/19
+        #Create pump object
+        import pyseq
+        pumpA = pyseq.pump.Pump('COM10','pumpA')
+        #Initialize pump
+        pumpA.initialize()
+        #Pump 2000 uL at 4000 uL/min
+        pumpA.pump(2000,4000)
+
+    Max volume and max/min flowrate (Q) depend on plumbing configuration and
+    how many pump barrels are tied to a flowcell lane. The minimum volume
+    regardless of plumbing configuration is 1 uL.
+
+    ============   ===============   ==============  ==============
+    barrels/lane   Max Volume (uL)   Max Q (uL/min)  Min Q (uL/min)
+    ============   ===============   ==============  ==============
+    8              2000              20000           100
+    4              1000              10000           50
+    2              500               5000            25
+    1              250               2500            13
+    ============   ===============   ==============  ==============
 
 """
 
@@ -28,17 +40,16 @@ class Pump():
     """HiSeq 2500 System :: Pump
 
        **Attributes:**
-
-       - n_barrels (int): The number of barrels used per lane. The max is 8.
-       - max_volume (float): The maximum volume pumped in one stroke in uL.
-       - min_volume (float): The minimum volume that can be pumped in uL.
-       - max_speed (int): The maximum flowrate of the pump in uL/min.
-       - min_speed (int): The minimum flowrate of the pump in uL/min.
-       - dispense_speed (int): The speed to dipense liquid to waste in steps per
-         second
-       - prefix (str): The prefix for commands to the pump. It depends on the
-         pump address.
-       - name (str): The name of the pump.
+        - n_barrels (int): The number of barrels used per lane. The max is 8.
+        - max_volume (float): The maximum volume pumped in one stroke in uL.
+        - min_volume (float): The minimum volume that can be pumped in uL.
+        - max_speed (int): The maximum flowrate of the pump in uL/min.
+        - min_speed (int): The minimum flowrate of the pump in uL/min.
+        - dispense_speed (int): The speed to dipense liquid to waste in steps
+          per second.
+        - prefix (str): The prefix for commands to the pump. It depends on the
+          pump address.
+        - name (str): The name of the pump.
 
     """
 
@@ -47,17 +58,15 @@ class Pump():
         """The constructor for the pump.
 
            **Parameters:**
-
-           - com_port (str): Communication port for the pump.
-           - name (str): Name of the pump.
-           - logger (log, optional): The log file to write communication with the
-             pump to.
-           - n_barrels (int): The number of barrels used per lane. The max and
-             default is 8.
+            - com_port (str): Communication port for the pump.
+            - name (str): Name of the pump.
+            - logger (log, optional): The log file to write communication with the
+              pump to.
+            - n_barrels (int): The number of barrels used per lane. The max and
+              default is 8.
 
            **Returns:**
-
-           - pump object: A pump object to control the pump.
+            - pump object: A pump object to control the pump.
 
         """
 
@@ -94,12 +103,10 @@ class Pump():
         """Send a serial command to the pump and return the response.
 
            **Parameters:**
-
-           - text (str): A command to send to the pump.
+            - text (str): A command to send to the pump.
 
            **Returns:**
-
-           - str: The response from the pump.
+            - str: The response from the pump.
 
         """
 
@@ -118,9 +125,8 @@ class Pump():
         """Pump desired volume at desired speed then send liquid to waste.
 
            **Parameters:**
-
-           - volume (float): The volume to be pumped in uL.
-           - speed (float): The flowrate to pump at in uL/min.
+            - volume (float): The volume to be pumped in uL.
+            - speed (float): The flowrate to pump at in uL/min.
 
         """
 
@@ -150,8 +156,7 @@ class Pump():
         """Wait until pump is ready and then return True.
 
            **Returns:**
-
-           - bool: True when the pump is ready. False, if the pump has an error.
+            - bool: True when the pump is ready. False, if the pump has an error.
 
         """
 
@@ -179,8 +184,7 @@ class Pump():
         """Return the pump position.
 
            **Returns:**
-
-           - int: The step position of the pump (0-48000).
+            - int: The step position of the pump (0-48000).
 
         """
 
@@ -225,11 +229,11 @@ class Pump():
 
         sps = round(speed / self.min_volume / 60)
 
-        if sps < self.min_speed:
-            sps = self.min_speed
+        if sps < 40:
+            sps = 40
             self.write_log('Speed is too slow, increased to' + str(sps) + 'steps/s')
-        elif sps > self.max_speed:
-            sps = self.max_speed
+        elif sps > 8000:
+            sps = 8000
             self.write_log('Speed is too fast, decreased to' + str(sps) + 'steps/s')
 
         return int(sps)
