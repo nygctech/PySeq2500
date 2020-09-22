@@ -15,9 +15,10 @@
         #Pump 2000 uL at 4000 uL/min
         pumpA.pump(2000,4000)
 
-    Max volume and max/min flowrate (Q) depend on plumbing configuration and
-    how many pump barrels are tied to a flowcell lane. The minimum volume
-    regardless of plumbing configuration is 1 uL.
+    Max volume and max/min flowrate (Q) pumped to each lane on a flowcell depend
+    on the HiSeq plumbing configuration ie how many pump barrels are tied to a
+    flowcell lane. The minimum volume regardless of the plumbing configuration
+    is 1 uL.
 
     ============   ===============   ==============  ==============
     barrels/lane   Max Volume (uL)   Max Q (uL/min)  Min Q (uL/min)
