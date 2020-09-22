@@ -1,28 +1,26 @@
 #!/usr/bin/python
 """A ctypes based interface to Hamamatsu cameras.
-Modified from `Zhuang_Lab_Github <https://github.com/lumasullo/Tempesta/
+
+    Modified from `Zhuang_Lab_Github <https://github.com/lumasullo/Tempesta/
     blob/master/hamamatsu/hamamatsu_camera.py>`_
 
-Original Notes:
+    **Original Notes:**
 
-    (tested on a sCMOS Flash 4.0).
+        (tested on a sCMOS Flash 4.0).
 
-    The documentation is a little confusing to me on this subject.
-    I used c_int32 when this is explicitly specified, otherwise I use c_int.
+        The documentation is a little confusing to me on this subject.
+        I used c_int32 when this is explicitly specified, otherwise I use c_int.
 
-    FIXME: I'm using the "old" functions because these are documented.
-        Switch to the "new" functions at some point.
+        FIXME: I'm using the "old" functions because these are documented.
+            Switch to the "new" functions at some point.
 
-    FIXME: How to stream 2048 x 2048 at max frame rate to the flash disk?
-        The Hamamatsu software can do this.
+        FIXME: How to stream 2048 x 2048 at max frame rate to the flash disk?
+            The Hamamatsu software can do this.
 
-    Hazen 10/13
+        Hazen 10/13
 
-TODO:
-    * Review what is actually needed and get rid of unused functions.
-    * Document functions
-
-Modified by Kunal Pandit 9/19
+    TODO:
+        * Review what is actually needed and get rid of unused functions.
 """
 
 import ctypes
@@ -71,6 +69,7 @@ DCAM_IDSTR_MODEL = int("0x04000104", 0)
 # The dcam property attribute structure.
 #
 class DCAM_PARAM_PROPERTYATTR(ctypes.Structure):
+    """The dcam property attribute structure."""
     _fields_ = [("cbSize", ctypes.c_int32),
                 ("iProp", ctypes.c_int32),
                 ("option", ctypes.c_int32),
@@ -95,6 +94,7 @@ class DCAM_PARAM_PROPERTYATTR(ctypes.Structure):
 # The dcam text property structure.
 #
 class DCAM_PARAM_PROPERTYVALUETEXT(ctypes.Structure):
+    """The dcam text property structure."""
     _fields_ = [("cbSize", ctypes.c_int32),
                 ("iProp", ctypes.c_int32),
                 ("value", ctypes.c_double),
@@ -120,6 +120,7 @@ def convertPropertyName(p_name):
 # Camera exceptions.
 #
 class DCAMException(Exception):
+    """Camera exceptions."""
     def __init__(self, message):
         Exception.__init__(self, message)
 
@@ -149,6 +150,7 @@ except:
 # bottleneck.
 #
 class HCamData():
+    """Hamamatsu camera data object."""
 
     ## __init__
     #
@@ -201,7 +203,7 @@ class HCamData():
 # copied out of the camera buffers.
 #
 class HamamatsuCamera():
-
+    """HiSeq Camera."""
 
     ## __init__
     #
@@ -210,6 +212,12 @@ class HamamatsuCamera():
     # @param camera_id The id of the camera (an integer).
     #
     def __init__(self, camera_id, logger = None):
+        """Constructor for HiSeq Camera.
+
+           **Parameters:**
+            - camera_id (int): Either 0 or 1.
+            - logger (logger): Logger used for messaging.
+        """
 
         self.buffer_index = 0
         self.camera_id = camera_id
@@ -247,6 +255,7 @@ class HamamatsuCamera():
     # Log communication with camera or print to console
     #
     def message(self, text):
+        """Log communication with camera or print to console."""
         text = 'Cam' + str(self.camera_id) + '::' + str(text)
         if self.logger is not None:
             self.logger.info(text)
@@ -356,6 +365,8 @@ class HamamatsuCamera():
     # KP 10/19
     #
     def getFrames(self):
+        """Gets all of the available frames."""
+
         frames = []
         for n in self.newFrames():
 
@@ -396,6 +407,8 @@ class HamamatsuCamera():
     # KP 10/19
     #
     def saveImage(self, image_name, image_path):
+        """Gets all of the available frames as numpy array and saves as TIFFs."""
+
         frames = []
         for n in self.newFrames():
 
@@ -457,11 +470,11 @@ class HamamatsuCamera():
     def saveFocus(self, image_path):
         '''Save focus stack frames as jpeg and return file size.
 
-           Parameters:
-           image_path (path): Directory to save images.
+           **Parameters:**
+            - image_path (path): Directory to save images.
 
-           Returns:
-           array: File size of each frame for each channel.
+           **Returns:**
+            - array: File size of each frame for each channel.
 
         '''
 
@@ -878,6 +891,15 @@ class HamamatsuCamera():
     # KP 9/19
     #
     def allocFrame(self, n_frames):
+        """Allocate memory for *n_frames*.
+
+           **Parameters**
+            - n_frame (int): Number of frames to allocate memory for.
+
+           **Returns:**
+           - int: 0 if no errors.
+        """
+
         self.captureSetup()
         self.message('each frame is ' + str(self.frame_bytes) + ' bytes')
         #
@@ -957,6 +979,7 @@ class HamamatsuCamera():
     # KP 9/19
     #
     def getFrameCount(self):
+        """Return number of frames (int) that have been taken."""
         # From newFrames
         # Check how many new frames there are.
         b_index = ctypes.c_int32(0)
@@ -972,6 +995,7 @@ class HamamatsuCamera():
     #
     # Get the frame interval (seconds per frame)
     def getFrameInterval(self):
+        """Return the frame interval (float, seconds per frame)."""
         [interval, prop_type] = self.getPropertyValue('internal_frame_interval')
 
         return float(interval)
@@ -984,6 +1008,22 @@ class HamamatsuCamera():
     # KP 9/19
     #
     def get_status(self):
+        """Return the status of the camera.
+
+           The camera must be "ready" to start imaging.
+
+           =========   ==========
+            Integer      Status
+           =========   ==========
+               0         error
+               1         busy
+               3         ready
+               4        unstable
+           =========   ==========
+
+           **Returns:**
+            - int: Integer corresponding to status of camera.
+        """
         status_dict = {0: "error",
                        1: "busy",
                        2: "ready",
@@ -1093,7 +1133,7 @@ class HamamatsuCamera():
         self.message(c_buf.value)
 
     def setTDI(self):
-        'Switch camera to TDI imaging mode, return True is successful'
+        'Switch camera to TDI imaging mode, return True is successful.'
 
         success = 0
 
@@ -1114,7 +1154,7 @@ class HamamatsuCamera():
         return success
 
     def setAREA(self):
-        'Switch camera to AREA imaging mode, return True is successful'
+        'Switch camera to AREA imaging mode, return True is successful.'
 
         success = 0
 
@@ -1151,102 +1191,102 @@ class HamamatsuCamera():
 #   This would probably also involve some kind of reference counting
 #   scheme.
 #
-class HamamatsuCameraMR(HamamatsuCamera):
-
-    ## __init__
-    #
-    # @param camera_id The id of the camera.
-    #
-    def __init__(self, camera_id):
-        HamamatsuCamera.__init__(self, camera_id)
-
-        self.hcam_data = []
-        self.hcam_ptr = False
-        self.old_frame_bytes = -1
-
-        self.setPropertyValue("output_trigger_kind[0]", 2)
-
-    ## getFrames
-    #
-    # Gets all of the available frames.
-    #
-    # This will block waiting for new frames even if there new frames
-    # available when it is called.
-    #
-    # FIXME: It does not always seem to block? The length of frames can
-    #   be zero. Are frames getting dropped? Some sort of race condition?
-    #
-    # @return [frames, [frame x size, frame y size]]
-    #
-    def getFrames(self):
-        frames = []
-        for n in self.newFrames():
-            frames.append(self.hcam_data[n])
-
-        return [frames, [self.frame_x, self.frame_y]]
-
-    ## startAcquisition
-    #
-    # Allocate as many frames as will fit in 2GB of memory and start data acquisition.
-    # KP 9/19. Changed to allocate n frames
-    #
-    def startAcquisition(self, n_Frames):
-        self.captureSetup()
-        print(self.frame_bytes)
-        #
-        # Allocate new image buffers if necessary.
-        # Allocate as many frames as can fit in 2GB of memory.
-        #
-        if (self.old_frame_bytes != self.frame_bytes):
-
-            #n_buffers = int((2.0 * 1024 * 1024 * 1024)/self.frame_bytes)
-            #self.number_image_buffers = n_buffers
-            self.number_image_buffers = int(n_Frames)
-
-            # Allocate new image buffers.
-            ptr_array = ctypes.c_void_p * self.number_image_buffers
-            self.hcam_ptr = ptr_array()
-            self.hcam_data = []
-            for i in range(self.number_image_buffers):
-                hc_data = HCamData(self.frame_bytes)
-                self.hcam_ptr[i] = hc_data.getDataPtr()
-                self.hcam_data.append(hc_data)
-
-            self.old_frame_bytes = self.frame_bytes
-
-        # Attach image buffers.
-        #
-        # We need to attach & release for each acquisition otherwise
-        # we'll get an error if we try to change the ROI in any way
-        # between acquisitions.
-        self.checkStatus(dcam.dcam_attachbuffer(self.camera_handle,
-                                                self.hcam_ptr,
-                                                ctypes.sizeof(self.hcam_ptr)),
-                         "dcam_attachbuffer")
-
-        # Start acquisition.
-        self.checkStatus(dcam.dcam_capture(self.camera_handle),
-                         "dcam_capture")
-
-    ## stopAcquisition
-    #
-    # Stop data acquisition and release the memory associates with the frames.
-    #
-    def stopAcquisition(self):
-
-        # Stop acquisition.
-        self.checkStatus(dcam.dcam_idle(self.camera_handle),
-                         "dcam_idle")
-
-        # Release image buffers.
-        if (self.hcam_ptr):
-            self.checkStatus(dcam.dcam_releasebuffer(self.camera_handle),
-                             "dcam_releasebuffer")
-
-        print("max camera backlog was:", self.max_backlog)
-
-        self.max_backlog = 0
-
+# class HamamatsuCameraMR(HamamatsuCamera):
+#
+#     ## __init__
+#     #
+#     # @param camera_id The id of the camera.
+#     #
+#     def __init__(self, camera_id):
+#         HamamatsuCamera.__init__(self, camera_id)
+#
+#         self.hcam_data = []
+#         self.hcam_ptr = False
+#         self.old_frame_bytes = -1
+#
+#         self.setPropertyValue("output_trigger_kind[0]", 2)
+#
+#     ## getFrames
+#     #
+#     # Gets all of the available frames.
+#     #
+#     # This will block waiting for new frames even if there new frames
+#     # available when it is called.
+#     #
+#     # FIXME: It does not always seem to block? The length of frames can
+#     #   be zero. Are frames getting dropped? Some sort of race condition?
+#     #
+#     # @return [frames, [frame x size, frame y size]]
+#     #
+#     def getFrames(self):
+#         frames = []
+#         for n in self.newFrames():
+#             frames.append(self.hcam_data[n])
+#
+#         return [frames, [self.frame_x, self.frame_y]]
+#
+#     ## startAcquisition
+#     #
+#     # Allocate as many frames as will fit in 2GB of memory and start data acquisition.
+#     # KP 9/19. Changed to allocate n frames
+#     #
+#     def startAcquisition(self, n_Frames):
+#         self.captureSetup()
+#         print(self.frame_bytes)
+#         #
+#         # Allocate new image buffers if necessary.
+#         # Allocate as many frames as can fit in 2GB of memory.
+#         #
+#         if (self.old_frame_bytes != self.frame_bytes):
+#
+#             #n_buffers = int((2.0 * 1024 * 1024 * 1024)/self.frame_bytes)
+#             #self.number_image_buffers = n_buffers
+#             self.number_image_buffers = int(n_Frames)
+#
+#             # Allocate new image buffers.
+#             ptr_array = ctypes.c_void_p * self.number_image_buffers
+#             self.hcam_ptr = ptr_array()
+#             self.hcam_data = []
+#             for i in range(self.number_image_buffers):
+#                 hc_data = HCamData(self.frame_bytes)
+#                 self.hcam_ptr[i] = hc_data.getDataPtr()
+#                 self.hcam_data.append(hc_data)
+#
+#             self.old_frame_bytes = self.frame_bytes
+#
+#         # Attach image buffers.
+#         #
+#         # We need to attach & release for each acquisition otherwise
+#         # we'll get an error if we try to change the ROI in any way
+#         # between acquisitions.
+#         self.checkStatus(dcam.dcam_attachbuffer(self.camera_handle,
+#                                                 self.hcam_ptr,
+#                                                 ctypes.sizeof(self.hcam_ptr)),
+#                          "dcam_attachbuffer")
+#
+#         # Start acquisition.
+#         self.checkStatus(dcam.dcam_capture(self.camera_handle),
+#                          "dcam_capture")
+#
+#     ## stopAcquisition
+#     #
+#     # Stop data acquisition and release the memory associates with the frames.
+#     #
+#     def stopAcquisition(self):
+#
+#         # Stop acquisition.
+#         self.checkStatus(dcam.dcam_idle(self.camera_handle),
+#                          "dcam_idle")
+#
+#         # Release image buffers.
+#         if (self.hcam_ptr):
+#             self.checkStatus(dcam.dcam_releasebuffer(self.camera_handle),
+#                              "dcam_releasebuffer")
+#
+#         print("max camera backlog was:", self.max_backlog)
+#
+#         self.max_backlog = 0
+#
 
 
 
