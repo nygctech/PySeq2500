@@ -15,30 +15,29 @@ Examples:
     #Specify directory to save images in
     hs.image_path = 'C:\\Users\\Public\\HiSeqImages\\'
     #Get stage positioning and imaging details for section on flowcell A
-    [xi, yi, xc, yx, n_tiles, n_frames] = hs.position['A', 15.5, 45, 10.5, 35]
+    pos = hs.position('A', [15.5, 45, 10.5, 35])
     #Move to center of section
-    hs.x.move(xc)
+    hs.x.move(pos['x_center'])
     12000
-    hs.y.move(yc)
+    hs.y.move(pos['y_center'])
     True
-    #Move stage within focusing range.
+    #Move stage to imaging position.
     hs.z.move([21500, 21500, 21500])
     #Find focus
-    hs.fine_focus()
-    [10000, 15000, 20000, 25000, 30000, 35000, 40000]
-    [5, 24, 1245, 1593, 1353, 54, 9]
-    #Get optimal filters
-    [l1_filter, l2_filter] = hs.optimize_filters()
-    # Take a 32 frame picture using the optimal filters
-    hs.move_ex(1, l1_filter)
-    hs.move_ex(2, l2_filter)
-    hs.take_picture(32, image_name='FirstHiSeqImage')
-    #Move stage to the initial image scan position and scan image
-    hs.x.move(xi)
-    10000
-    hs.y.move(yi)
+    hs.autofocus()
     True
-    hs.scan(n_scans, 1, n_frames, image_name='FirstHiSeqScan')
+    #Move green excitation filter to optical density 1.4
+    hs.move_ex('green', 1.4)
+    #Move red excitation filter to optical density 1.0
+    hs.move_ex('red', 1.0)
+    # Take a 32 frame picture, creates image for each channel 2048 x 4096 px
+    hs.take_picture(32, image_name='FirstHiSeqImage')
+    #Move stage to the initial image scan position and scan image at 1 obj plane
+    hs.x.move(pos['x_initial'])
+    10000
+    hs.y.move(pos['y_initial'])
+    True
+    hs.scan(pos['n_scans'], 1, pos['n_frames'], image_name='FirstHiSeqScan')
 
 
 TODO:
@@ -101,11 +100,16 @@ class HiSeq():
         - logger (logger): Logger object to log communication with HiSeq.
         - image_path (path): Directory to store images in.
         - log_path (path): Directory to write log files in.
-        - bg_path (path): Directory to background calibration images.
         - tile_width (float): Width of field of view in mm.
         - resolution (float): Scale of pixels in microns per pixel.
         - bundle_height: Line bundle height for TDI imaging.
         - nyquist_obj: Nyquist sampling distance of z plane in objective steps.
+        - channels: List of imaging channel names.
+        - AF: Autofocus routine, options are full, partial, full once,
+          partial once, or None, the default is partial once.
+        - overlap: Pixel overlap, the default is 0.
+        - virtual: Flag for using virtual HiSeq
+        - fc_origin: Upper right X and Y stage step position for flowcell slots.
     """
 
 
@@ -785,13 +789,13 @@ class HiSeq():
            **Parameters:**
             - AorB (str): Flowcell A or B.
             - box ([float, float, float, float]) = The region of interest as
-                x&y position of the corners of a box surrounding the section
-                to be imaged defined as [LLx, LLy, URx, URy] where LL=Lower
-                Left and UR=Upper Right corner using the slide ruler.
+              x&y position of the corners of a box surrounding the section
+              to be imaged defined as [LLx, LLy, URx, URy] where LL=Lower
+              Left and UR=Upper Right corner using the slide ruler.
 
            **Returns:**
-           - dict: Dictionary of stage positioning and imaging details to scan
-             the entire section. See table above for details.
+            - dict: Dictionary of stage positioning and imaging details to scan
+              the entire section. See table above for details.
         """
 
         pos = {}
