@@ -433,15 +433,17 @@ class HiSeq():
     def obj_stack(self, n_frames = 232, velocity = 0.1):
         """Take an objective stack of images.
 
+           The start and stop position of the objective is set by
+           **hs.obj.focus_start** and **hs.obj.focus_stop**.
+
            **Parameters:**
             - n_frames (int): Number of images in the stack.
-            - start (int): Objective step to start imaging.
-            - stop (int): Objective step to stop imaging
+            - velocity (float): Speed in mm/s to move objective.
 
            **Returns:**
             - array: N x 2 array where the column 1 is the objective step the
-                     frame was taken and column 2 is the file size of the frame
-                     summed over all channels
+              frame was taken and column 2 is the file size of the frame summed
+              over all channels
 
         """
         msg = 'HiSeq::ObjectiveStack::'
@@ -767,9 +769,9 @@ class HiSeq():
            section is converted into stage and imaging details to scan the
            entire section.
 
-           ========   ===========
+           =========  ==============================================
              key      description
-           ========   ===========
+           =========  ==============================================
            x_center   The xstage center position of the section.
            y_center   The ystage center position of the section.
            x_initial  Initial xstage position to scan the section.
@@ -778,7 +780,7 @@ class HiSeq():
            y_final    Last ystage position of the section scan
            n_tiles    Number of tiles to scan the entire section.
            n_frames   Number of frames to scan the entire section.
-
+           =========  ==============================================
 
            **Parameters:**
             - AorB (str): Flowcell A or B.
@@ -788,9 +790,8 @@ class HiSeq():
                 Left and UR=Upper Right corner using the slide ruler.
 
            **Returns:**
-           - dict: Dictionary of stage positioning and
-                   imaging details to scan the entire section. See table
-                   above for details.
+           - dict: Dictionary of stage positioning and imaging details to scan
+             the entire section. See table above for details.
         """
 
         pos = {}
