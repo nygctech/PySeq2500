@@ -1,12 +1,15 @@
 #!/usr/bin/python
 """Illumina HiSeq 2500 System :: Y-STAGE
-Uses command set from Parker ViX 250IH & ViX500 IH
 
-The ystage can be moved from step positions -7000000 to 7500000. Initially,
-the ystage is homed to step position 0. Negative step positions are to the
-front, and positive step positions are to the back. Each ystage step = 10 nm.
+   Uses command set from Parker ViX 250IH & ViX500 IH
 
-Examples:
+   The ystage can be moved from step positions -7000000 to 7500000. Initially,
+   the ystage is homed to step position 0. Negative step positions are to the
+   front, and positive step positions are to the back. Each ystage step = 10 nm.
+
+   **Example:**
+.. code-block:: python
+
     #Create ystage
     >>>import pyseq
     >>>xstage = pyseq.ystage.Ystage('COM10')
@@ -20,7 +23,6 @@ TODO:
     * Set gains function
     * Set velocity function
 
-Kunal Pandit 9/19
 """
 
 
@@ -32,24 +34,29 @@ import time
 class Ystage():
     """Illumina HiSeq 2500 System :: Y-STAGE
 
-       Attributes:
-       spum (float): Number of ystage steps per micron.
-       position (int): The absolution position of the ystage in steps.
+       **Attributes:**
+        - spum (float): Number of ystage steps per micron.
+        - position (int): The absolution position of the ystage in steps.
+        - min_y (int): Minimum safe ystage step position.
+        - max_y (int): Maximum safe ystage step position.
+        - home (int): Step position to move ystage out.
+
     """
 
 
     def __init__(self, com_port, baudrate = 9600, logger = None):
         """The constructor for the ystage.
 
-           Parameters:
-           com_port (str): Communication port for the ystage.
-           baudrate (int, optional): The communication speed in symbols per
-                second.
-           logger (log, optional): The log file to write communication with the
-                ystage to.
+           **Parameters:**
+            - com_port (str): Communication port for the ystage.
+            - baudrate (int, optional): The communication speed in symbols per
+              second.
+            - logger (log, optional): The log file to write communication with the
+              ystage to.
 
-           Returns:
-           ystage object: A ystage object to control the ystage.
+           **Returns:**
+            - ystage object: A ystage object to control the ystage.
+
         """
 
         # Open Serial Port
@@ -85,11 +92,11 @@ class Ystage():
     def command(self, text):
         """Send a serial command to the ystage and return the response.
 
-           Parameters:
-           text (str): A command to send to the ystage.
+           **Parameters:**
+            - text (str): A command to send to the ystage.
 
-           Returns:
-           str: The response from the ystage.
+           **Returns:**
+            - str: The response from the ystage.
         """
 
         text = self.prefix + text + self.suffix
@@ -106,12 +113,13 @@ class Ystage():
     def move(self, position):
         """Move ystage to absolute step position.
 
-           Parameters:
-           position (int): Absolute step position must be between -7000000 and
-                7500000.
+           **Parameters:**
+            - position (int): Absolute step position must be between -7000000
+              and 7500000.
 
-           Returns:
-           bool: True when stage is in position.
+           **Returns:**
+            - bool: True when stage is in position.
+
         """
 
         if self.min_y <= position <= self.max_y:
@@ -129,14 +137,16 @@ class Ystage():
     def check_position(self):
         """Check if ystage is in position.
 
-           Returns:
-           int: 1 if ystage is in position, 0 if it is not in position.
+           **Returns:**
+            - int: 1 if ystage is in position, 0 if it is not in position.
+
         """
         return int(self.command('R(IP)')[1:])
 
 
     def read_position(self):
         """Return the absolute step position of the ystage (int)."""
+
         self.position = int(self.command('R(PA)')[1:])                          # Read and store position
 
         return self.position

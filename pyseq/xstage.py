@@ -38,7 +38,7 @@ class Xstage():
         - position (int): The absolution position of the xstage in steps.
         - min_x (int): Minimum safe xstage step position.
         - max_x (int): Maximum safe xstage step position.
-        - home (int): Step position to move xstage out. 
+        - home (int): Step position to move xstage out.
 
     """
 
