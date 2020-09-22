@@ -1,41 +1,45 @@
 #!/usr/bin/python
 """Illumina HiSeq 2500 System :: Optics
-Uses commands found on www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking
 
-Controls the excitation and emission filters on the Illumina HiSeq 2500
-System. The excitation filters are optical density filters that block a
-portion of the light to quickly change between laser intensities. The
-percent of light passed through is 10**-OD*100 where OD is the optical
-density of the filter. All of the light is blocked, laser intensity = 0
-mW at the home "filter". None of the light is blocked, laser intensity
-= the set power of the laser, at the open "filter". The names and OD of
-available filters are listed in the following table.
+   Uses commands found on `hacteria
+   <www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking>`_
 
-===========  ===========  ========================================
-laser color  laser index  filters (Optical Density, home = 0)
-===========  ===========  ========================================
-green        1            open, 0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
-red          2            open, 0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
-===========  ===========  ========================================
+   Controls the excitation and emission filters on the Illumina HiSeq 2500
+   System. The excitation filters are optical density filters that block a
+   portion of the light to quickly change between laser intensities. The
+   percent of light passed through is 10**-OD*100 where OD is the optical
+   density of the filter. All of the light is blocked, laser intensity = 0
+   mW at the *home* "filter". None of the light is blocked, laser intensity
+   = the set power of the laser, at the *open* "filter". The names and OD of
+   available filters are listed in the following table.
 
-The emission filter has 2 states, in the light path or out of the light
-path.
+    ===========  ===========  ========================================
+    laser color  laser index  filters (Optical Density)
+    ===========  ===========  ========================================
+    green        1            open, 0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
+    red          2            open, 0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
+    ===========  ===========  ========================================
 
-Examples:
+   The emission filter has 2 states, in the light path or out of the light
+   path.
+
+**Examples:**
+
+.. code-block:: python
+
     #Create optics object
-    >>>import pyseq
-    >>>fpga = pyseq.fpga.FPGA('COM12','COM15')
-    >>>fpga.initialize()
-    >>>optics = pyseq.optics.Optics(fpga)
+    import pyseq
+    fpga = pyseq.fpga.FPGA('COM12','COM15')
+    fpga.initialize()
+    optics = pyseq.optics.Optics(fpga)
     #Initialize optics
-    >>>optics.initialize()
+    optics.initialize()
     # Move to green line OD1.6 filter and red line OD1.0 filter
-    >>>optics.move_ex(1,'1.6')
-    >>>optics.move_ex(2,'1.0')
+    optics.move_ex('green','1.6')
+    optics.move_ex('red','1.0')
     # Move the emission filter out of the light path
-    >>>optics.move_em_in(False)
+    optics.move_em_in(False)
 
-Kunal Pandit 9/19
 
 """
 
@@ -47,15 +51,16 @@ class Optics():
     """Illumina HiSeq 2500 System :: Optics
 
     **Attributes:**
-    - ex ([str,str]): The current excitation filter for each laser line. The
-      first filter is for the green laser and the second filter for the
-      red laser.
-    - em_in (bool): True if the emission filter is in the light path or False
-      if the emission filter is out of the light path.
-    - colors (dict): Laser dictionary of color keys and index values.
-    - cycle_dict[dict,dict]: Dictionaries of filters to use for each laser line
-      at different cycles. The first dictionary is for the green laser and the
-      second dictionary is for the red laser.
+     - ex ([str,str]): The current excitation filter for each laser line. The
+       first filter is for the green laser and the second filter for the
+       red laser.
+     - em_in (bool): True if the emission filter is in the light path or False
+       if the emission filter is out of the light path.
+     - colors (dict): Laser dictionary of color keys and index values.
+     - cycle_dict[dict,dict]: Dictionaries of filters to use for each laser line
+       at different cycles. The first dictionary is for the green laser and the
+       second dictionary is for the red laser.
+     - focus_filters (list): Filter to use for each laser line during autofocus.
 
     """
 
@@ -65,14 +70,14 @@ class Optics():
         """Constructor for the optics.
 
            **Parameters:**
-           - fpga (fpga object): The Illumina HiSeq 2500 System :: FPGA.
-           - logger (log, optional): The log file to write communication with
-           the optics to.
-           - colors ([str,str], optional): The color of the laser lines.
+            - fpga (fpga object): The Illumina HiSeq 2500 System :: FPGA.
+            - logger (log, optional): The log file to write communication with
+              the optics to.
+            - colors ([str,str], optional): The color of the laser lines.
 
 
-           Returns:
-           optics object: An optics object to control the optical filters.
+           **Returns:**
+            - optics object: An optics object to control the optical filters.
 
         """
 
@@ -154,7 +159,7 @@ class Optics():
            portion of the light to quickly change between laser intensities.
            The percent of light passed through is 10**-OD*100 where OD is
            the optical density of the filter. All of the light is blocked with
-           the home "filter". The names and OD of available filters are listed
+           the *home* "filter". The names and OD of available filters are listed
            in the following table.
 
            ===========  ===========  ========================================
@@ -164,9 +169,9 @@ class Optics():
            red          2            open, 0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
            ===========  ===========  ========================================
 
-           Parameters:
-           color (str): The color of laser line.
-           position (str): The name of the filter to change to.
+           **Parameters:**
+            - color (str): The color of laser line.
+            - position (str): The name of the filter to change to.
 
         """
 
@@ -188,9 +193,9 @@ class Optics():
     def move_em_in(self, INorOUT):
         """Move the emission filter in to or out of the light path.
 
-           Parameters:
-           INorOUT (bool): True for the emission in the light path or
-                False for the emission filter out of the light path.
+           **Parameters:**
+            - INorOUT (bool): True for the emission in the light path or
+              False for the emission filter out of the light path.
         """
 
         # Move emission filter into path
