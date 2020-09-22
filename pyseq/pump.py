@@ -171,7 +171,7 @@ class Pump():
                     status_code = ready
                     return True
                 else:
-                    self.write_log('pump error')
+                    self.write_log('WARNING:Pump error')
                     return False
 
 
@@ -192,7 +192,7 @@ class Pump():
                 pump_position = pump_position.split('`')[1]
                 pump_position = int(pump_position.split('\x03')[0])
             except:
-                self.write_log('error: could not parse position')
+                self.write_log('ERROR::Could not parse position')
                 pump_position = None
 
         return pump_position
@@ -238,5 +238,7 @@ class Pump():
     def write_log(self, text):
         """Write messages to the log."""
 
-        if self.logger is not None:
+        if self.logger is None:
+            print(self.name + ' ' + text)
+        else:
             self.logger.info(self.name + ' ' + text)

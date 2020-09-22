@@ -176,5 +176,7 @@ class OBJstage():
     def write_log(self, text):
         """Write messages to the log."""
 
-        if self.logger is not None:
+        if self.logger is None:
+            print('OBJstage::'+text)
+        else:
             self.logger.info('OBJstage::'+text)
