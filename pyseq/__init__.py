@@ -78,34 +78,34 @@ class HiSeq():
     """Illumina HiSeq 2500 System
 
        **Attributes:**
-       - x (xstage): Illumina HiSeq 2500 :: Xstage.
-       - y (ystage): Illumina HiSeq 2500 :: Ystage.
-       - z (zstage): Illumina HiSeq 2500 :: Zstage.
-       - obj (objstage): Illumina HiSeq 2500 :: Objective stage.
-       - p['A'] (pump): Illumina HiSeq 2500 :: Pump for flowcell A.
-       - p['B'] (pump): Illumina HiSeq 2500 :: Pump for flowcell B.
-       - v10['A'] (valve): Illumina HiSeq 2500 :: Valve with 10 ports
-         for flowcell A.
-       - v10['B'] (valve): Illumina HiSeq 2500 :: Valve with 10 ports
-         for flowcell B.
-       - v24['A'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
-         for flowcell A.
-       - v24['B'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
-         for flowcell B.
-       - lasers['green'] (laser): Illumina HiSeq 2500 :: Laser for 532 nm line.
-       - lasers['red'] (laser): Illumina HiSeq 2500 :: Laser for 660 nm line.
-       - f (fpga): Illumina HiSeq 2500 :: FPGA.
-       - optics (optics): Illumina HiSeq 2500 :: Optics.
-       - cam1 (camera): Camera for 558 nm and 687 nm emissions.
-       - cam2 (camera): Camera for 610 nm and 740 nm emissions.
-       - logger (logger): Logger object to log communication with HiSeq.
-       - image_path (path): Directory to store images in.
-       - log_path (path): Directory to write log files in.
-       - bg_path (path): Directory to background calibration images.
-       - tile_width (float): Width of field of view in mm.
-       - resolution (float): Scale of pixels in microns per pixel.
-       - bundle_height: Line bundle height for TDI imaging.
-       - nyquist_obj: Nyquist sampling distance of z plane in objective steps.
+        - x (xstage): Illumina HiSeq 2500 :: Xstage.
+        - y (ystage): Illumina HiSeq 2500 :: Ystage.
+        - z (zstage): Illumina HiSeq 2500 :: Zstage.
+        - obj (objstage): Illumina HiSeq 2500 :: Objective stage.
+        - p['A'] (pump): Illumina HiSeq 2500 :: Pump for flowcell A.
+        - p['B'] (pump): Illumina HiSeq 2500 :: Pump for flowcell B.
+        - v10['A'] (valve): Illumina HiSeq 2500 :: Valve with 10 ports
+          for flowcell A.
+        - v10['B'] (valve): Illumina HiSeq 2500 :: Valve with 10 ports
+          for flowcell B.
+        - v24['A'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
+          for flowcell A.
+        - v24['B'] (valve): Illumina HiSeq 2500 :: Valve with 24 ports
+          for flowcell B.
+        - lasers['green'] (laser): Illumina HiSeq 2500 :: Laser for 532 nm line.
+        - lasers['red'] (laser): Illumina HiSeq 2500 :: Laser for 660 nm line.
+        - f (fpga): Illumina HiSeq 2500 :: FPGA.
+        - optics (optics): Illumina HiSeq 2500 :: Optics.
+        - cam1 (camera): Camera for 558 nm and 687 nm emissions.
+        - cam2 (camera): Camera for 610 nm and 740 nm emissions.
+        - logger (logger): Logger object to log communication with HiSeq.
+        - image_path (path): Directory to store images in.
+        - log_path (path): Directory to write log files in.
+        - bg_path (path): Directory to background calibration images.
+        - tile_width (float): Width of field of view in mm.
+        - resolution (float): Scale of pixels in microns per pixel.
+        - bundle_height: Line bundle height for TDI imaging.
+        - nyquist_obj: Nyquist sampling distance of z plane in objective steps.
     """
 
 
@@ -250,13 +250,13 @@ class HiSeq():
     def write_metadata(self, n_frames, image_name):
         """Write image metadata to file.
 
-           Parameters:
-           n_frames (int): Number of frames in the images.
-           bundle (int): Line bundle height of the images.
-           image_name (int): Common name of the images.
+           **Parameters:**
+            - n_frames (int): Number of frames in the images.
+            - bundle (int): Line bundle height of the images.
+            - image_name (int): Common name of the images.
 
-           Returns:
-           file: Metadata file to write info about images to.
+           **Returns:**
+            - file: Metadata file to write info about images to.
         """
 
         date = time.strftime('%Y%m%d_%H%M%S')
@@ -292,13 +292,13 @@ class HiSeq():
            self.image_path directory.
 
            **Parameters:**
-           - n_frames (int): Number of frames in the images.
-           - image_name (str, optional): Common name of the images, the default
-             is a time stamp.
+            - n_frames (int): Number of frames in the images.
+            - image_name (str, optional): Common name of the images, the default
+              is a time stamp.
 
            **Returns:**
-           - bool: True if all of the frames of the image were taken, False if
-             there were incomplete frames.
+            - bool: True if all of the frames of the image were taken, False if
+              there were incomplete frames.
 
         """
 
@@ -433,15 +433,15 @@ class HiSeq():
     def obj_stack(self, n_frames = 232, velocity = 0.1):
         """Take an objective stack of images.
 
-           Parameters:
-           - n_frames (int): Number of images in the stack.
-           - start (int): Objective step to start imaging.
-           - stop (int): Objective step to stop imaging
+           **Parameters:**
+            - n_frames (int): Number of images in the stack.
+            - start (int): Objective step to start imaging.
+            - stop (int): Objective step to stop imaging
 
-           Returns:
-           - array: N x 2 array where the column 1 is the objective step the
-                    frame was taken and column 2 is the file size of the frame
-                    summed over all channels
+           **Returns:**
+            - array: N x 2 array where the column 1 is the objective step the
+                     frame was taken and column 2 is the file size of the frame
+                     summed over all channels
 
         """
         msg = 'HiSeq::ObjectiveStack::'
@@ -666,13 +666,13 @@ class HiSeq():
            x&y position.
 
            **Parameters:**
-           - n_Zplanes (int): Number of Z planes to image.
-           - n_frames (int): Number of frames to image.
-           - image_name (str): Common name for images, the default is a time
-             stamp.
+            - n_Zplanes (int): Number of Z planes to image.
+            - n_frames (int): Number of frames to image.
+            - image_name (str): Common name for images, the default is a time
+              stamp.
 
            **Returns:**
-           - int: Time it took to do zstack in seconds.
+            - int: Time it took to do zstack in seconds.
 
         """
 
@@ -712,15 +712,15 @@ class HiSeq():
            Need a minimum overlap of 4 pixels for a significant x increment.
 
            **Parameters:**
-           - n_tiles (int): Number of x positions to image.
-           - n_Zplanes (int): Number of Z planes to image.
-           - n_frames (int): Number of frames to image.
-           - image_name (str): Common name for images, the default is a time
-             stamp.
-           - overlap (int): Number of column pixels to overlap between tiles.
+            - n_tiles (int): Number of x positions to image.
+            - n_Zplanes (int): Number of Z planes to image.
+            - n_frames (int): Number of frames to image.
+            - image_name (str): Common name for images, the default is a time
+              stamp.
+            - overlap (int): Number of column pixels to overlap between tiles.
 
            **Returns:**
-           - int: Time it took to do scan in seconds.
+            - int: Time it took to do scan in seconds.
 
         """
 
@@ -755,38 +755,6 @@ class HiSeq():
                 obj_pos = 45000)
 
 
-    def jpeg(self, filename):
-        """Saves image from all channels as jpegs.
-
-           Convert all tiff images with the common filename to jpegs and
-           add the file size from all 4 emission channels together as a
-           measure of how sharp and focused the image is. Images that are
-           more in focus will have a larger file size after compressed into
-           a jpeg.
-
-           Parameters:
-           filename (str): Common filename for all emmission channels.
-
-           Returns:
-           int: Sum of the jpeg size from all emmission channels.
-        """
-
-        image_prefix=[self.cam1.left_emission,
-                      self.cam1.right_emission,
-                      self.cam2.left_emission,
-                      self.cam2.right_emission]
-
-        C = 0
-        for image in image_prefix:
-            im_path = join(self.image_path, str(image)+'_'+filename+'.tiff')
-            im = imageio.imread(image_path)                                     #read picture
-            im = im[64:,:]                                                      #Remove bright band artifact
-            im_path = join(self.image_path, str(image)+'_'+filename+'.jpeg')
-            imageio.imwrite(im_path, im)
-            C += getsize(image_path)
-
-        return C
-
 
     def position(self, AorB, box):
         """Returns stage position information.
@@ -811,17 +779,18 @@ class HiSeq():
            n_tiles    Number of tiles to scan the entire section.
            n_frames   Number of frames to scan the entire section.
 
-           Parameters:
-           AorB (str): Flowcell A or B.
-           box ([float, float, float, float]) = The region of interest as
+
+           **Parameters:**
+            - AorB (str): Flowcell A or B.
+            - box ([float, float, float, float]) = The region of interest as
                 x&y position of the corners of a box surrounding the section
                 to be imaged defined as [LLx, LLy, URx, URy] where LL=Lower
                 Left and UR=Upper Right corner using the slide ruler.
 
-           Returns:
-           dict: Dictionary of stage positioning and
-                 imaging details to scan the entire section. See table
-                 above for details.
+           **Returns:**
+           - dict: Dictionary of stage positioning and
+                   imaging details to scan the entire section. See table
+                   above for details.
         """
 
         pos = {}
@@ -873,13 +842,13 @@ class HiSeq():
     def px_to_step(self, row, col, pos_dict, scale):
         """Convert pixel coordinates in image to stage step position.
 
-           Parameters:
-           row_col ([int,int]): Row and column pixel position in image.
-           pos_dict (dict): Dictionary of position data
-           scale (int): Scale factor of imaged
+           **Parameters:**
+            - row_col ([int,int]): Row and column pixel position in image.
+            - pos_dict (dict): Dictionary of position data
+            - scale (int): Scale factor of imaged
 
-           Returns:
-           [int, int]: X-stage and Y-stage step position respectively.
+           **Returns:**
+            - [int, int]: X-stage and Y-stage step position respectively.
 
         """
         #print(row_col)
@@ -911,9 +880,9 @@ class HiSeq():
            set is optimal.
 
            **Parameters:**
-           - pos_dict (dict): Dictionary of stage position information
-           - init_filter (int): Descending order position of highest OD filter
-           - n_filters (int): Number of filters to use for imaging
+            - pos_dict (dict): Dictionary of stage position information
+            - init_filter (int): Descending order position of highest OD filter
+            - n_filters (int): Number of filters to use for imaging
 
         """
 
@@ -968,118 +937,6 @@ class HiSeq():
 
 
 
-
-    def optimize_filter_old(self, nframes, color, nbins = 256,
-                        sat_threshold = 0.0005, signal_threshold = 20):
-        """Finds and returns the best filter settings.
-
-           Images a portion of the section with one laser at increasing laser
-           intensity. Images are analyzed from all emission channels to
-           calculate a filter score. Images are scored to maximize the image
-           histogram without saturating too many pixels and minimizes
-           crosstalk in non specific channels.
-
-           **Parameters:**
-           - nframes (int): Number of frames for portion of section.
-           - color (str): Laser line color to optimize filter.
-           - nbins (int, optional): Number of bins to define the image histogram,
-             default is 256 bins.
-           - sat_threshold (float): Maximum fraction of pixels allowed to be
-             saturated, default is 0.0005.
-           - signal_threshold (int): Maximum signal intensity allowed in
-             nonspecific channels, default is 20.
-
-           **Returns:**
-           - float: Optimal filter for specified laser.
-
-         """
-
-        # Save y position
-        y_pos = self.y.position
-
-        image_prefix=[self.cam1.left_emission,                                  # 687
-                      self.cam1.right_emission,                                 # 558
-                      self.cam2.left_emission,                                  # 610
-                      self.cam2.right_emission]                                 # 740
-
-        #Order of filters to loop through
-        f_order = []
-        for key in hs.optics.ex_dict[color].keys():
-            if isinstance(key,float):
-                f_order.append(key)
-        f_order = sorted(f_order, reverse = True)
-        # f_order = [[4.0, 2.0, 1.6, 1.4, 0.6, 0.2],
-        #         [4.5, 3.0, 2.0, 1.0, 0.9, 0.2]]
-
-        # Empty list of optimal filters
-        opt_filter = None
-        #opt_filter = [None, None]
-        # list of lasers, Green = 1, Red = 2
-        #lasers = [1,2]
-
-        # Loop through filters until optimized
-        #for li in lasers:
-        fi = 0                                                                  # filter index
-        self.optics.move_ex(1, 'home')                                          # Home and block lasers
-        self.optics.move_ex(2, 'home')
-        self.optics.move_em_in(True)
-        new_f_score = 0
-        while opt_filter is None:
-            self.optics.move_ex(color,f_order[fi])                              # Move excitation filter
-            image_name = 'L'+color+'_filter'+str(f_order[fi])
-            image_complete = False
-            # Take Picture
-            while not image_complete:
-                image_complete = self.take_picture(nframes, 128, image_name)
-                self.y.move(y_pos)
-
-            contrast = np.array([])
-            saturation = np.array([])
-            #read picture
-            for image in image_prefix:
-                im_name = self.image_path+str(image)+'_'+image_name+'.tiff'
-                #Calculate background subtracted contrast and %saturation
-                C, S = contrast2(im_name, image, self.bg_path, nbins)
-
-                contrast = np.append(contrast,C)
-                saturation = np.append(saturation,S)
-
-            old_f_score = new_f_score
-            # make sure image is not too saturated
-            if any(saturation > sat_threshold):
-                new_f_score = 0
-            # Green laser, 558+610-687-740 emissions
-            elif self.optics.colors[color] == 1 :
-                signal = contrast[1] + contrast[2]
-                new_f_score = contrast[1] + contrast[2] - contrast[0] - contrast[3]
-            # Red laser, 687+740-558-610- emissions
-            elif self.optics.colors[color] == 2:
-                signal = contrast[0] + contrast[3]
-                new_f_score = contrast[0] + contrast[3] - contrast[1] - contrast[2]
-
-            # Increase laser until you at least see some signal
-            if signal > signal_threshold:
-                # Too much crosstalk / saturation
-                if old_f_score >= new_f_score and fi > 0:
-                    opt_filter = f_order[fi-1]
-                else:
-                    fi += 1
-            # Last filter
-            elif fi == (len(f_order) - 1):
-                opt_filter = f_order[fi]
-            # Move to next filter
-            else:
-                fi += 1
-
-            self.message('Laser : ' + str(li))
-            self.message('Filter: ' + str(f_order[li-1][fi]))
-            self.message('Contrast: ' + str(contrast))
-            self.message('Saturation: ' + str(saturation))
-            self.message('Filter Score ' + str(new_f_score))
-
-        return opt_filter
-
-
     def message(self, *args):
         """Print output text to logger or console.
 
@@ -1107,31 +964,3 @@ class HiSeq():
                 self.logger.log(21,msg)
             else:
                 self.logger.info(msg)
-
-def contrast2(filename, channel, path, nbins=256):
-    """Return the image contrast and fraction of pixels saturated.
-
-       filename = name of image
-       channel = color channel of image
-       path = path of image
-       nbins = number of bins in histogram
-
-       Uses a precalibrated background file to subtract the background from the
-       image, then fit the remaining signal to a gaussian curve to find the mean
-       image contrast.
-    """
-    im = imageio.imread(filename)    #read picture
-    im = im[64:,:]                                                              #Remove bright band artifact
-    bg_path = join(path, str(channel) + 'background.txt')
-    bg = np.loadtxt(bg_path)                                                    #Load background for sensor
-    im = im - bg                                                                #Remove background
-    im[im<0] = 0                                                                #Convert negative px values to 0
-
-    contrast = np.max(im) - np.min(im)                                          #Calculate image contrast
-
-    # Histogram of image
-    xrange = np.array(range(4096))
-    hist, bin_edges = np.histogram(im, bins = 256, range=(0,4095-np.min(bg)), density= True)
-    saturation = hist[-1]
-
-    return contrast, saturation
