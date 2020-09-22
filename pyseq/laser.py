@@ -1,22 +1,24 @@
 #!/usr/bin/python
 """Illumina HiSeq 2500 System :: Laser
 
-    Examples:
-    #Create laser object
-    >>>import pyseq
-    >>>green_laser = pyseq.laser.Laser('COM13', color='green')
-    #Initialize the laser, default power is 10 mW.
-    >>>green_laser.initialize()
-    >>>green_laser.status()
-    >>>True
-    #Set the power to 100 mW
-    >>>green_laser.set_power(100)
-    >>>green_laser.get_power()
-    >>>100
-    #Turn the laser off
-    >>>green_laser.turn_on(False)
+   **Example:**
 
-Kunal Pandit 11/19
+   .. code-block:: python
+
+    #Create laser object
+    import pyseq
+    green_laser = pyseq.laser.Laser('COM13', color='green')
+    #Initialize the laser, default power is 10 mW.
+    green_laser.initialize()
+    green_laser.status()
+    True
+    #Set the power to 100 mW
+    green_laser.set_power(100)
+    green_laser.get_power()
+    100
+    #Turn the laser off
+    green_laser.turn_on(False)
+
 """
 
 import serial
@@ -28,12 +30,12 @@ class Laser():
     """HiSeq 2500 System :: Laser
 
        **Attributes:**
-       - on (bool): True if the laser is on, False if the laser is off.
-       - power (int): Power in mW of the laser:
-       - max_power: Maximum power of the laser in mW.
-       - min_power: Minimum power of the laser in mW.
-       - color: Color of the laser.
-       - version: Version number of the control software.
+        - on (bool): True if the laser is on, False if the laser is off.
+        - power (int): Power in mW of the laser:
+        - max_power (int): Maximum power of the laser in mW.
+        - min_power (int): Minimum power of the laser in mW.
+        - color (str): Color of the laser.
+        - version (str): Version number of the control software.
 
     """
 
@@ -41,15 +43,16 @@ class Laser():
     def __init__(self, com_port, baudrate = 9600, color = None, logger = None):
         """The constructor for the laser.
 
-           Parameters:
-           com_port (str): Communication port for the laser.
-           baudrate (int, optional): The communication speed in symbols per second.
-           color (str): The color of the laser.
-           logger (log, optional): The log file to write communication with the
-                laser to.
+           **Parameters:**
+            - com_port (str): Communication port for the laser.
+            - baudrate (int, optional): The communication speed in symbols per second.
+            - color (str): The color of the laser.
+            - logger (log, optional): The log file to write communication with the
+              laser to.
 
-           Returns:
-           laser object: A laser object to control the laser.
+           **Returns:**
+            - laser object: A laser object to control the laser.
+
         """
 
         # Open Serial Port
@@ -78,11 +81,12 @@ class Laser():
     def command(self, text):
         """Send a serial command to the laser and return the response.
 
-           Parameters:
-           text (str): A command to send to the laser.
+           **Parameters:**
+            - text (str): A command to send to the laser.
 
-           Returns:
-           str: The response from the laser.
+           **Returns:**
+            - str: The response from the laser.
+
         """
 
         text = text + self.suffix
@@ -99,12 +103,14 @@ class Laser():
     def turn_on(self, state):
         """Turn the laser on or off.
 
-           Parameters:
-           state (bool): True to turn on, False to turn off.
+           **Parameters:**
+            - state (bool): True to turn on, False to turn off.
 
-           Returns:
-           bool: True if laser is on, False if laser is off.
+           **Returns:**
+            - bool: True if laser is on, False if laser is off.
+
         """
+
         if state:
             while not self.get_status():
                 self.command('ON')
@@ -121,6 +127,7 @@ class Laser():
 
     def get_power(self):
         """Return the power level of the laser in mW (int)."""
+
         self.power = int(self.command('POWER?').split('mW')[0])
 
         return self.power
@@ -129,11 +136,12 @@ class Laser():
     def set_power(self, power):
         """Set the power level of the laser.
 
-        Parameters:
-        power (int): Power level to set the laser to.
+        **Parameters:**
+         - power (int): Power level to set the laser to.
 
-        Returns:
-        bool: True if the laser is on, False if the laser is off.
+        **Returns:**
+         - bool: True if the laser is on, False if the laser is off.
+
         """
 
         if self.min_power <= power <= self.max_power:
