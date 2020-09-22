@@ -1,18 +1,21 @@
 #!/usr/bin/python
 """Illumina HiSeq 2500 System :: Z-STAGE
-Uses commands found on [hackteria](www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking)
 
-The zstage can be moved up and down by 3 independent tilt motors. Each tilt
-motor can from step positions 0 to 25000. Initially, all of the tilt motors
-in the zstage are homed to step position 0. Lower step positions are down,
-and higher step positions are up. Each tilt motor step is about 1.5 microns.
-These motors are not precise and not have great repeatability. They are not
-expected to go to the exact step position. Furthermore, they are not
-expected to accurately go to the same position over and over again.
+   Uses commands found on `hackteria
+   <www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking>`_
 
-**Examples:**
+   The zstage can be moved up and down by 3 independent tilt motors. Each tilt
+   motor can from step positions 0 to 25000. Initially, all of the tilt motors
+   in the zstage are homed to step position 0. Lower step positions are down,
+   and higher step positions are up. Each tilt motor step is about 1.5 microns.
+   These motors are not precise and not repeatable. That is they are not
+   expected to go to the exact step position and they are not expected to go to
+   the same position over and over again.
+
+**Example:**
 
 .. code-block:: python
+
     #Create zstage
     import pyseq
     zstage = pyseq.zstage.Zstage('COM10')
@@ -20,9 +23,7 @@ expected to accurately go to the same position over and over again.
     zstage.initialize()
     #Move all tilt motors on zstage to absolute step position 21000
     zstage.move([21000, 21000, 21000])
-    >[21000, 21000, 21000]
-
-Kunal Pandit 9/19
+    [21000, 21000, 21000]
 
 """
 
@@ -34,10 +35,17 @@ class Zstage():
     """Illumina HiSeq 2500 System :: Z-STAGE
 
        **Attributes:**
-       - spum (float): Number of zstage steps per micron.
-       - position ([int, int, int]): A list with absolute positions of each tilt
-         motor in steps.
-       - tolerance (int): Maximum step error allowed, default is 2.
+        - spum (float): Number of zstage steps per micron.
+        - position ([int, int, int]): A list with absolute positions of each tilt
+          motor in steps.
+        - motors ([int, int, int]): Motor ids.
+        - tolerance (int): Maximum step error allowed, default is 2.
+        - min_z (int): Minimum zstage step position.
+        - max_z (int): Maximum safe zstage step position.
+        - xstep ([int, int, int]): Xstage position of the respective motors.
+        - ystep ([int, int, int]): Ystage position of the respective motors.
+        - logger (logger): Logger for messaging.
+        - focus_pos (int): Step used used for imaging.
 
     """
 
@@ -95,10 +103,10 @@ class Zstage():
         """Send a serial command to the zstage and return the response.
 
            **Parameters:**
-           - text (str): A command to send to the zstage.
+            - text (str): A command to send to the zstage.
 
            **Returns:**
-           - str: The response from the zstage.
+            - str: The response from the zstage.
 
         """
 
@@ -117,12 +125,12 @@ class Zstage():
         """Move all tilt motors to specified absolute step positions.
 
            **Parameters:**
-           - position ([int, int, int]): List of absolute positions for each tilt
-             motor.
+            - position ([int, int, int]): List of absolute positions for each tilt
+              motor.
 
            **Returns:**
-           - [int, int, int]: List with absolute positions of each tilt motor
-             after the move.
+            - [int, int, int]: List with absolute positions of each tilt motor
+              after the move.
 
         """
         for i in range(3):
@@ -140,7 +148,7 @@ class Zstage():
         """Return a list with absolute positions of each tilt motor.
 
            **Returns:**
-           - [int, int ,int]: List of absolution positions.
+            - [int, int ,int]: List of absolution positions.
 
         """
 
@@ -182,10 +190,10 @@ class Zstage():
         """Return True if all motors are in position, False if not.
 
            **Parameters:**
-           - position ([int,int,int]): List of motor positions to test.
+            - position ([int,int,int]): List of motor positions to test.
 
            **Returns:**
-           - bool: True if all motors are in position, False if not.
+            - bool: True if all motors are in position, False if not.
 
         """
 

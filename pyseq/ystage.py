@@ -11,13 +11,13 @@
 .. code-block:: python
 
     #Create ystage
-    >>>import pyseq
-    >>>xstage = pyseq.ystage.Ystage('COM10')
+    import pyseq
+    xstage = pyseq.ystage.Ystage('COM10')
     #Initialize ystage
-    >>>ystage.initialize()
+    ystage.initialize()
     #Move ystage to step position 3000000
-    >>>ystage.move(3000000)
-    >>>True
+    ystage.move(3000000)
+    True
 
 TODO:
     * Set gains function
