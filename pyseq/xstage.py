@@ -1,26 +1,27 @@
 #!/usr/bin/python
 """Illumina HiSeq 2500 Systems :: X-STAGE
-Uses command set from Schneider Electric MCode
 
-The xstage can be moved from step positions 1000 to 50000. Initially, the
-xstage is homed to step position 30000. Lower step positions are to the right,
-and higher step positions are to the left. Each xstage step is 0.375 microns.
+   Uses command set from Schneider Electric MCode
 
-Examples:
+   The xstage can be moved from step positions 1000 to 50000. Initially, the
+   xstage is homed to step position 30000. Lower step positions are to the right,
+   and higher step positions are to the left. Each xstage step is 0.375 microns.
+
+   **Example:**
 .. code-block:: python
-#Create xstage
-import pyseq
-xstage = pyseq.xstage.Xstage('COM9')
-#Initialize xstage
-xstage.initialize()
-#Move xstage to step position 10000
-xstage.move(10000)
-10000
+
+   #Create xstage
+   import pyseq
+   xstage = pyseq.xstage.Xstage('COM9')
+   #Initialize xstage
+   xstage.initialize()
+   #Move xstage to step position 10000
+   xstage.move(10000)
+   10000
 
 TODO:
-    * Change initialization to be aware position of flags.
+   * Change initialization to be aware position of flags.
 
-Kunal Pandit 9/19
 """
 
 
@@ -32,24 +33,29 @@ import time
 class Xstage():
     """Illumina HiSeq 2500 Systems :: X-STAGE
 
-    Attributes:
-    spum (float): Number of xstage steps per micron.
-    position (int): The absolution position of the xstage in steps.
+       **Attributes:**
+        - spum (float): Number of xstage steps per micron.
+        - position (int): The absolution position of the xstage in steps.
+        - min_x (int): Minimum safe xstage step position.
+        - max_x (int): Maximum safe xstage step position.
+        - home (int): Step position to move xstage out. 
+
     """
 
     # Make Xstage object
     def __init__(self, com_port, baudrate = 9600, logger = None):
         """The constructor for the xstage.
 
-           Parameters:
-           com_port (str): Communication port for the xstage.
-           baudrate (int, optional): The communication speed in symbols per
-                second.
-           logger (log, optional): The log file to write communication with the
-                xstage to.
+           **Parameters:**
+            - com_port (str): Communication port for the xstage.
+            - baudrate (int, optional): The communication speed in symbols per
+              second.
+            - logger (log, optional): The log file to write communication with
+              the xstage to.
 
-           Returns:
-           xstage object: A xstage object to control the xstage.
+           **Returns:**
+            - xstage object: A xstage object to control the xstage.
+
         """
 
         # Open Serial Port
@@ -124,11 +130,12 @@ class Xstage():
     def command(self, text):
         """Send a serial command to the xstage and return the response.
 
-           Parameters:
-           text (str): A command to send to the xstage.
+           **Parameters:**
+            - text (str): A command to send to the xstage.
 
-           Returns:
-           str: The response from the xstage.
+           **Returns:**
+            - str: The response from the xstage.
+
         """
         text = text + self.suffix
         self.serial_port.write(text)                                            # Write to serial port
@@ -146,11 +153,12 @@ class Xstage():
     def move(self, position):
         """Move xstage to absolute step position.
 
-           Parameters:
-           position (int): Absolute step position must be between 1000 - 50000.
+           **Parameters:**
+            - position (int): Absolute step position must be between 1000 - 50000.
 
-           Returns:
-           int: Absolute step position after move.
+           **Returns:**
+            - int: Absolute step position after move.
+
         """
         if self.min_x <= position <= self.max_x:
             self.command('MA ' + str(position))                                 # Move Absolute
@@ -162,13 +170,14 @@ class Xstage():
 
     # Check if Xstage is at a positio
     def check_position(self, position):
-        """Check if xstage is in positions.
+        """Check if xstage is in position.
 
-           Parameters:
-           position (int): Absolute step position must be between 1000 - 50000.
+           **Parameters:**
+            - position (int): Absolute step position must be between 1000 - 50000.
 
-           Returns:
-           bool: True if xstage is in position, False if it is not in position.
+           **Returns:**
+            - bool: True if xstage is in position, False if it is not in position.
+
         """
         moving = 1
         while moving != 0:
