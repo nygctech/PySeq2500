@@ -42,11 +42,7 @@ Examples:
 
 TODO:
     - Double check gains and velocity are set in take_picture
-    - Filter score without background substraction
-    - New fine focus routine
-    - Fix positioning details in example
 
-Kunal Pandit 9/19
 """
 
 
@@ -841,6 +837,8 @@ class HiSeq():
         # Calculate final x & y stage positions of scan
         pos['y_final'] = int(y_initial - y_length*self.y.spum)
         pos['x_final'] = int(x_initial + 315*self.tile_width)
+
+        pos['obj_pos'] = None
 
         return pos
 

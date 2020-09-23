@@ -1203,7 +1203,6 @@ def integrate_fc_and_hs(port_dict):
             pos = hs.position(AorB, fc.sections[section])
             fc.stage[section] = pos
             fc.stage[section]['z_pos'] = [z_pos, z_pos, z_pos]
-            fc.stage[section]['obj_pos'] = None
 
     return hs
 

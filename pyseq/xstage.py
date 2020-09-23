@@ -8,6 +8,7 @@
    and higher step positions are to the left. Each xstage step is 0.375 microns.
 
    **Example:**
+   
 .. code-block:: python
 
    #Create xstage

@@ -8,4 +8,5 @@ Usage
    installation
    quickstart
    pyseq
-   command_line
+   focusing
+   automated/index

@@ -14,15 +14,32 @@ import time
 import configparser
 
 class Autofocus():
-    """Thought it would be easier to have a focusing class (maybe not).
+    """Autofocus.
+
+       The autofocus will follow the routine set in hs.AF
+
+       **Autofocus routines:**
+        - full: Scan the entire section at a predetermined objective position,
+          even if a previous in focus objective position was found. Use for
+          small sections and the zstage has changed positions.
+        - partial: Image only center of section at a predetermined objective
+          position, even if a previous in focus objective position was found.
+          Use for large sections and the zstage has changed positions.
+        - full once: Scan the entire section at a predetermined objective
+          position, only if a previous in focus objective position has not been
+          found. Use for small sections and the zstage has not changed position.
+        - partial once: Image only center of section at a predetermined
+          objective position, only if a previous in focus objective position has
+          not been found. Use for large sections and the zstage has not changed
+          position.
 
        **Attributes:**
-       - hs (HiSeq): HiSeq object.
-       - pos_dict (int): Stage position information of the section.
-       - rough_ims (list): Thumbnails of the focusing section.
-       - scale (int): Down scale factor for thumbnails.
-       - files (list): Filenames of images stitched for rough_ims.
-       - logger (logger): Logger object to log communication with HiSeq.
+        - hs (HiSeq): HiSeq object.
+        - pos_dict (int): Stage position information of the section.
+        - rough_ims (list): Thumbnails of the focusing section.
+        - scale (int): Down scale factor for thumbnails.
+        - files (list): Filenames of images stitched for rough_ims.
+        - logger (logger): Logger object to log communication with HiSeq.
 
     """
 
@@ -50,12 +67,12 @@ class Autofocus():
            normalized.
 
            **Parameters:**
-           - image_name (str): Common name for images, default is 'RoughScan'.
+            - image_name (str): Common name for images, default is 'RoughScan'.
 
            **Returns:**
-           - list: Processed images of the section from 4 channels.
-           - int: Scale down factor of the images.
-           - list: Filenames of the raw images used to make the processed images.
+            - list: Processed images of the section from 4 channels.
+            - int: Scale down factor of the images.
+            - list: Filenames of the raw images used to make the processed images.
 
          """
 
@@ -101,12 +118,12 @@ class Autofocus():
            normalized.
 
            **Parameters:**
-           - image_name (str): Common name for images, default is 'RoughScan'.
+            - image_name (str): Common name for images, default is 'RoughScan'.
 
            **Returns:**
-           - list: Processed images of the section from 4 channels.
-           - int: Scale down factor of the images.
-           - list: Filenames of the raw images used to make the processed images.
+            - list: Processed images of the section from 4 channels.
+            - int: Scale down factor of the images.
+            - list: Filenames of the raw images used to make the processed images.
 
          """
 
@@ -150,12 +167,12 @@ class Autofocus():
            have been found.
 
            **Parameters:**
-           - px_points (2xN array): Row x Column position of candidate focal points
-           - n_markers (int): Number of focus markers to find
+            - px_points (2xN array): Row x Column position of candidate focal points
+            - n_markers (int): Number of focus markers to find
 
            **Returns:**
-           - 4x*n_markers array*: X-stage step, Y-stage step, Obj step, and
-                                  index of focal position.
+            - 4x*n_markers array*: X-stage step, Y-stage step, Obj step, and
+              index of focal position.
 
         """
 
@@ -257,11 +274,11 @@ class Autofocus():
            significant. Series with signals are summed and normalized.
 
            **Parameters:**
-           - focus_data (Nx4 array): JPEG frame file sizes from the 4 cameras.
+            - focus_data (Nx4 array): JPEG frame file sizes from the 4 cameras.
 
            **Returns:**
-           - array (Nx2): The 1st column is the objective step and the 2nd
-                          column is the corresponding processed frame size.
+            - array (Nx2): The 1st column is the objective step and the 2nd
+              column is the corresponding processed frame size.
 
         """
 
@@ -315,11 +332,11 @@ class Autofocus():
            returned, False is returned.
 
            **Parameters:**
-           - data (array Nx2): Focus data where the 1st column is the objective step
-                               and the 2nd column is the corresponding file size.
+            - data (array Nx2): Focus data where the 1st column is the objective
+              step and the 2nd column is the corresponding file size.
 
            **Returns:**
-           int: Optimal focus objective step if found (if not, False).
+            - int: Optimal focus objective step if found (if not, False).
 
         """
 
@@ -483,11 +500,11 @@ def autofocus(hs, pos_dict):
        and the median objective step is returned.
 
        **Parameters:**
-       - hs (HiSeq): HiSeq object.
-       - pos_dict (dict): Dictionary of stage position information.
+        - hs (HiSeq): HiSeq object.
+        - pos_dict (dict): Dictionary of stage position information.
 
        **Returns:**
-       - int: Objective step for optimal focus.
+        - int: Objective step for optimal focus.
 
      """
 
@@ -829,22 +846,25 @@ def autolevel(hs, n_ip, centroid):
 def planeFit(points):
     """Fit points to a plane.
 
-    Code copied from https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points
+    Code copied from `math stackexchange
+    <https://math.stackexchange.com/questions/99299/best-fitting-plane-given-a-set-of-points>`_
 
     Given an array, points, of shape (d,...) representing points in
     d-dimensional space, fit an d-dimensional plane to the points.
 
-    Example:
+    **Example:**
+
     .. code-block:: python
+
         p, n = planeFit(points)
 
     **Parameters:**
-    - points (array): Points of shape (d,...) representing points in
+     - points (array): Points of shape (d,...) representing points in
                       d-dimensional space.
 
     **Returns:**
-    - array: Point, p, on the plane (the point-cloud centroid)
-    - array: Normal, n of the plane
+     - array: Point, p, on the plane (the point-cloud centroid)
+     - array: Normal, n of the plane
 
     """
 
