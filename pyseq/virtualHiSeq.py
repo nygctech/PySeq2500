@@ -1,4 +1,4 @@
-#!/usr/bin/python
+flow#!/usr/bin/python
 from os.path import join
 import importlib.resources as pkg_resources
 
@@ -441,29 +441,29 @@ class Pump():
         self.steps = 48000.0
         self.max_volume = self.n_barrels*self.barrel_volume #uL
         self.min_volume = self.max_volume/self.steps #uL
-        self.min_speed = int(self.min_volume*40*60) # uL per min (upm)
-        self.max_speed = int(self.min_volume*8000*60) # uL per min (upm)
+        self.min_flow = int(self.min_volume*40*60) # uL per min (upm)
+        self.max_flow = int(self.min_volume*8000*60) # uL per min (upm)
         self.dispense_speed = 7000 # speed to dispense (sps)
         self.name = name
 
     def command(self, text):
         return text
 
-    def pump(self, volume, speed = 0):
-        """Pump desired volume at desired speed then send liquid to waste.
+    def pump(self, volume, flow = 0):
+        """Pump desired volume at desired flowrate then send liquid to waste.
 
            **Parameters:**
 
            - volume (float): The volume to be pumped in uL.
-           - speed (float): The flowrate to pump at in uL/min.
+           - flow (float): The flowrate to pump at in uL/min.
 
         """
 
-        if speed == 0:
-            speed = self.min_speed                                              # Default to min speed
+        if flow == 0:
+            flow = self.min_flow                                              # Default to min flow
 
         position = self.vol_to_pos(volume)                                      # Convert volume (uL) to position (steps)
-        sps = self.uLperMin_to_sps(speed)                                       # Convert flowrate(uLperMin) to steps per second
+        sps = self.uLperMin_to_sps(flow)                                       # Convert flowrate(uLperMin) to steps per second
 
         self.check_pump()                                                       # Make sure pump is ready
 
@@ -510,23 +510,30 @@ class Pump():
         """
 
         if volume > self.max_volume:
-            write_log('Volume is too large, only pumping ' +
+            print('Volume is too large, only pumping ' +
                        str(self.max_volume))
             volume = self.max_volume
         elif volume < self.min_volume:
-            write_log('Volume is too small, pumping ' +
+            print('Volume is too small, pumping ' +
                        str(self.min_volume))
             volume = self.min_volume
 
         position = round(volume / self.max_volume * self.steps)
         return int(position)
 
-    def uLperMin_to_sps(self, speed):
+    def uLperMin_to_sps(self, flow):
         """Convert flowrate from uL per min. (float) to steps per second (int).
 
         """
+        if self.min_flow > flow:
+            flow = self.min_flow
+            print('Flowrate too slow, increased to ', str(flow), 'uL/min')
+        elif flow > self.max_flow:
+            flow = self.max_flow
+            print('Flowrate too fast, decreased to ', str(flow), 'uL/min')
 
-        sps = round(speed / self.min_volume / 60)
+        sps = round(flow / self.min_volume / 60)
+
         return int(sps)
 
 class Valve():
@@ -1174,6 +1181,8 @@ class HiSeq():
         # Calculate final x & y stage positions of scan
         pos['y_final'] = int(y_initial - y_length*self.y.spum)
         pos['x_final'] = int(x_initial + 315*self.tile_width)
+
+        pos['obj_pos'] = None
 
         return pos
 

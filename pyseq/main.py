@@ -1102,7 +1102,7 @@ def do_shutdown():
     """Shutdown the HiSeq and flush all reagent lines if prompted."""
 
     for fc in flowcells.values():
-        while.fc.thread.is_alive()
+        while fc.thread.is_alive():
             fc.wait_thread.set()
             LED(fc.position, 'startup')
 
