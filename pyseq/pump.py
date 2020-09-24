@@ -63,8 +63,8 @@ class Pump():
             - name (str): Name of the pump.
             - logger (log, optional): The log file to write communication with the
               pump to.
-            - n_barrels (int): The number of barrels used per lane. The max and
-              default is 8.
+            - n_barrels (int): The number of barrels used per lane (max = 8,
+              default = 1)
 
            **Returns:**
             - pump object: A pump object to control the pump.
@@ -80,7 +80,7 @@ class Pump():
         self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
                                             encoding = 'ascii',
                                             errors = 'ignore')
-        self.n_barrels = 8
+        self.n_barrels = 1
         self.barrel_volume = 250.0 # uL
         self.steps = 48000.0
         self.max_volume = self.n_barrels*self.barrel_volume #uL
@@ -99,6 +99,14 @@ class Pump():
 
         response = self.command('W4R')                                          # Initialize Stage
 
+    def update_limits(self, n_barrels):
+        """Change barrels/flowcell lane and update volume and flowrate limits."""
+
+        self.n_barrels = n_barrels
+        self.max_volume = self.n_barrels*self.barrel_volume #uL
+        self.min_volume = self.max_volume/self.steps #uL
+        self.min_flow = int(self.min_volume*40*60) # uL per min (upm)
+        self.max_flow = int(self.min_volume*8000*60) # uL per min (upm)
 
     def command(self, text):
         """Send a serial command to the pump and return the response.

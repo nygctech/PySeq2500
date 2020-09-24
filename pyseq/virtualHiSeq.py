@@ -1,4 +1,4 @@
-flow#!/usr/bin/python
+#!/usr/bin/python
 from os.path import join
 import importlib.resources as pkg_resources
 
@@ -436,7 +436,7 @@ class Optics():
 
 class Pump():
     def __init__(self, name = 'pump'):
-        self.n_barrels = 8
+        self.n_barrels = 1
         self.barrel_volume = 250.0 # uL
         self.steps = 48000.0
         self.max_volume = self.n_barrels*self.barrel_volume #uL
@@ -445,6 +445,13 @@ class Pump():
         self.max_flow = int(self.min_volume*8000*60) # uL per min (upm)
         self.dispense_speed = 7000 # speed to dispense (sps)
         self.name = name
+
+    def update_limits(self, n_barrels):
+        self.n_barrels = n_barrels
+        self.max_volume = self.n_barrels*self.barrel_volume #uL
+        self.min_volume = self.max_volume/self.steps #uL
+        self.min_flow = int(self.min_volume*40*60) # uL per min (upm)
+        self.max_flow = int(self.min_volume*8000*60) # uL per min (upm)
 
     def command(self, text):
         return text

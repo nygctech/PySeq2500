@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """Illumina HiSeq 2500 System :: Optics
 
-   Uses commands found on `hacteria
+   Uses commands found on `hackteria
    <www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking>`_
 
    Controls the excitation and emission filters on the Illumina HiSeq 2500
