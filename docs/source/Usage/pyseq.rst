@@ -42,6 +42,7 @@ changed with :meth:`~pyseq.pump.Pump.update_limits`. Use larger volumes at
 slower flowrates for optimal pumping.
 
 .. code-block:: python
+
   n_barrels_per_lane = 8
   hs.v24['A'].update_limits(n_barrels_per_lane)       # Tied 8 outlets together
   volume = 1000                                       # uL
@@ -65,7 +66,7 @@ rows.
   # Change to 2 inlet row
   hs.move_inlet(2)
   # Change to 8 inlet row
-  hs.move_inlet(8)  
+  hs.move_inlet(8)
 
 Positioning
 ===========

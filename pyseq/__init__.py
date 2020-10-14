@@ -577,7 +577,7 @@ class HiSeq():
 
     def move_inlet(self, n_ports):
         """Move 10 port valves to 2 inlet row or 8 inlet row ports."""
-        
+
         if n_ports == 2:
             self.v10['A'].move(2)
             self.v10['B'].move(4)

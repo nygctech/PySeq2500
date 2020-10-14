@@ -730,6 +730,20 @@ class HiSeq():
 
         self.message(msg+'HiSeq initialized!')
 
+    def move_inlet(self, n_ports):
+        """Move 10 port valves to 2 inlet row or 8 inlet row ports."""
+
+        if n_ports == 2:
+            self.v10['A'].move(2)
+            self.v10['B'].move(4)
+            return True
+        elif n_ports == 8:
+            self.v10['A'].move(3)
+            self.v10['B'].move(5)
+            return True
+        else:
+            return False
+
     def obj_stack(self, n_frames = 232, velocity = 0.1):
         focus_data = np.loadtxt(join(self.focus_data,'obj_stack_data.txt'))
 
