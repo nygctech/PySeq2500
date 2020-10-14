@@ -48,17 +48,17 @@ slower flowrates for optimal pumping.
   flowrate = 100                                      # uL/min
   hs.p['A'].pump(volume, flowrate)
 
-Reagents can be pulled through the 2 or 8 inlet row. To use the 2 inlet row:
-To use the 8 inlet row:
+Reagents can be pulled through either the 2 inlet port row or 8 inlet port row
+by switching the port on the 10 port valve, **hs.v10**.
 
 .. code-block:: python
 
-  # Pump through 2 inlet row
-  hs.v10['A'].move(1)
-  hs.v10['B'].move(1)
-  # Pump through 8 inlet row
+  # Pump through 2 inlet port row
   hs.v10['A'].move(2)
-  hs.v10['B'].move(2)
+  hs.v10['B'].move(4)
+  # Pump through 8 inlet port row
+  hs.v10['A'].move(3)
+  hs.v10['B'].move(5)
 
 Positioning
 ===========
@@ -93,8 +93,7 @@ Setup Optics
 ============
 The :ref:`excitaton filters<optics>` need to be moved in place before taking an
 image or autofocusing. In general the emission filter should always be set in
-the path of the light. The filters will be returned to the home position (all
-excitation laser light blocked) after an image has been taken.
+the path of the light.
 
 .. code-block:: python
 

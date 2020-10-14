@@ -20,6 +20,7 @@ key in this section is **recipe**. The other keys are optional.
  - **variable reagents**: name of variable ports in recipes that are cycle dependent (string)
  - **first port**: port to start recipe at on first cycle (string)
  - **barrels per lane**: number of syringe barrels that are used per lane on flowcell (integer), default is 8
+ - **inlet ports**: 2 inlet port row or 8 inlet port row (integer), default is 2
  - **laser power**: set power of laser in mW (integer), default is 10
  - **z position**: step of tilt motors when imaging (integer), default is 21500
  - **focus filter 1**: filter for green laser for autofocus routine, default is 2.0
