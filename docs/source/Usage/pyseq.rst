@@ -48,8 +48,10 @@ slower flowrates for optimal pumping.
   flowrate = 100                                      # uL/min
   hs.p['A'].pump(volume, flowrate)
 
-Reagents can be pulled through either the 2 inlet port row or 8 inlet port row
-by switching the port on the 10 port valve, **hs.v10**.
+Reagents can be pulled through either the 2 inlet row or 8 inlet row
+by switching the port on the 10 port valve, **hs.v10**. Alternatively,
+:meth:`~pyseq.__init__.HiSeq.move_inlet` can be used to change between the inlet
+rows.
 
 .. code-block:: python
 
@@ -59,6 +61,11 @@ by switching the port on the 10 port valve, **hs.v10**.
   # Pump through 8 inlet port row
   hs.v10['A'].move(3)
   hs.v10['B'].move(5)
+  # Or change between inlet rows with move_inlet
+  # Change to 2 inlet row
+  hs.move_inlet(2)
+  # Change to 8 inlet row
+  hs.move_inlet(8)  
 
 Positioning
 ===========

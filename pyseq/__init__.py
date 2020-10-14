@@ -575,6 +575,20 @@ class HiSeq():
         self.y.command('V1')
         self.y.move(self.y.min_y)
 
+    def move_inlet(self, n_ports):
+        """Move 10 port valves to 2 inlet row or 8 inlet row ports."""
+        
+        if n_ports == 2:
+            self.v10['A'].move(2)
+            self.v10['B'].move(4)
+            return True
+        elif n_ports == 8:
+            self.v10['A'].move(3)
+            self.v10['B'].move(5)
+            return True
+        else:
+            return False
+
     def autofocus(self, pos_dict):
         """Find optimal objective position for imaging, True if found."""
 

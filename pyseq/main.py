@@ -393,6 +393,11 @@ def initialize_hs(virtual, IMAG_counter):
         import pyseq
         hs = pyseq.HiSeq(logger)
 
+    # Check inlet ports
+    inlet_ports = int(method.get('inlet ports', fallback = 2))
+    if inlet_ports not in [2,8]:
+        error('MethodFile:: inlet ports must be 2 or 8.')
+
     ## TODO: Changing laser color unecessary for now, revist if upgrading HiSeq
     # Configure laser color & filters
     colors = [method.get('laser color 1', fallback = 'green'),
@@ -438,6 +443,7 @@ def initialize_hs(virtual, IMAG_counter):
         # HiSeq Settings
         hs.bundle_height = int(method.get('bundle height', fallback = 128))
         hs.overlap = int(method.get('overlap', fallback = 0))
+        hs.move_inlet(inlet_ports)
 
         # Set laser power
 
