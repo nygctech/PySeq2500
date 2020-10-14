@@ -70,7 +70,7 @@ class Flowcell():
          values.
        - flush_volume (int): Volume in uL to flush reagent lines.
        - filters (dict): Dictionary of filter set at each cycle, c: em, ex1, ex2.
-       - image_counter (None/int)L Counter for multiple images per cycle.
+       - IMAG_counter (None/int)L Counter for multiple images per cycle.
 
     """
 
@@ -98,7 +98,7 @@ class Flowcell():
         self.pump_speed = {}
         self.flush_volume = None
         self.filters = {}                                                       # Dictionary of filter set at each cycle, c: em, ex1, ex2
-        self.image_counter = None                                               # Counter for multiple images per cycle
+        self.IMAG_counter = None                                                # Counter for multiple images per cycle
 
         while position not in ['A', 'B']:
             print(self.name + ' must be at position A or B')
@@ -135,8 +135,8 @@ class Flowcell():
             self.recipe.close()
         self.recipe = open(self.recipe_path)
         self.cycle += 1
-        if self.image_counter is not None:
-            self.image_counter = 0
+        if self.IMAG_counter is not None:
+            self.IMAG_counter = 0
         msg = 'PySeq::'+self.position+'::'
         if self.cycle > self.total_cycles:
             hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
@@ -165,7 +165,7 @@ class Flowcell():
 ## Setup Flowcells #######################################
 ##########################################################
 
-def setup_flowcells(first_line, image_counter):
+def setup_flowcells(first_line, IMAG_counter):
     """Read configuration file and create flowcells.
 
        **Parameters:**
@@ -196,8 +196,8 @@ def setup_flowcells(first_line, image_counter):
             rs = int(method.get('reagent speed', fallback=40))
             fc.pump_speed['reagent'] = rs
             fc.total_cycles = int(config.get('experiment','cycles'))
-            if image_counter > 1:
-                fc.image_counter = 0
+            if IMAG_counter > 1:
+                fc.IMAG_counter = 0
             flowcells[AorB] = fc
 
         # Add section to flowcell
@@ -223,7 +223,7 @@ def setup_flowcells(first_line, image_counter):
                     flowcell_list.index(fc)-1]
             if experiment['first flowcell'] not in flowcells:
                 error('ConfigFile::First flowcell does not exist')
-            if isinstance(image_counter, int):
+            if isinstance(IMAG_counter, int):
                 error('Recipe::Need WAIT before IMAG with 2 flowcells.')
 
     return flowcells
@@ -378,7 +378,7 @@ def get_obj_pos(section, cycle):
 ##########################################################
 ## Setup HiSeq ###########################################
 ##########################################################
-def initialize_hs(virtual):
+def initialize_hs(virtual, IMAG_counter):
     """Initialize the HiSeq and return the handle."""
 
     global n_errors
@@ -440,9 +440,13 @@ def initialize_hs(virtual):
         hs.overlap = int(method.get('overlap', fallback = 0))
 
         # Set laser power
+
         laser_power = int(method.get('laser power', fallback = 10))
         for color in hs.lasers.keys():
             hs.lasers[color].set_power(laser_power)
+            if IMAG_counter > 0:
+                if not hs.lasers[color].on:
+                    error('HiSeq:: Lasers did not turn on.')
 
         # Assign image directory
         image_path = join(save_path, experiment['image path'])
@@ -468,7 +472,7 @@ def check_instructions():
        **Returns:**
        - first_line (int): Line number for the recipe to start from on the
        initial cycle.
-       - image_counter (int): The number of imaging steps.
+       - IMAG_counter (int): The number of imaging steps.
 
     """
 
@@ -500,7 +504,7 @@ def check_instructions():
 
     f = open(config['experiment']['recipe path'])
 
-    image_counter = 0
+    IMAG_counter = 0
     wait_counter = 0
     line_num = 1
 
@@ -538,10 +542,10 @@ def check_instructions():
 
         # Make sure z planes is a number
         elif instrument == 'IMAG':
-            image_counter = int(image_counter + 1)
+            IMAG_counter = int(IMAG_counter + 1)
             # Flag to make check WAIT is used before IMAG for 2 flowcells
-            if wait_counter == image_counter:
-                image_counter = float(image_counter)
+            if wait_counter == IMAG_counter:
+                IMAG_counter = float(IMAG_counter)
             if command.isdigit() == False:
                 error('Recipe::Invalid number of z planes on line', line_num)
 
@@ -564,7 +568,7 @@ def check_instructions():
 
         line_num += 1
     f.close()
-    return first_line, image_counter
+    return first_line, IMAG_counter
 
 ##########################################################
 ## Check Ports ###########################################
@@ -1005,8 +1009,8 @@ def IMAG(fc, n_Zplanes):
         image_name = AorB
         image_name += '_s' + str(section)
         image_name += '_r' + cycle
-        if fc.image_counter is not None:
-            image_name += '_' + str(fc.image_counter)
+        if fc.IMAG_counter is not None:
+            image_name += '_' + str(fc.IMAG_counter)
 
         # Scan section on flowcell
         hs.y.move(pos['y_initial'])
@@ -1036,8 +1040,8 @@ def IMAG(fc, n_Zplanes):
         else:
             hs.optics.move_ex(color, 'home')
 
-    if fc.image_counter is not None:
-        fc.image_counter += 1
+    if fc.IMAG_counter is not None:
+        fc.IMAG_counter += 1
 
 
 
@@ -1273,9 +1277,9 @@ if __name__ == 'pyseq.main':
     config = get_config(args_)                                                  # Get config file
     logger = setup_logger()                                                     # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
-    first_line, image_counter = check_instructions()                            # Checks instruction file is correct and makes sense
-    flowcells = setup_flowcells(first_line, image_counter)                      # Create flowcells
-    hs = initialize_hs(args_['virtual'])                                        # Initialize HiSeq, takes a few minutes
+    first_line, IMAG_counter = check_instructions()                             # Checks instruction file is correct and makes sense
+    flowcells = setup_flowcells(first_line, IMAG_counter)                       # Create flowcells
+    hs = initialize_hs(args_['virtual'], IMAG_counter)                          # Initialize HiSeq, takes a few minutes
 
     hs = integrate_fc_and_hs(port_dict)                                         # Integrate flowcell info with hs
 

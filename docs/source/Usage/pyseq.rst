@@ -21,32 +21,31 @@ pumps, valves and lasers may take up to 10 minutes.
 
 Pumping Reagents
 ================
-Flowcell specific :ref:`pumps<pump>` (**hs.p**) and :ref:`valves<valve>`
-(**hs.v24**, **hs.v10**) are accessed by keys 'A' or 'B'. Reagents are
-selected using the 24 port valve, **hs.v24**. Reagents are assigned to a port
-on the valve with it's **port_dict**. Use :meth:`~pyseq.valve.Valve.move` to
-select a reagent in the **port_dict**. If the port dict is not specified, the
-port index may be used instead.
+Flowcell specific :ref:`pumps<pump>` and :ref:`valves<valve>` are accessed by
+keys 'A' or 'B'. Reagents are selected using the 24 port valve, **hs.v24**.
+Reagents are assigned to a port on the valve with it's **port_dict**. Use
+:meth:`~pyseq.valve.Valve.move` to select a reagent in the **port_dict**.
+If the **port_dict** is not specified, the port index may be used instead.
 
 .. code-block:: python
 
   hs.v24['A'].move(1)                             # Move to port 1
-  hs.v24['A'].port_dict = {'water':1, 'PBS':2}    # Assign reagents to n_ports
-  hs.v24['A'].move('PBS')                         # Move to PBS as port 2
+  hs.v24['A'].port_dict = {'water':1, 'PBS':2}    # Assign reagents to ports
+  hs.v24['A'].move('PBS')                         # Move to PBS at port 2
 
 Use :meth:`~pyseq.pump.Pump.pump` to pull reagents through the flowcell with
-negative pressure on flowcell lane basis.  For example, with an 8 lane flowcell,
+negative pressure on a flowcell lane basis. For example, with an 8 lane flowcell,
 :code:`pump(250, 100)`, will pump 250 uL at 100 uL/min through each flowcell
-lane and a total volume of 2000 uL will be pumped at a rate of 800 uL/min. The
+lane for a total volume of 2000 uL pumped at a total rate of 800 uL/min. The
 default number of syringe barrels dedicated to a flowcell lane is 1 and can be
 changed with :meth:`~pyseq.pump.Pump.update_limits`. Use larger volumes at
 slower flowrates for optimal pumping.
 
 .. code-block:: python
-
-  hs.v24['A'].update_limits(8)
-  volume = 1000                       # uL
-  flowrate = 100                      # uL/min
+  n_barrels_per_lane = 8
+  hs.v24['A'].update_limits(n_barrels_per_lane)       # Tied 8 outlets together
+  volume = 1000                                       # uL
+  flowrate = 100                                      # uL/min
   hs.p['A'].pump(volume, flowrate)
 
 Reagents can be pulled through the 2 or 8 inlet row. To use the 2 inlet row:
