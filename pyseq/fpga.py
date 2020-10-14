@@ -177,7 +177,7 @@ class FPGA():
             - AorB (int/str): A or 1 for the left LED, B or 2 for the right LED.
             - mode (str): Color / mode to set the LED to, see list below.
             - kwargs: sweep (1-255): sweep rate
-                     pulse (1-255): pulse rate
+                      pulse (1-255): pulse rate
 
            **Available Colors/Modes:**
             - off
