@@ -430,7 +430,6 @@ def initialize_hs(virtual, IMAG_counter):
     experiment_name = experiment['experiment name']
     save_path = join(experiment['save path'], experiment['experiment name'])
     if not os.path.exists(save_path):
-<<<<<<< HEAD
         try:
             os.mkdir(save_path)
         except:
@@ -467,20 +466,6 @@ def initialize_hs(virtual, IMAG_counter):
             os.mkdir(log_path)
         hs.log_path = log_path
 
-=======
-        os.mkdir(save_path)
-    # Assign image directory
-    image_path = join(save_path, experiment['image path'])
-    if not os.path.exists(image_path):
-        os.mkdir(image_path)
-    hs.image_path = image_path
-    # Assign log directory
-    log_path = join(save_path, experiment['log path'])
-    if not os.path.exists(log_path):
-        os.mkdir(log_path)
-    hs.log_path = log_path
-    
->>>>>>> 1a46fd5de6d5b7007156c09538a45d0feb4c96f3
     return hs
 
 
@@ -1213,15 +1198,8 @@ def integrate_fc_and_hs(port_dict):
     method = config.get('experiment', 'method')                                 # Read method specific info
     method = config[method]
     variable_ports = method.get('variable reagents', fallback = None)
-<<<<<<< HEAD
     z_pos = int(method.get('z position', fallback = 21500))
     n_barrels = int(method.get('barrels per lane', fallback = 8))               # Get method specific pump barrels per lane, fallback to 8
-=======
-    z_pos = method.get('z start', fallback = None)
-    obj_pos = method.get('objective start', fallback = None)
-
-    n_barrels = int(method.get('barrels per lane', 8))                          # Get method specific pump barrels per lane, fallback to 8
->>>>>>> 1a46fd5de6d5b7007156c09538a45d0feb4c96f3
 
     for fc in flowcells.values():
         AorB = fc.position
@@ -1232,21 +1210,9 @@ def integrate_fc_and_hs(port_dict):
                 hs.v24[AorB].variable_ports.append(v.strip())
         hs.p[AorB].n_barrels = n_barrels                                        # Assign barrels per lane to pump
         for section in fc.sections:                                             # Convert coordinate sections on flowcell to stage info
-<<<<<<< HEAD
             pos = hs.position(AorB, fc.sections[section])
             fc.stage[section] = pos
             fc.stage[section]['z_pos'] = [z_pos, z_pos, z_pos]
-=======
-            stage = hs.position(fc.position, fc.sections[section])
-            fc.stage[section]['x center'] = stage[0]
-            fc.stage[section]['y center'] = stage[1]
-            fc.stage[section]['x initial'] = stage[2]
-            fc.stage[section]['y initial'] = stage[3]
-            fc.stage[section]['n scans'] = stage[4]
-            fc.stage[section]['n frames'] = stage[5]
-            fc.stage[section]['z pos'] = z_pos
-            fc.stage[section]['obj pos'] = obj_pos
->>>>>>> 1a46fd5de6d5b7007156c09538a45d0feb4c96f3
 
     return hs
 
