@@ -144,8 +144,14 @@ class HiSeq():
         self.v24 = {'A': valve.Valve(valveA24COM, 'valveA24', logger = Logger),
                     'B': valve.Valve(valveB24COM, 'valveB24', logger = Logger)
                     }
+<<<<<<< HEAD
         self.image_path = getcwd()                                                  # path to save images in
         self.log_path = getcwd()                                                  # path to save logs in
+=======
+        self.image_path = None                                                  # path to save images in
+        self.log_path = None                                                    # path to save logs in
+        self.bg_path = 'C:\\Users\\Public\\Documents\\PySeq2500\\PySeq2500V2\\calibration\\' # path save background calibration images, WILL REMOVE IN FUTURE                                                # offset to calculated distance between stage and objective, WILL REMOVE IN FUTURE                                                   # height of flow cell in microns, WILL REMOVE IN FUTURE
+>>>>>>> 1a46fd5de6d5b7007156c09538a45d0feb4c96f3
         self.fc_origin = {'A':[17571,-180000],
                           'B':[43310,-180000]}
         self.tile_width = 0.769                                                 #mm
@@ -244,7 +250,11 @@ class HiSeq():
         self.y.position = self.y.read_position()
         self.f.write_position(0)
 
+<<<<<<< HEAD
         self.message(msg+'Initialized!')
+=======
+        print('HiSeq initialized!')
+>>>>>>> 1a46fd5de6d5b7007156c09538a45d0feb4c96f3
 
 
     def write_metadata(self, n_frames, image_name):
@@ -810,11 +820,24 @@ class HiSeq():
 
         pos = {}
 
+<<<<<<< HEAD
+=======
+           Returns:
+           [int, int, int, int, int, int]: List of stage positioning and
+                imaging details to scan the entire section. See table
+                above for details.
+        """
+        
+>>>>>>> 1a46fd5de6d5b7007156c09538a45d0feb4c96f3
         LLx = box[0]
         LLy = box[1]
         URx = box[2]
         URy = box[3]
+<<<<<<< HEAD
 
+=======
+        
+>>>>>>> 1a46fd5de6d5b7007156c09538a45d0feb4c96f3
         # Number of scans
         n_tiles = ceil((LLx - URx)/self.tile_width)
         pos['n_tiles'] = n_tiles
@@ -974,6 +997,7 @@ class HiSeq():
         for a in args[i:]:
             msg = msg + str(a) + ' '
 
+<<<<<<< HEAD
         if self.logger is None:
             print(msg)
         else:
@@ -981,3 +1005,9 @@ class HiSeq():
                 self.logger.log(21,msg)
             else:
                 self.logger.info(msg)
+=======
+def _1gaussian(x, amp1,cen1,sigma1):
+    """Gaussian function for curve fitting."""
+    return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
+>>>>>>> pip:pyseq/__init__.py
+>>>>>>> 1a46fd5de6d5b7007156c09538a45d0feb4c96f3

@@ -3,6 +3,8 @@ Control an Illumina HiSeq 2500 System Interactively
 
 [Read the Docs](https://pyseq2500.readthedocs.io/en/entrypoint/)
 
+[Read the Docs ](https://pyseq2500.readthedocs.io/en/entrypoint/)
+
 # Initializing HiSeq
 
 ```python
@@ -305,6 +307,7 @@ WAIT: water
 ```
 IMAG: 15
 ```
+<<<<<<< HEAD
 
 # Run an automated experiment
 Start a method on a HiSeq2500 System from the command line.
@@ -349,3 +352,5 @@ The example here is to see the config and recipe for a method called 4i.
 ```
 pyseq -m 4i
 ```
+=======
+>>>>>>> 1a46fd5de6d5b7007156c09538a45d0feb4c96f3
