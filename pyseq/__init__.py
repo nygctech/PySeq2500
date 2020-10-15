@@ -810,12 +810,6 @@ class HiSeq():
 
         pos = {}
 
-           Returns:
-           [int, int, int, int, int, int]: List of stage positioning and
-                imaging details to scan the entire section. See table
-                above for details.
-        """
-
         LLx = box[0]
         LLy = box[1]
         URx = box[2]

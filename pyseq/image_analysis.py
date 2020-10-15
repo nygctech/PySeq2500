@@ -280,13 +280,17 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
         im_[im > px_sat] = 0
         #Remove Edges
         if edge_width < px_cols/2:
-          im_[0:edge_width,:] = 0
           im_[:, px_cols-edge_width:px_cols] = 0
-          im_[px_rows-edge_width:px_rows, :] = 0
           im_[:,0:edge_width] = 0
+        if edge_width < px_rows/2:
+          im_[0:edge_width,:] = 0
+          im_[px_rows-edge_width:px_rows, :] = 0
 
-          px_score_thresh -= 0.5
+        px_score_thresh -= 0.5
+        
 
+    px_score_thresh += 0.5
+    message(log, name_, 'Used', px_score_thresh, 'pixel score threshold')
     markers = np.argwhere(im_ != 0)
 
 
