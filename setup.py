@@ -32,8 +32,9 @@ setup(
                       'imageio',
                       'scikit-image'],
     package_data={
-        'pyseq': ['recipes/*', 'focus_data/*',
-                  'focus_data/full/*', 'focus_data/partial/*'] },
+        'pyseq': ['recipes/*', 'focus_data/*']
+        },
+
     #package_data={  # Optional
     #    'sample': ['package_data.dat'], ## add data files inside of package
     #},
