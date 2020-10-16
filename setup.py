@@ -15,6 +15,7 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/nygctech/PySeq2500',
     author='Kunal Pandit',
+    author_email ='kpandit@nygenome.org',
     license='MIT',
     classifiers=[
         'Development Status :: 3 - Alpha',
@@ -32,7 +33,8 @@ setup(
                       'imageio',
                       'scikit-image'],
     package_data={
-        'pyseq': ['recipes/*', 'focus_data/*']
+        'pyseq': ['recipes/*', 'focus_data/*',
+                  'focus_data/full/*', 'focus_data/partial/*']
         },
 
     #package_data={  # Optional
