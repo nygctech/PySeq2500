@@ -24,7 +24,8 @@ Examples:
     #Move stage to imaging position.
     hs.z.move([21500, 21500, 21500])
     #Find focus
-    hs.autofocus()
+    hs.AF = 'partial once'
+    hs.autofocus(pos)
     True
     #Move green excitation filter to optical density 1.4
     hs.move_ex('green', 1.4)
