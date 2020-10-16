@@ -14,23 +14,28 @@ Examples:
     hs.initializeInstruments()
     #Specify directory to save images in
     hs.image_path = 'C:\\Users\\Public\\HiSeqImages\\'
+    #Load stage
+    hs.move_stage_out()
     #Get stage positioning and imaging details for section on flowcell A
     pos = hs.position('A', [15.5, 45, 10.5, 35])
+    #Move stage to imaging position.
+    hs.z.move([21500, 21500, 21500])
+    # Set laser intensity to 100 mW
+    hs.lasers['green'].set_power(100)
+    hs.lasers['red'].set_power(100)
+    #Move green excitation filter to optical density 1.4
+    hs.move_ex('green', 1.4)
+    #Move red excitation filter to optical density 1.0
+    hs.move_ex('red', 1.0)
+    #Find focus
+    hs.AF = 'partial once'
+    hs.autofocus(pos)
+    True
     #Move to center of section
     hs.x.move(pos['x_center'])
     12000
     hs.y.move(pos['y_center'])
     True
-    #Move stage to imaging position.
-    hs.z.move([21500, 21500, 21500])
-    #Find focus
-    hs.AF = 'partial once'
-    hs.autofocus(pos)
-    True
-    #Move green excitation filter to optical density 1.4
-    hs.move_ex('green', 1.4)
-    #Move red excitation filter to optical density 1.0
-    hs.move_ex('red', 1.0)
     # Take a 32 frame picture, creates image for each channel 2048 x 4096 px
     hs.take_picture(32, image_name='FirstHiSeqImage')
     #Move stage to the initial image scan position and scan image at 1 obj plane
