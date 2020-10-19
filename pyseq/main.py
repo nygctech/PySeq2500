@@ -96,7 +96,7 @@ class Flowcell():
         self.wait_thread = threading.Event()                                    # blocks next flowcell until current flowcell reaches signal event
         self.waits_for = None                                                   # position of the flowcell that signals current flowcell to continue
         self.pump_speed = {}
-        self.flush_volume = None
+        self.flush_volume = {'main':None,'side':None,'sample':None}             # Flush volume
         self.filters = {}                                                       # Dictionary of filter set at each cycle, c: em, ex1, ex2
         self.IMAG_counter = None                                                # Counter for multiple images per cycle
 
@@ -190,7 +190,9 @@ def setup_flowcells(first_line, IMAG_counter):
             fc = Flowcell(AorB)
             fc.recipe_path = experiment['recipe path']
             fc.first_line = first_line
-            fc.flush_volume = int(method.get('flush volume', fallback=2000))
+            fc.flush_volume['main'] = int(method.get('main flush volume', fallback=2000))
+            fc.flush_volume['side'] = int(method.get('side flush volume', fallback=100))
+            fc.flush_volume['sample'] = int(method.get('side flush volume', fallback=100))
             ps = int(method.get('flush speed',fallback=700))
             fc.pump_speed['flush'] = ps
             rs = int(method.get('reagent speed', fallback=40))
@@ -397,7 +399,22 @@ def initialize_hs(virtual, IMAG_counter):
     inlet_ports = int(method.get('inlet ports', fallback = 2))
     if inlet_ports not in [2,8]:
         error('MethodFile:: inlet ports must be 2 or 8.')
-
+    # Check side ports
+    try:
+        side_ports = method.get('side ports', fallback = '9,21,22,23,24')
+        side_ports = side_ports.split(',')
+        side_ports = list(map(int, side_ports))
+    except:
+        error('ConfigFile:: Side ports not valid')
+    # Check sample port
+    try:
+        sample_port = int(method.get('sample port', fallback = 20))
+    except:
+        error('ConfigFile:: Sample port not valid')
+    # Check barrels per lane make sense:
+    n_barrels = int(method.get('barrels per lane', fallback = 1))               # Get method specific pump barrels per lane, fallback to 1
+    if n_barrels not in [1,2,4,8]:
+        error('ConfigFile:: Barrels per lane must be 1, 2, 4 or 8')
     ## TODO: Changing laser color unecessary for now, revist if upgrading HiSeq
     # Configure laser color & filters
     colors = [method.get('laser color 1', fallback = 'green'),
@@ -443,10 +460,15 @@ def initialize_hs(virtual, IMAG_counter):
         # HiSeq Settings
         hs.bundle_height = int(method.get('bundle height', fallback = 128))
         hs.overlap = int(method.get('overlap', fallback = 0))
-        hs.move_inlet(inlet_ports)
+        hs.move_inlet(inlet_ports)                                              # Move to 2 or 8 port inlet
+
+        # Set side ports, sample ports, barrels_per_lane
+        for AorB in ['A','B']:
+            hs.v24[AorB].side_ports = side_ports
+            hs.v24[AorB].sample_port = sample_port
+            hs.p[AorB].update_limits(n_barrels)                                 # Assign barrels per lane to pump
 
         # Set laser power
-
         laser_power = int(method.get('laser power', fallback = 10))
         for color in hs.lasers.keys():
             hs.lasers[color].set_power(laser_power)
@@ -791,36 +813,48 @@ def do_flush():
     LED('all', 'user')
     if flush_YorN:
         hs.message('Lock temporary flowcell(s) on to stage')
-        hs.message('Place all valve input lines in PBS/water')
+        hs.message('Place all valve input lines in reagents')
         input("Press enter to continue...")
 
         #Flush all lines
         LED('all', 'startup')
         while True:
             AorB_ = [*flowcells.keys()][0]
-            volume = flowcells[AorB_].flush_volume
+            port_dict = hs.v24[AorB_].port_dict
             speed = flowcells[AorB_].pump_speed['flush']
-            for port in hs.v24[AorB_].port_dict.keys():
+
+            for port in port_dict.keys():
                 if isinstance(port_dict[port], int):
                     hs.message('Priming ' + str(port))
                     for fc in flowcells.values():
+                        port_num = port_dict[port]
                         AorB = fc.position
                         fc.thread = threading.Thread(target=hs.v24[AorB].move,
                                                      args=(port,))
                         fc.thread.start()
                     alive = True
                     while alive:
+                        alive_ = []
                         for fc in flowcells.values():
-                            alive *= fc.thread.is_alive()
+                            alive_.append(fc.thread.is_alive())
+                            alive = any(alive_)
                     for fc in flowcells.values():
+                        if port_num in hs.v24[AorB].side_ports:
+                            volume = fc.flush_volume['side']
+                        elif port_num == hs.v24[AorB].sample_port:
+                            volume = fc.flush_volume['sample']
+                        else:
+                            volume = fc.flush_volume['main']
                         AorB = fc.position
                         fc.thread = threading.Thread(target=hs.p[AorB].pump,
                                                      args=(volume, speed,))
                         fc.thread.start()
                     alive = True
                     while alive:
+                        alive_ = []
                         for fc in flowcells.values():
-                            alive *= fc.thread.is_alive()
+                            alive_.append(fc.thread.is_alive())
+                            alive = any(alive_)
             LED('all', 'user')
             break
 
@@ -1199,7 +1233,6 @@ def integrate_fc_and_hs(port_dict):
     method = config[method]
     variable_ports = method.get('variable reagents', fallback = None)
     z_pos = int(method.get('z position', fallback = 21500))
-    n_barrels = int(method.get('barrels per lane', fallback = 8))               # Get method specific pump barrels per lane, fallback to 8
 
     for fc in flowcells.values():
         AorB = fc.position
@@ -1208,7 +1241,6 @@ def integrate_fc_and_hs(port_dict):
             v_ports = variable_ports.split(',')
             for v in v_ports:                                                   # Assign variable ports
                 hs.v24[AorB].variable_ports.append(v.strip())
-        hs.p[AorB].n_barrels = n_barrels                                        # Assign barrels per lane to pump
         for section in fc.sections:                                             # Convert coordinate sections on flowcell to stage info
             pos = hs.position(AorB, fc.sections[section])
             fc.stage[section] = pos
