@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
-#from pyseq import image_analysis as ia
-import sys
-sys.path.append('C:\\Users\\kpandit\\PySeq2500\\pyseq\\')
-import image_analysis as ia
+from pyseq import image_analysis as ia
+# import sys
+# sys.path.append('C:\\Users\\kpandit\\PySeq2500\\pyseq\\')
+# import image_analysis as ia
 
 import subprocess
 import time
@@ -12,19 +12,32 @@ from os import mkdir, getcwd
 import imageio
 
 
+if __name__ == '__main__':
+    main()
+
+
+
 def wait_for_new_images(log_path, im_path, n_old_images, sleep_time = 100):
+    if OS_ is 'posix':
+        im_command = ['grep', '-e', 'Imaging completed', log_path]
+        end_command =  ['grep', '-e', 'PySeq::Shutting down', log_path]
+
+    else:
+        im_command = ['findstr', 'Imaging completed', log_path]
+        end_command =  ['findstr', 'PySeq::Shutting down', log_path]
+
     ftime = time.asctime(time.localtime(time.time()))
     print(ftime,' - Waiting for new images')
     new_images = False
     while not new_images:
-        output = subprocess.run(['findstr', 'Imaging completed', log_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        output = subprocess.run(im_command, stdout=subprocess.PIPE).stdout.decode('utf-8')
         image_count = output.count('\r\n')
         if image_count > n_old_images:
             new_images = True
         else:
             time.sleep(sleep_time)
 
-        complete = subprocess.run(['findstr', 'PySeq::Shutting down', log_path], stdout=subprocess.PIPE).stdout.decode('utf-8')
+        complete = subprocess.run(end_command, stdout=subprocess.PIPE).stdout.decode('utf-8')
         if len(complete) > 0:
             break
 
@@ -73,7 +86,7 @@ def main(compensation = False):
                         # Make thumbnails
                         plane, scale = ia.stitch(im_path, df_x, scaled = True)
                         plane = ia.normalize(plane, scale)
-                        im_name = 'c'+str(c)+'_'+s+'_r'+str(r)+'_f'+str(scale)+'.tiff'
+                        im_name += '_f'+str(scale)+'.tiff'
                         imageio.imwrite(join(thumb_path, im_name), plane)
         old = old.append(new)
         new, n_old_images = wait_for_new_images(log_path, im_path, n_old_images, sleep_time = 10)

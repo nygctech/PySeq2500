@@ -1,19 +1,22 @@
 #!/usr/bin/python
 """Illumina HiSeq 2500 System :: Valve
-Uses command set from Vici Technical Note 415
 
-Example:
-    #Create valve object
-    >>>import pyseq
-    >>>valveA10 = pyseq.valve.Valve('COM18', name='valveA10')
-    #Initialize valve
-    >>>valveA10.initialize()
-    #Move valve to port #1 and confirm the valve moved to port  #1
-    >>>valveA10.move('1')
-    >>>valve10.check_valve()
-    >>>1
+   Uses command set from Vici Technical Note 415
 
-Kunal Pandit 9/19
+   **Example:**
+
+    .. code-block:: python
+    
+        #Create valve object
+        import pyseq
+        valveA10 = pyseq.valve.Valve('COM18', name='valveA10')
+        #Initialize valve
+        valveA10.initialize()
+        #Move valve to port #1 and confirm the valve moved to port  #1
+        valveA10.move('1')
+        valve10.check_valve()
+        1
+
 """
 
 
@@ -26,28 +29,32 @@ import time
 class Valve():
     """Illumina HiSeq 2500 System :: Valve
 
-       Attributes:
-       n_ports (int): Number of available ports on the valves.
-       port_dict (dict): Dictionary of port number as keys and reagent names
-            as values.
-       name (str): Name of the valve.
+       **Attributes:**
+        - n_ports (int): Number of available ports on the valves.
+        - port_dict (dict): Dictionary of port number as keys and reagent names
+          as values.
+        - variable_ports (list): List of ports in *port_dict* that change
+          depending on the cycle
+        - name (str): Name of the valve.
+
     """
 
 
     def __init__(self, com_port, name = None, logger = None, port_dict = dict()):
         """The constructor for the valve.
 
-           Parameters:
-           com_port (str): Communication port for the valve.
-           name (str): Name of the valve.
-           logger (log, optional): The log file to write communication with the
-                valve to.
-           port_dict(dict, optional): Dictionary of port number as keys and
-                reagent names as values. If not specified, the port number
-                is used as the reagent name.
+           **Parameters:**
+            - com_port (str): Communication port for the valve.
+            - name (str): Name of the valve.
+            - logger (log, optional): The log file to write communication with the
+              valve to.
+            - port_dict(dict, optional): Dictionary of port number as keys and
+              reagent names as values. If not specified, the port number
+              is used as the reagent name.
 
-           Returns:
-           valve object: A valve object to control the valve.
+           **Returns:**
+            - valve object: A valve object to control the valve.
+
         """
 
         baudrate = 9600
@@ -111,11 +118,12 @@ class Valve():
     def command(self, text):
         """Send a serial command to the valve and return the response.
 
-           Parameters:
-           text (str): A command to send to the valve.
+           **Parameters:**
+            - text (str): A command to send to the valve.
 
-           Returns:
-           str: The response from the valve.
+           **Returns:**
+            - str: The response from the valve.
+
         """
 
         text = self.prefix + text + self.suffix                                 # Format the command

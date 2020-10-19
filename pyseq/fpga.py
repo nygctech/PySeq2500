@@ -1,28 +1,33 @@
 #!/usr/bin/python
 """Illumina HiSeq 2500 System :: FPGA
-The FPGA arms triggers for the TDI cameras.
-The FPGA also controls the z stage, the objective stage, and the optics.
 
-Commands from [hackteria](www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking)
+   The FPGA arms triggers for the TDI cameras.
+   The FPGA also controls the z stage, objective stage, optics, LEDS, and stage
+   temperature.
 
-**Examples:**
+   Commands from `hackteria
+   <www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking>`_
 
-.. code-block::python
+   **Example:**
 
-    #Create FPGA object
-    import pyseq
-    fpga = pyseq.fpga.FPGA('COM12','COM15')
-    #Initialize FPGA
-    fpga.initialize()
-    # Read write encoder position (to sync with y stage).
-    fpga.read_position()
-    0
-    fpga.write_position(0)
-    # Arm y stage triggers for TDI imgaging.
-    fpga.TDIYPOS(3000000)
-    fpga.TDIYPOS3(4096,3000000)
+   .. code-block:: python
 
-Kunal Pandit 9/19
+        #Create FPGA object
+        import pyseq
+        fpga = pyseq.fpga.FPGA('COM12','COM15')
+        #Initialize FPGA
+        fpga.initialize()
+        # Read write encoder position (to sync with y stage).
+        fpga.read_position()
+        0
+        fpga.write_position(0)
+        # Arm y stage triggers for TDI imgaging.
+        fpga.TDIYPOS(3000000)
+        fpga.TDIYPOS3(4096,3000000)
+        # Set LEDs to nightride mode (blue sweep)
+        fpga.led('A', 'sweep blue')
+        fpga.led('B', 'sweep blue')
+
 
 """
 
@@ -35,23 +40,33 @@ import time
 # FPGA object
 
 class FPGA():
-    """HiSeq 2500 System :: FPGA"""
+    """HiSeq 2500 System :: FPGA
+
+       **Attributes**
+        - led_dict (dict): Dictionary of command options for different LED modes.
+        - y_offset (int): FPGA offset of ystage position
+        - logger (logger): Logger used for messaging
+
+    """
+
+
 
     def __init__(self, com_port_command, com_port_response, baudrate = 115200, logger = None):
         """The constructor for the FPGA.
 
            **Parameters:**
-           - com_port_command (str): The communication port to send FPGA
-             commands.
-           - com_port_response (str): The communication port to receive FPGA
-             responses.
-           - baudrate (int, optional): The communication speed in symbols per
-             second.
-           - logger (log, optional): The log file to write communication with
-             the FPGA.
+            - com_port_command (str): The communication port to send FPGA
+              commands.
+            - com_port_response (str): The communication port to receive FPGA
+              responses.
+            - baudrate (int, optional): The communication speed in symbols per
+              second.
+            - logger (log, optional): The log file to write communication with
+              the FPGA.
+
 
            **Returns:**
-           - fpga object: A fpga object to control the FPGA.
+            - fpga object: A fpga object to control the FPGA.
 
         """
 
@@ -67,7 +82,7 @@ class FPGA():
         self.y_offset = 7000000
         self.logger = logger
         self.led_dict = {'off':'0', 'yellow':'1', 'green':'3', 'pulse green':'4',
-                         'blue':'5', 'pulse blue':'6', 'sweep blue': '7'}        
+                         'blue':'5', 'pulse blue':'6', 'sweep blue': '7'}
 
 
     def initialize(self):
@@ -80,15 +95,15 @@ class FPGA():
         self.command('SWLSRSHUT 0')                                             # Shutter lasers
         self.LED(1,'off')
         self.LED(2,'off')
-        
+
     def command(self, text):
         """Send commands to the FPGA and return the response.
 
            **Parameters:**
-           - text (str): A command to send to the FPGA.
+            - text (str): A command to send to the FPGA.
 
            **Returns:**
-           - str: The response from the FPGA.
+            - str: The response from the FPGA.
 
         """
 
@@ -107,7 +122,7 @@ class FPGA():
         """Read the y position of the encoder for TDI imaging.
 
            **Returns:**
-           - int: The y position of the encoder.
+            - int: The y position of the encoder.
 
         """
         tdi_pos = self.command('TDIYERD')
@@ -122,7 +137,7 @@ class FPGA():
            Allows for a 5 step (50 nm) error.
 
            **Parameters:**
-           - position (int) = The position of the y stage.
+            - position (int) = The position of the y stage.
 
         """
         position = position + self.y_offset
@@ -135,7 +150,7 @@ class FPGA():
         """Set the y position for TDI imaging.
 
            **Parameters:**
-           - y_pos (int): The initial y position of the image.
+            - y_pos (int): The initial y position of the image.
 
         """
         self.command('TDIYPOS ' + str(y_pos+self.y_offset-80000))
@@ -145,8 +160,8 @@ class FPGA():
         """Arm the y stage triggers for TDI imaging.
 
            **Parameters:**
-           - n_triggers: Number of triggers to send to the cameras.
-           - y_pos (int): The initial y position of the image.
+            - n_triggers (int): Number of triggers to send to the cameras.
+            - y_pos (int): The initial y position of the image.
 
         """
 
@@ -159,22 +174,22 @@ class FPGA():
         """Set front LEDs.
 
            **Parameters:**
-           - AorB (int/str): A or 1 for the left LED, B or 2 for the right LED.
-           - mode (str): Color / mode to set the LED to, see list below.
-           - kwargs: sweep (1-255): sweep rate
-                     pulse (1-255): pulse rate
+            - AorB (int/str): A or 1 for the left LED, B or 2 for the right LED.
+            - mode (str): Color / mode to set the LED to, see list below.
+            - kwargs: sweep (1-255): sweep rate
+                      pulse (1-255): pulse rate
 
            **Available Colors/Modes:**
-           - off
-           - yellow
-           - green
-           - pulse green
-           - blue
-           - pulse blue
-           - sweep blue
+            - off
+            - yellow
+            - green
+            - pulse green
+            - blue
+            - pulse blue
+            - sweep blue
 
            **Returns:**
-           - bool: True if AorB and mode are valid, False if not.
+            - bool: True if AorB and mode are valid, False if not.
 
         """
 

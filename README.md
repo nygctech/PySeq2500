@@ -67,7 +67,7 @@ The metadata textfile contains info like time, stage position, laser power, filt
 ```python
 # Positioning the stage
 # Currently all of the stages move to absolute positions that are defined in steps
-hs.y.move(Y)         # Y should be a number between -7000000 and 7500000
+hs.y.move(Y)         # Y should be between -7000000 and 7500000
 hs.x.move(X)         # X should be between 1000 and 50000
 hs.z.move([Z, Z, Z]) # Z should be between 0 and 25000
 
