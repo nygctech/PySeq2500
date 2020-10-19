@@ -920,12 +920,13 @@ class HiSeq():
         colors = self.optics.colors
         f_order = [[],[]]
         for i, color in enumerate(colors):
-            for f in self.optics.ex_dict[color].keys():
-                if isinstance(f,float):
-                    f_order.append(f)
+            filters = self.optics.ex_dict[color].keys()
+            f_order[i] = [f for f in filters if isinstance(f,float)]
             f_order[i] = sorted(f_order[i], reverse = True)
             f_order[i] = f_order[i][init_filter:init_filter+n_filters]
             f_order[i].append('home')
+
+        print(f_order)
 
         # Set optical filters
         for color in colors:
