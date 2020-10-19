@@ -190,9 +190,9 @@ def setup_flowcells(first_line, IMAG_counter):
             fc = Flowcell(AorB)
             fc.recipe_path = experiment['recipe path']
             fc.first_line = first_line
-            fc.flush_volume['main'] = int(method.get('main flush volume', fallback=2000))
-            fc.flush_volume['side'] = int(method.get('side flush volume', fallback=100))
-            fc.flush_volume['sample'] = int(method.get('side flush volume', fallback=100))
+            fc.flush_volume['main'] = int(method.get('main flush volume', fallback=500))
+            fc.flush_volume['side'] = int(method.get('side flush volume', fallback=350))
+            fc.flush_volume['sample'] = int(method.get('sample flush volume', fallback=250))
             ps = int(method.get('flush speed',fallback=700))
             fc.pump_speed['flush'] = ps
             rs = int(method.get('reagent speed', fallback=40))
