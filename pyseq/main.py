@@ -70,8 +70,8 @@ class Flowcell():
          values.
        - flush_volume (int): Volume in uL to flush reagent lines.
        - filters (dict): Dictionary of filter set at each cycle, c: em, ex1, ex2.
-       - IMAG_counter (None/int)L Counter for multiple images per cycle.
-       - events_since_IMAG = List events since last IMAG step.
+       - IMAG_counter (None/int): Counter for multiple images per cycle.
+       - events_since_IMAG (list): Record events since last IMAG step.
 
     """
 
