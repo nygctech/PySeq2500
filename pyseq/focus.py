@@ -198,6 +198,7 @@ class Autofocus():
             if f_fs is not False:
                obj_pos = self.fit_mixed_gaussian(f_fs)
                if obj_pos:
+                   if
                    self.message(name_+'Found focus point ', n_obj+1)
                    self.message(False, name_+'Point at x =', x_pos,
                                        'y =',y_pos,'obj =', obj_pos )
@@ -393,6 +394,9 @@ class Autofocus():
                                   int(hs.nyquist_obj/2))
                 _focus = gaussian(_objsteps, results.x)
                 optobjstep = int(_objsteps[np.argmax(_focus)])
+                if optobjstep in (hs.obj.focus_start, hs.obj.focus_stop):
+                    self.message(False, name_, 'Peak at endpoint: ', optobjstep)
+                    optobjstep = False
             else:
                 optobjstep = False
                 if len(amp) == max_peaks:
@@ -400,10 +404,6 @@ class Autofocus():
                     break
 
         return optobjstep
-
-        def get_obj_step(section):
-            if self.config.has_section(section):
-                obj_step = int(self.config.get(section,))
 
 
 
