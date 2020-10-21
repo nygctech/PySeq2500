@@ -71,6 +71,7 @@ class Flowcell():
        - flush_volume (int): Volume in uL to flush reagent lines.
        - filters (dict): Dictionary of filter set at each cycle, c: em, ex1, ex2.
        - IMAG_counter (None/int)L Counter for multiple images per cycle.
+       - events_since_IMAG = List events since last IMAG step.
 
     """
 
@@ -99,10 +100,11 @@ class Flowcell():
         self.flush_volume = None
         self.filters = {}                                                       # Dictionary of filter set at each cycle, c: em, ex1, ex2
         self.IMAG_counter = None                                                # Counter for multiple images per cycle
+        self.events_since_IMAG = []                                             # List events since last IMAG step
 
         while position not in ['A', 'B']:
-            print(self.name + ' must be at position A or B')
-            position = input('Enter position of ' + self.name + ' : ')
+            print('Flowcell must be at position A or B')
+            position = input('Enter A or B for ' + str(position) + ' : ')
 
         self.position = position
 
@@ -124,6 +126,8 @@ class Flowcell():
         self.history[0].append(time.time())                                     # time stamp
         self.history[1].append(event)                                           # event (valv, pump, hold, wait, imag)
         self.history[2].append(command)                                         # details such hold time, buffer, event to wait for
+        self.events_since_IMAG.append(event)
+        self.events_since_IMAG.append(command)
 
         return self.history[0][-1]                                              # return time stamp of last event
 
@@ -911,9 +915,13 @@ def do_recipe(fc):
         # Wait for other flowcell to finish event before continuing with current flowcell
         elif instrument == 'WAIT':
             if fc.waits_for is not None:
-                log_message = 'Flowcell waiting for ' + command
-                fc.thread = threading.Thread(target = WAIT,
-                    args = (AorB, command,))
+                if command in flowcells[fc.waits_for].events_since_IMAG:
+                    log_message = command + 'has occurred, skipping WAIT'
+                    fc.thread = threading.Thread(target = do_nothing)
+                else:
+                    log_message = 'Flowcell waiting for ' + command
+                    fc.thread = threading.Thread(target = WAIT,
+                        args = (AorB, command,))
             else:
                 log_message = 'Skip waiting for ' + command
                 fc.thread = threading.Thread(target = do_nothing)
@@ -924,6 +932,7 @@ def do_recipe(fc):
                 hs.message('PySeq::Waiting for camera')
                 while hs.scan_flag:
                     pass
+            fc.events_since_IMAG = []
             log_message = 'Imaging flowcell'
             fc.thread = threading.Thread(target = IMAG,
                 args = (fc,int(command),))

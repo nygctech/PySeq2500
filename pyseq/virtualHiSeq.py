@@ -668,6 +668,7 @@ class HiSeq():
         self.virtual = True
         self.focus_data = join(dirname(__file__), 'focus_data')
         self.AF = 'partial'
+        self.scan_flag = False
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
@@ -1021,6 +1022,7 @@ class HiSeq():
 
         """
 
+        self.scan = True
         dx = round((self.tile_width*1000-self.resolution*overlap)*self.x.spum)  #number of steps to move x stage
 
         if image_name is None:
@@ -1035,7 +1037,8 @@ class HiSeq():
             self.x.move(self.x.position + dx)                                   # Move to next x position
 
         stop = time.time()
-
+        self.scan = False
+        
         return stop - start
 
     def autofocus(self, pos_dict):
