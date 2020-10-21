@@ -920,6 +920,10 @@ def do_recipe(fc):
             LED(AorB, 'sleep')
         # Image the flowcell
         elif instrument == 'IMAG':
+            if hs.scan_flag:
+                hs.message('PySeq::Waiting for camera')
+                while hs.scan_flag:
+                    pass
             log_message = 'Imaging flowcell'
             fc.thread = threading.Thread(target = IMAG,
                 args = (fc,int(command),))
