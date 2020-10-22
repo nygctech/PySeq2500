@@ -1088,6 +1088,7 @@ class HiSeq():
             f_order[i] = f_order[i][init_filter:init_filter+n_filters]
             f_order[i].append('home')
 
+        print(f_order)
         # Set optical filters
         for i, color in enumerate(colors):
             self.optics.move_ex(color,f_order[i][0])

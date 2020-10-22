@@ -6,7 +6,7 @@
    **Example:**
 
     .. code-block:: python
-    
+
         #Create valve object
         import pyseq
         valveA10 = pyseq.valve.Valve('COM18', name='valveA10')
@@ -69,6 +69,8 @@ class Valve():
         self.n_ports = 10
         self.port_dict = port_dict
         self.variable_ports = []
+        self.side_ports = None
+        self.sample_port = None
         self.prefix = ''
         self.suffix = '\r'
         self.logger = logger
@@ -102,12 +104,10 @@ class Valve():
             n_ports = self.command('NP')                                        # Query Port number
             try:
                 n_ports = n_ports.split('=')[1]
-                n_ports = n_ports.replace(' ','')                               # remove whitespace
-                n_ports = n_ports.replace('\n','')                              # remove newline
                 self.n_ports = int(n_ports)
             except:
                 self.write_log('error: could not get number of ports')          # Write error to log
-                n_ports = None
+                n_ports = 0
 
         #If port dictionary empty map 1:1
         if not self.port_dict:
