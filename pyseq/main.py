@@ -127,7 +127,10 @@ class Flowcell():
         self.history[1].append(event)                                           # event (valv, pump, hold, wait, imag)
         self.history[2].append(command)                                         # details such hold time, buffer, event to wait for
         self.events_since_IMAG.append(event)
-        self.events_since_IMAG.append(command)
+        if event is 'PORT':
+            self.events_since_IMAG.append(command)
+        if event in ['IMAG', 'STOP']:
+            self.events_since_IMAG.append(event)
 
         return self.history[0][-1]                                              # return time stamp of last event
 
@@ -529,7 +532,7 @@ def check_instructions():
     if variable_ports is not None:
         variable_ports = variable_ports.split(',')
         for port in variable_ports:
-            ports.append(port.replace(' ',''))
+            ports.append(port.strip())
     valid_wait = ports
     valid_wait.append('IMAG')
     valid_wait.append('STOP')
@@ -962,7 +965,7 @@ def do_recipe(fc):
             LED(AorB, 'sleep')
         # Image the flowcell
         elif instrument == 'IMAG':
-            if hs.scan_flag:
+            if hs.scan_flag and fc.cycle <= fc.total_cycles:
                 hs.message('PySeq::'+AorB+'::Waiting for camera')
                 while hs.scan_flag:
                     pass
@@ -1136,24 +1139,29 @@ def do_rinse(fc):
     method = config.get('experiment', 'method')                                 # Read method specific info
     method = config[method]
     port = method.get('rinse', fallback = None)
-
-    rinse = port in hs.v24[fc.position].port_dict
+    AorB  = fc.position
+    rinse = port in hs.v24[AorB].port_dict
 
     if rinse:
         LED(fc.position, 'awake')
         # Move valve
-        hs.message('PySeq::'+fc.position+'::Rinsing flowcell with', port)
-        fc.thread = threading.Thread(target = hs.v24[fc.position].move,
-                                     args = (port,))
+        hs.message('PySeq::'+AorB+'::Rinsing flowcell with', port)
+        fc.thread = threading.Thread(target = hs.v24[AorB].move, args = (port,))
         fc.thread.start()
 
         # Pump
-        volume = fc.flush_volume
+        port_num = hs.v24[AorB].port_dict[port]
+        if port_num in hs.v24[AorB].side_ports:
+            volume = fc.flush_volume['side']
+        elif port_num == hs.v24[AorB].sample_port:
+            volume = fc.flush_volume['sample']
+        else:
+            volume = fc.flush_volume['main']
         speed = fc.pump_speed['reagent']
         while fc.thread.is_alive():                                             # Wait till valve has moved
             pass
-        fc.thread = threading.Thread(target = hs.p[fc.position].pump,
-                                     args = (volume, speed,))
+        fc.thread = threading.Thread(target = hs.p[AorB].pump,
+                                       args = (volume, speed,))
     else:
         fc.thread = threading.Thread(target = do_nothing)
 
@@ -1185,7 +1193,7 @@ def do_shutdown():
 
         LED('all', 'startup')
         for fc in flowcells.keys():
-            volume = flowcells[fc].flush_volume
+            volume = flowcells[fc].flush_volume['main']
             speed = flowcells[fc].pump_speed['flush']
             for port in hs.v24[fc].port_dict.keys():
                 if isinstance(port_dict[port], int):
