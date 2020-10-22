@@ -112,6 +112,7 @@ class HiSeq():
         - overlap: Pixel overlap, the default is 0.
         - virtual: Flag for using virtual HiSeq
         - fc_origin: Upper right X and Y stage step position for flowcell slots.
+        - scan_flag: True if HiSeq is currently scanning
     """
 
 
@@ -163,6 +164,7 @@ class HiSeq():
         self.AF = 'partial'                                                     # autofocus routine
         self.overlap = 0
         self.virtual = False                                                    # virtual flag
+        self.scan_flag = False                                                  # imaging/scanning flag
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
@@ -746,6 +748,7 @@ class HiSeq():
 
         """
 
+        self.scan_flag = True
         dx = round((self.tile_width*1000-self.resolution*overlap)*self.x.spum)  #number of steps to move x stage
 
         if image_name is None:
@@ -760,7 +763,7 @@ class HiSeq():
             self.x.move(self.x.position + dx)                                   # Move to next x position
 
         stop = time.time()
-
+        self.scan_flag = False
         return stop - start
 
 

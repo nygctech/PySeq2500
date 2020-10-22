@@ -70,7 +70,8 @@ class Flowcell():
          values.
        - flush_volume (int): Volume in uL to flush reagent lines.
        - filters (dict): Dictionary of filter set at each cycle, c: em, ex1, ex2.
-       - IMAG_counter (None/int)L Counter for multiple images per cycle.
+       - IMAG_counter (None/int): Counter for multiple images per cycle.
+       - events_since_IMAG (list): Record events since last IMAG step.
 
     """
 
@@ -99,10 +100,11 @@ class Flowcell():
         self.flush_volume = None
         self.filters = {}                                                       # Dictionary of filter set at each cycle, c: em, ex1, ex2
         self.IMAG_counter = None                                                # Counter for multiple images per cycle
+        self.events_since_IMAG = []                                             # List events since last IMAG step
 
         while position not in ['A', 'B']:
-            print(self.name + ' must be at position A or B')
-            position = input('Enter position of ' + self.name + ' : ')
+            print('Flowcell must be at position A or B')
+            position = input('Enter A or B for ' + str(position) + ' : ')
 
         self.position = position
 
@@ -124,6 +126,8 @@ class Flowcell():
         self.history[0].append(time.time())                                     # time stamp
         self.history[1].append(event)                                           # event (valv, pump, hold, wait, imag)
         self.history[2].append(command)                                         # details such hold time, buffer, event to wait for
+        self.events_since_IMAG.append(event)
+        self.events_since_IMAG.append(command)
 
         return self.history[0][-1]                                              # return time stamp of last event
 
@@ -550,7 +554,7 @@ def check_instructions():
         elif instrument == 'IMAG':
             IMAG_counter = int(IMAG_counter + 1)
             # Flag to make check WAIT is used before IMAG for 2 flowcells
-            if wait_counter == IMAG_counter:
+            if wait_counter >= IMAG_counter:
                 IMAG_counter = float(IMAG_counter)
             if command.isdigit() == False:
                 error('Recipe::Invalid number of z planes on line', line_num)
@@ -911,15 +915,25 @@ def do_recipe(fc):
         # Wait for other flowcell to finish event before continuing with current flowcell
         elif instrument == 'WAIT':
             if fc.waits_for is not None:
-                log_message = 'Flowcell waiting for ' + command
-                fc.thread = threading.Thread(target = WAIT,
-                    args = (AorB, command,))
+                if command in flowcells[fc.waits_for].events_since_IMAG:
+                    log_message = command + ' has occurred, skipping WAIT'
+                    fc.thread = threading.Thread(target = do_nothing)
+                else:
+                    log_message = 'Flowcell waiting for ' + command
+                    fc.thread = threading.Thread(target = WAIT,
+                        args = (AorB, command,))
             else:
                 log_message = 'Skip waiting for ' + command
                 fc.thread = threading.Thread(target = do_nothing)
             LED(AorB, 'sleep')
         # Image the flowcell
         elif instrument == 'IMAG':
+            if hs.scan_flag:
+                hs.message('PySeq::'+AorB+'::Waiting for camera')
+                while hs.scan_flag:
+                    pass
+            hs.scan_flag = True
+            fc.events_since_IMAG = []
             log_message = 'Imaging flowcell'
             fc.thread = threading.Thread(target = IMAG,
                 args = (fc,int(command),))
@@ -1035,9 +1049,14 @@ def IMAG(fc, n_Zplanes):
 
         hs.message(msg + 'Start Imaging')
 
-        scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name, hs.overlap)
-        scan_time = str(int(scan_time/60))
-        hs.message(msg + 'Imaging completed in', scan_time, 'minutes')
+        try:
+            scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name, hs.overlap)
+            scan_time = str(int(scan_time/60))
+            hs.message(msg + 'Imaging completed in', scan_time, 'minutes')
+        except:
+            hs.scan_flag = False
+            error('Imaging failed.')
+
 
     # Reset filters
     for color in hs.optics.cycle_dict.keys():
@@ -1199,7 +1218,7 @@ def integrate_fc_and_hs(port_dict):
     method = config[method]
     variable_ports = method.get('variable reagents', fallback = None)
     z_pos = int(method.get('z position', fallback = 21500))
-    n_barrels = int(method.get('barrels per lane', fallback = 8))               # Get method specific pump barrels per lane, fallback to 8
+    n_barrels = int(method.get('barrels per lane', fallback = 1))               # Get method specific pump barrels per lane, fallback to 8
 
     for fc in flowcells.values():
         AorB = fc.position
@@ -1208,7 +1227,7 @@ def integrate_fc_and_hs(port_dict):
             v_ports = variable_ports.split(',')
             for v in v_ports:                                                   # Assign variable ports
                 hs.v24[AorB].variable_ports.append(v.strip())
-        hs.p[AorB].n_barrels = n_barrels                                        # Assign barrels per lane to pump
+        hs.p[AorB].update_limits(n_barrels)                                     # Assign barrels per lane to pump
         for section in fc.sections:                                             # Convert coordinate sections on flowcell to stage info
             pos = hs.position(AorB, fc.sections[section])
             fc.stage[section] = pos

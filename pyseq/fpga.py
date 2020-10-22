@@ -125,9 +125,14 @@ class FPGA():
             - int: The y position of the encoder.
 
         """
-        tdi_pos = self.command('TDIYERD')
-        tdi_pos = tdi_pos.split(' ')[1]
-        tdi_pos = int(tdi_pos[0:-1]) - self.y_offset
+        tdi_pos = None
+        while not isintance(tdi_pos, int):
+            try:
+                tdi_pos = self.command('TDIYERD')
+                tdi_pos = tdi_pos.split(' ')[1]
+                tdi_pos = int(tdi_pos[0:-1]) - self.y_offset
+            except:
+                tdi_pos = None
         return tdi_pos
 
 

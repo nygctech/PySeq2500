@@ -393,6 +393,9 @@ class Autofocus():
                                   int(hs.nyquist_obj/2))
                 _focus = gaussian(_objsteps, results.x)
                 optobjstep = int(_objsteps[np.argmax(_focus)])
+                if optobjstep in (hs.obj.focus_start, hs.obj.focus_stop):
+                    self.message(False, name_, 'Peak at endpoint: ', optobjstep)
+                    optobjstep = False
             else:
                 optobjstep = False
                 if len(amp) == max_peaks:
@@ -400,10 +403,6 @@ class Autofocus():
                     break
 
         return optobjstep
-
-        def get_obj_step(section):
-            if self.config.has_section(section):
-                obj_step = int(self.config.get(section,))
 
 
 
