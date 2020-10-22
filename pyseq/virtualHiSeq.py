@@ -1022,7 +1022,7 @@ class HiSeq():
 
         """
 
-        self.scan = True
+        self.scan_flag = True
         dx = round((self.tile_width*1000-self.resolution*overlap)*self.x.spum)  #number of steps to move x stage
 
         if image_name is None:
@@ -1030,15 +1030,16 @@ class HiSeq():
 
         start = time.time()
 
+
         for tile in range(n_tiles):
             self.message('HiSeq::Scan::Tile '+str(tile+1)+'/'+str(n_tiles))
             im_name = image_name + '_x' + str(self.x.position)
             stack_time = self.zstack(n_Zplanes, n_frames, im_name)              # Take a zstack
             self.x.move(self.x.position + dx)                                   # Move to next x position
-
+            
         stop = time.time()
-        self.scan = False
-        
+        self.scan_flag = False
+
         return stop - start
 
     def autofocus(self, pos_dict):

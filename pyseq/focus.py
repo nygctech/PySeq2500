@@ -198,7 +198,6 @@ class Autofocus():
             if f_fs is not False:
                obj_pos = self.fit_mixed_gaussian(f_fs)
                if obj_pos:
-                   if
                    self.message(name_+'Found focus point ', n_obj+1)
                    self.message(False, name_+'Point at x =', x_pos,
                                        'y =',y_pos,'obj =', obj_pos )
