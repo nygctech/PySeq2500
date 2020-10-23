@@ -126,7 +126,7 @@ class FPGA():
 
         """
         tdi_pos = None
-        while not isintance(tdi_pos, int):
+        while not isinstance(tdi_pos, int):
             try:
                 tdi_pos = self.command('TDIYERD')
                 tdi_pos = tdi_pos.split(' ')[1]

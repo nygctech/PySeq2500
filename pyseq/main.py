@@ -539,7 +539,7 @@ def check_instructions():
 
     f = open(config['experiment']['recipe path'])
 
-    IMAG_counter = 0
+    IMAG_counter = 0.0
     wait_counter = 0
     line_num = 1
 
