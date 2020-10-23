@@ -48,6 +48,7 @@ class Pump():
         - min_flow (int): The minimum flowrate of the pump in uL/min.
         - dispense_speed (int): The speed to dipense liquid to waste in steps
           per second.
+        - delay (int): Seconds to wait before switching valve.
         - prefix (str): The prefix for commands to the pump. It depends on the
           pump address.
         - name (str): The name of the pump.
@@ -88,6 +89,7 @@ class Pump():
         self.min_flow = int(self.min_volume*40*60) # uL per min (upm)
         self.max_flow = int(self.min_volume*8000*60) # uL per min (upm)
         self.dispense_speed = 7000 # speed to dispense (sps)
+        self.delay = 10 # wait 10 s before switching valve
         self.prefix = '/1'
         self.suffix = '\r'
         self.logger = logger
@@ -151,6 +153,8 @@ class Pump():
         while position != self.check_position():
             self.command('IV' + str(sps) + 'A' + str(position) + 'R')           # Pull syringe down to position
             self.check_pump()
+
+        time.sleep(self.delay)
         self.command('OR')                                                      # Switch valve to waste
 
         #Dispense
