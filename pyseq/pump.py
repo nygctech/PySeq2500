@@ -165,6 +165,44 @@ class Pump():
         self.command('IR')                                                      # Switch valve to input
 
 
+
+    def reverse_pump(self, volume, in_flow=0, out_flow=0):
+        """Pump from outlet and then send liquid to inlet.
+
+           **Parameters:**
+            - volume (float): The volume to be pumped in uL.
+            - in_flow (float): The flowrate to aspirate from waste in uL/min.
+            - out_flow (float): The flowrate to dispense to inlet in uL/min.
+
+        """
+
+        if in_flow == 0:
+            in_flow = 1000                                                      # Default to 1000 uL/min
+        if out_flow == 0:
+            out_flow = 100                                                      # Default to 100 uL/min
+
+        position = self.vol_to_pos(volume)                                      # Convert volume (uL) to position (steps)
+        in_sps = self.uLperMin_to_sps(in_flow)                                  # Convert flowrate(uLperMin) to steps per second
+        out_sps = self.uLperMin_to_sps(out_flow)
+
+        self.check_pump()                                                       # Make sure pump is ready
+
+        #Aspirate
+        while position != self.check_position():
+            self.command('OV' + str(sps) + 'A' + str(position) + 'R')           # Pull syringe down to position
+            self.check_pump()
+
+        self.command('IR')                                                      # Switch valve to inlet
+
+        #Dispense
+        position = 0
+        while position != self.check_position():
+            self.command('IV' + str(sps) + 'A0R')                               # Dispense, Push syringe to top at dispense speed
+            self.check_pump()
+
+        self.command('IR')
+
+
     def check_pump(self):
         """Wait until pump is ready and then return True.
 
