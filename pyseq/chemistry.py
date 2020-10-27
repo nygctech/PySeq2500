@@ -44,6 +44,10 @@ class CHEM():
         self.version = None
         self.T_fc = [None, None]
         self.T_chiller = None
+        self.min_fc_T = 20
+        self.max_fc_T = 50
+        self.min_chiller_T = 4
+        self.max_chiller_T = 20
 
 
     def initialize(self):
@@ -138,4 +142,4 @@ class CHEM():
         if self.logger is None:
             print(msg)
         else:
-            self.logger.info(msg)            
+            self.logger.info(msg)
