@@ -63,6 +63,7 @@ from . import xstage
 from . import ystage
 from . import zstage
 from . import focus
+from . import chemistry
 
 import time
 from os.path import getsize

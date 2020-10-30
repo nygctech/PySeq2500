@@ -133,24 +133,37 @@ class CHEM():
 
         if self.logger is not None:
             self.logger.info('ARM9CHEM::txmt::'+text)
+            if response is None:
+                response = ' '
             self.logger.info('ARM9CHEM::rcvd::'+response)
         else:
             print(response)
 
         return  response
 
-    def get_fc_T(self, fc):
-        """Return temperature of flowcell in °C."""
-
+    def get_fc_index(self, fc):
+        """Return flowcell index."""
+        
         if fc == 'A':
             fc = 0
         elif fc == 'B':
             fc = 1
         elif fc not in (0,1):
-            self.write_log('get_fc_T::Invalid flowcell')
+            self.write_log('get_fc_index::Invalid flowcell')
+            fc = None
 
-        response = self.command('?FCTEMP:'+str(fc))
-        T = float(response.split(':')[0][:-1])
+        return fc
+    
+    def get_fc_T(self, fc):
+        """Return temperature of flowcell in °C."""
+
+        fc = self.get_fc_index(fc)
+
+        if fc is not None:
+            response = self.command('?FCTEMP:'+str(fc))
+            T = float(response.split(':')[0][:-1])
+        else:
+            T = None
 
         return T
 
@@ -183,13 +196,7 @@ class CHEM():
 
         """
 
-        if fc == 'A':
-            fc = 0
-        elif fc == 'B':
-            fc = 1
-        elif fc not in (0,1):
-            self.write_log('set_fc_T::ERROR::Invalid flowcell')
-            fc = None
+        fc = self.get_fc_index(fc)
 
         if type(T) not in [int, float]:
             self.write_log('set_fc_T::ERROR::Temperature must be a number')
@@ -209,9 +216,10 @@ class CHEM():
             response = self.command('FCTEC:'+str(fc)+':1')
 
             if self.T_fc[fc] is None:
-                self.get_fc_T(fc)
+                direction = T - self.get_fc_T(fc)
+            else:
+                direction = T - self.T_fc[fc]
                 
-            direction = T - self.T_fc[fc]
             self.T_fc[fc] = T
 
             return direction
@@ -234,6 +242,14 @@ class CHEM():
                 time.sleep(self.delay)
 
         return self.get_fc_T(fc)
+
+    def fc_off(self, fc):
+        """Turn off temperature control for flowcell fc."""
+        
+        fc = self.get_fc_index(fc)
+        response = self.command('FCTEC:'+str(fc)+':0')
+
+        return False
 
     def set_chiller_T(self, T, i):
         """Return temperature of chiller in °C."""

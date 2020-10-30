@@ -154,6 +154,11 @@ class Flowcell():
         if self.cycle > self.total_cycles:
             hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
             do_rinse(self)
+            if self.temp_timer is not None:
+                self.temp_timer.cancel()
+                self.temp_timer = None
+                self.temperature = None
+                hs.chem.fc_off(fc.position)
         else:
             restart_message = msg+'Starting cycle '+str(self.cycle)
             self.thread = threading.Thread(target = hs.message,
@@ -1243,6 +1248,7 @@ def free_fc():
 
     # Get which flowcell is to be first
     experiment = config['experiment']
+    cycles = int(experiment.get('first flowcell', fallback = 'A'))
     first_fc = experiment.get('first flowcell', fallback = 'A')
 
     if len(flowcells) == 1:
@@ -1250,7 +1256,11 @@ def free_fc():
         fc.wait_thread.set()
         fc.signal_event = None
     else:
-        fc = flowcells[first_fc]
+        flowcells_ = [fc.position for fc in flowcells.values() if fc.total_cycles <= cycles]
+        if len(flowcells_) == 1:
+            fc = flowcells_[0]
+        else:
+            fc = flowcells[first_fc]
         flowcells[fc.waits_for].wait_thread.set()
         flowcells[fc.waits_for].signal_event = None
 

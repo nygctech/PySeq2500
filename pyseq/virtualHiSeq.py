@@ -580,16 +580,23 @@ class CHEM():
         self.delay = 2                                      # delay time in s
         self.logger = logger
 
-
-    def get_fc_T(self, fc):
-        """Return temperature of flowcell in °C."""
-
+    def get_fc_index(self, fc):
+        """Return flowcell index."""
+        
         if fc == 'A':
             fc = 0
         elif fc == 'B':
             fc = 1
         elif fc not in (0,1):
-            self.write_log('get_fc_T::Invalid flowcell')
+            self.write_log('get_fc_index::Invalid flowcell')
+            fc = None
+
+        return fc
+
+    def get_fc_T(self, fc):
+        """Return temperature of flowcell in °C."""
+
+        fc = self.get_fc_index(fc)
 
         if self.T_fc[fc] is None:
             self.T_fc[fc] = 20
@@ -610,13 +617,7 @@ class CHEM():
 
         """
 
-        if fc == 'A':
-            fc = 0
-        elif fc == 'B':
-            fc = 1
-        elif fc not in (0,1):
-            self.write_log('set_fc_T::ERROR::Invalid flowcell')
-            fc = None
+        fc = self.get_fc_index(fc)
 
         if type(T) not in [int, float]:
             self.write_log('set_fc_T::ERROR::Temperature must be a number')
@@ -639,6 +640,13 @@ class CHEM():
             self.T_fc[fc] = T
 
             return direction
+
+    def fc_off(self, fc):
+        """Turn off temperature control for flowcell fc."""
+        
+        fc = self.get_fc_index(fc)
+
+        return False
 
     def write_log(self, text):
         """Write messages to the log."""
