@@ -31,7 +31,8 @@ key in this section is **recipe**. The other keys are optional.
  - **rinse**: reagent to rinse the flowcell with between completion of the experiment and flushing of the lines during shutdown (string), default is `None`
  - **autofocus**: routine used for autofocusing (string), see **Autofocus** for more info, default is `partial once`
  - **bundle height:** sensor bundle height of cameras (integer), only certain values are valid, default is 128
-
+ - **temperature interval:** time between checking temperature of flowcell (integer), default is 5
+ 
     ::
 
        [4i]

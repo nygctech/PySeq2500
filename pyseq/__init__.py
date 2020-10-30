@@ -127,7 +127,8 @@ class HiSeq():
                        valveB10COM = 'COM19',
                        fpgaCOM = ['COM12','COM15'],
                        laser1COM = 'COM13',
-                       laser2COM = 'COM14'):
+                       laser2COM = 'COM14',
+                       arm9chemCOM = 'COM8'):
         """Constructor for the HiSeq."""
 
         self.y = ystage.Ystage(yCOM, logger = Logger)
@@ -151,6 +152,7 @@ class HiSeq():
         self.v24 = {'A': valve.Valve(valveA24COM, 'valveA24', logger = Logger),
                     'B': valve.Valve(valveB24COM, 'valveB24', logger = Logger)
                     }
+        self.chem = chemistry.CHEM(arm9chemCOM, logger = Logger)
         self.image_path = getcwd()                                                  # path to save images in
         self.log_path = getcwd()                                                  # path to save logs in
         self.fc_origin = {'A':[17571,-180000],

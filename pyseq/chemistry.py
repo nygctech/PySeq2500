@@ -3,10 +3,30 @@
    Uses commands found on `hackteria
    <www.hackteria.org/wiki/HiSeq2000_-_Next_Level_Hacking>`_
 
+   **Example:**
+
+    .. code-block:: python
+
+        #Create ARM9 Chemistry object
+        import pyseq
+        chem = pyseq.chemistry.CHEM('COM8')
+        #Initialize ARM Chemistry
+        chem.initialize()
+        # Get temperature of flowcell A
+        chem.get_fc_T('A')
+        # Set temperature of flowcell A
+        chem.set_fc_T('A', 55.0)
+        # Set temperature of flowcell A and block until temperature is reached
+        chem.wait_fc_T('A'), 55.0
+
+    Temperatures of flowcells A and B can be independently controlled. The
+    min temperature is 20 °C and the max temperature is 60 °C.
+
 """
 
 import serial
 import io
+import time
 
 class CHEM():
     """HiSeq 2500 System :: ARM9 CHEM
@@ -25,8 +45,19 @@ class CHEM():
             - logger (log, optional): The log file to write communication with
               the ARM9 CHEM.
             - version (str): Controller version.
-            - T_fc [float, float]: Set temperature of flowcell in degrees C.
-            - T_chiller (float): Set temperature of chiller in degrees C.
+            - T_fc [float, float]: Set temperature of flowcell in °C.
+            - T_chiller [float, float, float]: Set temperature of chillers in °C.
+            - min_fc_T (float): Minimum flowcell temperature in  °C.
+            - max_fc_T (float): Maximum flowcell temperature in  °C.
+            - min_chiller_T (float): Minimum chiller temperature in °C.
+            - max_chiller_T (float): Maximum flowcell temperature in °C.
+            - fc_PIDSF0: Flowcell A Temperature servo-loop parameters
+            - fc_PIDSF1: Flowcell B Temperature servo-loop parameters
+            - tec_PIDSF0: Chiller 0 Temperature servo-loop parameters
+            - tec_PIDSF1: Chiller 1 Temperature servo-loop parameters
+            - tec_PIDSF2: Chiller 2 Temperature servo-loop parameters
+            - p_ = servo-loop parameters: Servo_Proportional, Servo_Integral, Servo_Derivative, Feed_Frw_StepSize, Feed_frw_Threshold
+            - delay (int): Delay time in querying temperature.
 
 
            **Returns:**
@@ -53,11 +84,12 @@ class CHEM():
         #Temperature servo-loop parameters
         #Servo_Proportional, Servo_Integral, Servo_Derivative, Feed_Frw_StepSize, Feed_frw_Threshold
         self.fc_PIDSF0 = (0.2, 0.1, 0.0, 1.875, 6.0)        # flowcell A
-        self.fc_PIDSF1 = (0.2, 0.1, 0.0, 1.875, 6.0)        # flowecell B
+        self.fc_PIDSF1 = (0.2, 0.1, 0.0, 1.875, 6.0)        # flowcell B
         self.tec_PIDSF0 = (0.8, 0.2, 0.0, 1.875, 6.0)       # TEC0
         self.tec_PIDSF1 = (0.8, 0.2, 0.0, 1.875, 6.0)       # TEC1
         self.tec_PIDSF2 = (1.7, 1.1, 0.0)                   # TEC2
         self.p_ = 'PIDSF'
+        self.delay = 2                                      # delay time in s
 
 
     def initialize(self):
@@ -74,11 +106,11 @@ class CHEM():
         for i, p in enumerate(self.tec_PIDSF0):
             reponse = self.command('RETEC:0:'+self.p_[i]+':'+str(p))
         for i, p in enumerate(self.tec_PIDSF1):
-            reponse = self.command('RETEC:1:'+self.p_[i]+':'+str(p))    
+            reponse = self.command('RETEC:1:'+self.p_[i]+':'+str(p))
         for i, p in enumerate(self.tec_PIDSF2):
             reponse = self.command('RETEC:2:'+self.p_[i]+':'+str(p))
 
-              
+
     def command(self, text):
         """Send a serial command to the ARM9 CHEM and return the response.
 
@@ -98,7 +130,7 @@ class CHEM():
             if 'A1' in r:
                 response = r
             r = self.serial_port.readline()
-            
+
         if self.logger is not None:
             self.logger.info('ARM9CHEM::txmt::'+text)
             self.logger.info('ARM9CHEM::rcvd::'+response)
@@ -108,14 +140,14 @@ class CHEM():
         return  response
 
     def get_fc_T(self, fc):
-        """Return temperature of flowcell in degrees C."""
+        """Return temperature of flowcell in °C."""
 
         if fc == 'A':
             fc = 0
         elif fc == 'B':
             fc = 1
         elif fc not in (0,1):
-            write_log('get_fc_T::Invalid flowcell')
+            self.write_log('get_fc_T::Invalid flowcell')
 
         response = self.command('?FCTEMP:'+str(fc))
         T = float(response.split(':')[0][:-1])
@@ -123,9 +155,12 @@ class CHEM():
         return T
 
     def get_chiller_T(self):
-        """Return temperature of chiller in degrees C.
+        """Return temperature of chiller in °C.
 
-            There are 2 TEC blocks cooling the chiller
+           NOTE: There are 3 TEC blocks cooling the chiller. I'm not sure if all
+           3 cool chiller. I think the 3rd one cools something else because the
+           control parameters are different. - Kunal
+
         """
 
         response = self.command('?RETEMP:3')
@@ -135,32 +170,73 @@ class CHEM():
               T[i] = float(response[i])
 
         return T
-    
+
     def set_fc_T(self, fc, T):
-        """Return temperature of flowcell in degrees C."""
+        """Set temperature of flowcell in °C.
+
+           **Parameters:**
+            - fc (str or int): Flowcell position either A or 0, or B or 1
+            - T (float): Temperature in °C.
+
+           **Returns:**
+            - int: Flowcell index, 0 for A and 1 or B.
+
+        """
 
         if fc == 'A':
             fc = 0
         elif fc == 'B':
             fc = 1
         elif fc not in (0,1):
-            self.write_log('set_fc_T::Invalid flowcell')
+            self.write_log('set_fc_T::ERROR::Invalid flowcell')
+            fc = None
 
-        if self.min_fc_T > T:
-            T = self.min_fc_T
-            self.write_log('set_fc_T::Set temperature too cold, setting to ' + str(T))
-        elif self.max_fc_T < T:
-            T = self.max_fc_T
-            self.write_log('set_fc_T::Set temperature too hot, setting to ' + str(T))
+        if type(T) not in [int, float]:
+            self.write_log('set_fc_T::ERROR::Temperature must be a number')
+            T = None
 
-        response = self.command('FCTEMP:'+str(fc)+':'+str(T))
-        response = self.command('FCTEC:'+str(fc)+':1')
-        self.T_fc[fc] = T
+        if fc is not None and T is not None:
+            if self.min_fc_T > T:
+                T = self.min_fc_T
+                self.write_log('set_fc_T::Set temperature too cold, ' +
+                               'setting to ' + str(T))
+            elif self.max_fc_T < T:
+                T = self.max_fc_T
+                self.write_log('set_fc_T::Set temperature too hot, ' +
+                               'setting to ' + str(T))
 
-        return response
+            response = self.command('FCTEMP:'+str(fc)+':'+str(T))
+            response = self.command('FCTEC:'+str(fc)+':1')
+
+            if self.T_fc[fc] is None:
+                self.get_fc_T(fc)
+                
+            direction = T - self.T_fc[fc]
+            self.T_fc[fc] = T
+
+            return direction
+
+    def wait_fc_T(self, fc, T):
+        """Set and wait for flowcell to reach temperature in °C.
+
+           **Parameters:**
+            - fc (str or int): Flowcell position either A or 0, or B or 1
+            - T (float): Temperature in °C.
+
+        """
+
+        direction = self.set_fc_T(fc,T)
+        if direction < 0:
+            while self.get_fc_T(fc) >= T:
+                time.sleep(self.delay)
+        elif direction > 0:
+            while self.get_fc_T(fc) <= T:
+                time.sleep(self.delay)
+
+        return self.get_fc_T(fc)
 
     def set_chiller_T(self, T, i):
-        """Return temperature of chiller in degrees C."""
+        """Return temperature of chiller in °C."""
 
         T = float(T)
         if self.min_chiller_T >= T:

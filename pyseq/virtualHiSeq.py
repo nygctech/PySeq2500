@@ -548,7 +548,6 @@ class Valve():
         self.n_ports = n_ports
         self.port_dict = port_dict
         self.variable_ports = []
-        self.log_flag = False
         self.name = name
 
     def initialize(self):
@@ -561,6 +560,95 @@ class Valve():
         """Move valve to the specified port_name (str)."""
 
         position = self.port_dict[port_name]
+
+class CHEM():
+    def __init__(self, logger = None):
+        self.T_fc = [None, None]
+        self.T_chiller = [None, None, None]
+        self.min_fc_T = 20.0
+        self.max_fc_T = 60.0
+        self.min_chiller_T = 0.1
+        self.max_chiller_T = 20.0
+        #Temperature servo-loop parameters
+        #Servo_Proportional, Servo_Integral, Servo_Derivative, Feed_Frw_StepSize, Feed_frw_Threshold
+        self.fc_PIDSF0 = (0.2, 0.1, 0.0, 1.875, 6.0)        # flowcell A
+        self.fc_PIDSF1 = (0.2, 0.1, 0.0, 1.875, 6.0)        # flowcell B
+        self.tec_PIDSF0 = (0.8, 0.2, 0.0, 1.875, 6.0)       # TEC0
+        self.tec_PIDSF1 = (0.8, 0.2, 0.0, 1.875, 6.0)       # TEC1
+        self.tec_PIDSF2 = (1.7, 1.1, 0.0)                   # TEC2
+        self.p_ = 'PIDSF'
+        self.delay = 2                                      # delay time in s
+        self.logger = logger
+
+
+    def get_fc_T(self, fc):
+        """Return temperature of flowcell in °C."""
+
+        if fc == 'A':
+            fc = 0
+        elif fc == 'B':
+            fc = 1
+        elif fc not in (0,1):
+            self.write_log('get_fc_T::Invalid flowcell')
+
+        if self.T_fc[fc] is None:
+            self.T_fc[fc] = 20
+
+        T = self.T_fc[fc]
+
+        return T
+
+    def set_fc_T(self, fc, T):
+        """Set temperature of flowcell in °C.
+
+           **Parameters:**
+            - fc (str or int): Flowcell position either A or 0, or B or 1
+            - T (float): Temperature in °C.
+
+           **Returns:**
+            - int: Flowcell index, 0 for A and 1 or B.
+
+        """
+
+        if fc == 'A':
+            fc = 0
+        elif fc == 'B':
+            fc = 1
+        elif fc not in (0,1):
+            self.write_log('set_fc_T::ERROR::Invalid flowcell')
+            fc = None
+
+        if type(T) not in [int, float]:
+            self.write_log('set_fc_T::ERROR::Temperature must be a number')
+            T = None
+
+        if fc is not None and T is not None:
+            if self.min_fc_T > T:
+                T = self.min_fc_T
+                self.write_log('set_fc_T::Set temperature too cold, ' +
+                               'setting to ' + str(T))
+            elif self.max_fc_T < T:
+                T = self.max_fc_T
+                self.write_log('set_fc_T::Set temperature too hot, ' +
+                               'setting to ' + str(T))
+
+            if self.T_fc[fc] is None:
+                self.get_fc_T(fc)
+
+            direction = T - self.T_fc[fc]
+            self.T_fc[fc] = T
+
+            return direction
+
+    def write_log(self, text):
+        """Write messages to the log."""
+
+        msg = 'ARM9CHEM::' + text
+        if self.logger is None:
+            print(msg)
+        else:
+            self.logger.info(msg)
+
 
 import imageio
 import numpy as np
@@ -650,6 +738,7 @@ class HiSeq():
                     'B': Valve('valveB10', 10)}
         self.v24 = {'A': Valve('valveA24', 24),
                     'B': Valve('valveB24', 24)}
+        self.chem = CHEM(logger = Logger)
         self.optics = Optics()
         self.cam1 = None
         self.cam2 = None
@@ -1036,7 +1125,7 @@ class HiSeq():
             im_name = image_name + '_x' + str(self.x.position)
             stack_time = self.zstack(n_Zplanes, n_frames, im_name)              # Take a zstack
             self.x.move(self.x.position + dx)                                   # Move to next x position
-            
+
         stop = time.time()
         self.scan_flag = False
 

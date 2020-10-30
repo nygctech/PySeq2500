@@ -1,7 +1,7 @@
 *************
 Method Recipe
 *************
-There are 5 basic actions to build a recipe.
+There are 6 basic actions to build a recipe.
 
 1. **PORT**: *port name* (string)
 =================================
@@ -19,11 +19,19 @@ There are 5 basic actions to build a recipe.
 
     PUMP: 2000
 
+2. **TEMP**: *temperature in degrees Celsius* (float)
+=====================================================
+
+ Set temperature of flowcell. 
+ ::
+
+    TEMP: 55.0
 
 3. **HOLD**: *hold time in min.* (integer)
 ==========================================
 
- Recipe pauses for specified time.
+ Recipe pauses for specified time. The recipe can also be paused until user
+ input by using `STOP` instead of an integer.
  ::
 
     HOLD: 10
