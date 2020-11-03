@@ -1,24 +1,20 @@
 #!/usr/bin/env python
+import sys
+sys.path.append('C:\\Users\\kpandit\\PySeq2500\\pyseq')
+import image_analysis as ia
 
-from pyseq import image_analysis as ia
-# import sys
-# sys.path.append('C:\\Users\\kpandit\\PySeq2500\\pyseq\\')
 # import image_analysis as ia
 
 import subprocess
 import time
+import os
 from os.path import join, exists, basename
 from os import mkdir, getcwd
 import imageio
 
 
-if __name__ == '__main__':
-    main()
-
-
-
 def wait_for_new_images(log_path, im_path, n_old_images, sleep_time = 100):
-    if OS_ is 'posix':
+    if os.name is 'posix':
         im_command = ['grep', '-e', 'Imaging completed', log_path]
         end_command =  ['grep', '-e', 'PySeq::Shutting down', log_path]
 
