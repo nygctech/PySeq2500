@@ -153,11 +153,11 @@ def normalize(im, scale_factor):
     x_px = int(2048/scale_factor/8)
     n_strips = int(im.shape[1]/x_px)
     strip_contrast = np.empty(shape=(n_strips,))
-    col_contrast = np.max(im, axis = 0) - np.min(im, axis = 0)
+    #col_contrast = np.max(im, axis = 0) - np.min(im, axis = 0)
 
     # Find reference strip with max contrast
     for i in range(n_strips):
-        strip_contrast[i] = np.mean(col_contrast[(i)*x_px:(i+1)*x_px])
+        strip_contrast[i] = np.std(im[:,(i)*x_px:(i+1)*x_px])
     ref_strip = np.argmax(strip_contrast)
     ref = im[:,(ref_strip)*x_px:(ref_strip+1)*x_px]
 
@@ -170,8 +170,8 @@ def normalize(im, scale_factor):
       else:
         plane = np.append(plane, sub_im, axis = 1)
 
-    plane = plane.astype('uint8')
-    plane = img_as_ubyte(plane)
+    plane = plane.astype('uint16')
+    #plane = img_as_ubyte(plane)
 
     return plane
 
@@ -204,7 +204,7 @@ def sum_images(images, logger = None):
     for im in images:
         #kurt_z, pvalue = stats.kurtosistest(im, axis = None)
         kurt_z = stats.kurtosis(im, axis=None)
-        if kurt_z > 3:
+        if kurt_z > 3**4:
             message(logger, name_, 'Signal in channel',i)
             SNR = np.append(SNR,np.mean(im)/np.std(im))
         else:
@@ -287,7 +287,7 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
           im_[px_rows-edge_width:px_rows, :] = 0
 
         px_score_thresh -= 0.5
-        
+
 
     px_score_thresh += 0.5
     message(log, name_, 'Used', px_score_thresh, 'pixel score threshold')
