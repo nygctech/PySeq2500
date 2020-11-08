@@ -8,7 +8,7 @@
    and higher step positions are to the left. Each xstage step is 0.375 microns.
 
    **Example:**
-   
+
 .. code-block:: python
 
    #Create xstage
@@ -114,7 +114,7 @@ class Xstage():
         response = self.command('RC=100')
 
 
-        # Home stage
+        # Home stage program
         self.serial_port.write('PG 1\r')
         self.serial_port.write('HM 1\r')
         self.serial_port.write('H\r')
@@ -122,11 +122,26 @@ class Xstage():
         self.serial_port.write('E\r')
         self.serial_port.write('PG\r')
         self.serial_port.flush()
-        self.serial_port.write('EX 1\r')
-        self.serial_port.flush()
-        self.position = 30000
-        self.check_position(self.position)
+        #self.serial_port.write('EX 1\r')
+        #self.serial_port.flush()
+        #self.position = 30000
+        #self.check_position(self.position)
 
+        # Check if stage is homed correctly
+        not_homed = True
+        while not_homed
+            self.command('EX 1')                                                #Execute home stage program
+            self.position = 30000
+            self.check_position(self.position)                                  # Blocks until motor stops moving
+            response = self.command('PR I1')                                    # Read home sensor
+            if not int(response.strip()):
+                self.move(29999)
+                response = self.command('PR I1')
+                if int(response.strip()):
+                    self.move(30000)
+                    response = self.command('PR I1')
+                    if not if int(response.strip()):
+                        not_homed = False
 
     def command(self, text):
         """Send a serial command to the xstage and return the response.
