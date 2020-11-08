@@ -128,20 +128,33 @@ class Xstage():
         #self.check_position(self.position)
 
         # Check if stage is homed correctly
-        not_homed = True
-        while not_homed
-            self.command('EX 1')                                                #Execute home stage program
+        self.command('EX 1')                                                #Execute home stage program
+        self.position = 30000
+        self.check_position(self.position)
+        homed = self.check_home()
+        if not homed:
+            self.move(40000)
+            self.command('EX 1')
             self.position = 30000
-            self.check_position(self.position)                                  # Blocks until motor stops moving
-            response = self.command('PR I1')                                    # Read home sensor
+            self.check_position(self.position)    
+            homed = self.check_home()
+
+        return homed
+                 
+    def check_home(self):
+
+        homed = False
+        self.move(29000)
+        response = self.command('PR I1')
+        if int(response.strip()):
+            self.move(31000)
+            response = self.command('PR I1')
             if not int(response.strip()):
-                self.move(29999)
-                response = self.command('PR I1')
-                if int(response.strip()):
-                    self.move(30000)
-                    response = self.command('PR I1')
-                    if not if int(response.strip()):
-                        not_homed = False
+                homed = True
+
+        self.move(30000)
+        
+        return homed
 
     def command(self, text):
         """Send a serial command to the xstage and return the response.
@@ -160,6 +173,8 @@ class Xstage():
         if self.logger is not None:
             self.logger.info('Xstage::txmt::'+text)
             self.logger.info('Xstage::rcvd::'+response)
+        else:
+            print(response)
 
         return  response
 

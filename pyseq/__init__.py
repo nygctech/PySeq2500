@@ -223,9 +223,7 @@ class HiSeq():
 
         #Initialize X Stage before Y Stage!
         self.message(msg+'Initializing X & Y stages')
-        #self.x.initialize()
-        #TODO, make sure x stage is in correct place.
-        self.x.initialize() # Do it twice to make sure its centered!
+        homed = self.x.initialize()
         self.y.initialize()
         self.message(msg+'Initializing lasers')
         self.lasers['green'].initialize()
@@ -237,6 +235,8 @@ class HiSeq():
         self.v10['B'].initialize()
         self.v24['A'].initialize()
         self.v24['B'].initialize()
+
+        return homed
 
 
         # Initialize Z, objective stage, and optics after FPGA

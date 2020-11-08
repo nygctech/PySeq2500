@@ -461,7 +461,9 @@ def initialize_hs(virtual, IMAG_counter):
 
     if n_errors is 0:
 
-        hs.initializeInstruments()
+        x_homed = hs.initializeInstruments()
+        if not x_homed:
+            error('HiSeq:: X-Stage did not home correctly')
         hs.initializeCams(logger)
 
         # HiSeq Settings
