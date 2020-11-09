@@ -196,51 +196,67 @@ def sum_images(images, logger = None):
 
     name_ = 'SumImages:'
     sum_im = None
-    ref = None
+    # ref = None
 
     # Select image with largest signal to noise as reference
-    SNR = np.array([])
-    i = 0
-    for im in images:
+    #SNR = np.array([])
+    # i = 0
+    for c, im in enumerate(images):
         #kurt_z, pvalue = stats.kurtosistest(im, axis = None)
-        kurt_z = stats.kurtosis(im, axis=None)
-        if kurt_z > 3**4:
-            message(logger, name_, 'Signal in channel',i)
-            SNR = np.append(SNR,np.mean(im)/np.std(im))
-        else:
-            message(logger, name_, 'No signal in channel',i)
-            # Remove images without signal
-            SNR = np.append(SNR, 0)
-
-        i += 1
-
-    ims = []
-    for i, s in enumerate(SNR):
-      if s > 0:
-        ims.append(images[i])
-    SNR = SNR[SNR > 0]
-
-    if SNR.size > 0:
-        ref_i = np.argmax(SNR)
-        ref = images[ref_i]
-
-        # Sum images
-        for i, im in enumerate(ims):
-            # Match histogram to reference image
-            if i != ref_i:
-                _im = im
-                #_im = match_histograms(im, ref)
-            else:
-                _im = im
-
+        #kurt_z = stats.kurtosis(im, axis=None)
+        k = kurt(im)
+        message(logger, name_, 'Channel',c, 'k = ', k)
+        if k > 81:
+            #message(logger, name_, 'Signal in channel',i)
             # Add add image
             if sum_im is None:
-                sum_im = _im.astype('uint16')
+                sum_im = im.astype('int16')
             else:
-                sum_im = np.add(sum_im, _im)
+                sum_im = np.add(sum_im, im)
+            #SNR = np.append(SNR,np.mean(im)/np.std(im))
+        # else:
+        #     message(logger, name_, 'No signal in channel',i)
+        #     # Remove images without signal
+        #     #SNR = np.append(SNR, 0)
+
+    #     i += 1
+    #
+    # ims = []
+    # for i, s in enumerate(SNR):
+    #   if s > 0:
+    #     ims.append(images[i])
+    # SNR = SNR[SNR > 0]
+    #
+    # if SNR.size > 0:
+    #     ref_i = np.argmax(SNR)
+    #     ref = images[ref_i]
+    #
+    #     # Sum images
+    #     for i, im in enumerate(ims):
+    #         # Match histogram to reference image
+    #         if i != ref_i:
+    #             _im = im
+    #             #_im = match_histograms(im, ref)
+    #         else:
+    #             _im = im
+    #
+    #         # Add add image
+    #         if sum_im is None:
+    #             sum_im = _im.astype('uint16')
+    #         else:
+    #             sum_im = np.add(sum_im, _im)
 
     return sum_im
 
+def kurt(im):
+    """Return kurtosis = mean((image-mode)/2)^4). """
+
+    im = im.astype('int16')
+    mode = stats.mode(im, axis = None)[0][0]
+    z_score = (im-mode)/2
+    k = np.mean(z_score**4)
+
+    return k
 
 def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
     """Get potential points to focus on.
