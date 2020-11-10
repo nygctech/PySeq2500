@@ -1051,10 +1051,10 @@ def IMAG(fc, n_Zplanes):
                 for i, color in enumerate(hs.optics.colors):
                     hs.optics.move_ex(color,hs.optics.focus_filters[i])
                 hs.message(msg + 'Start Autofocus')
-                if hs.autofocus(pos):
+                if hs.autofocus(pos):                                           # Moves to optimal objective position
                     hs.message(msg + 'Autofocus complete')
                     pos['obj_pos'] = hs.obj.position
-                else:
+                else:                                                           # Moves to rough focus objective position
                     hs.message(msg + 'Autofocus failed')
                     pos['obj_pos'] = None
             else:
@@ -1064,7 +1064,7 @@ def IMAG(fc, n_Zplanes):
 
         # Calculate objective positions to image
         if n_Zplanes > 1:
-            obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes/2)
+            obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes/3)       # Want 1/3 of planes below opt_ob_pos and 2/3 of planes above
         else:
             obj_start = hs.obj.position
 
