@@ -46,6 +46,7 @@ class Zstage():
         - ystep ([int, int, int]): Ystage position of the respective motors.
         - logger (logger): Logger for messaging.
         - focus_pos (int): Step used used for imaging.
+        - active (bool): Flag to enable/disable z stage movements.
 
     """
 
@@ -76,15 +77,17 @@ class Zstage():
         #self.ystep = [-2580000, 5695000, 4070000]                               # y step position of motors
         self.xstep = [-447290,   16770, -179390]
         self.ystep = [-10362000, -61867000, 73152000]
-        self.focus_pos = 21500                                                  # rough focus position
+        self.focus_pos = 21500
+        self.active = True                                                  # rough focus position
 
 
     def initialize(self):
         """Initialize the zstage."""
 
         #Home Motors
-        for i in range(3):
-            response = self.command('T' + self.motors[i] + 'HM')
+        if self.active:
+            for i in range(3):
+                response = self.command('T' + self.motors[i] + 'HM')
 
         #Wait till they stop
         response = self.check_position()
@@ -135,8 +138,9 @@ class Zstage():
         """
         for i in range(3):
             if self.min_z <= position[i] <= self.max_z:
-                self.command('T' + self.motors[i] + 'MOVETO ' +
-                    str(position[i]))                                           # Move Absolute
+                if self.active:
+                    self.command('T' + self.motors[i] + 'MOVETO ' +
+                        str(position[i]))                                       # Move Absolute
             else:
                 print("ZSTAGE can only move between " + str(self.min_z) +
                     ' and ' + str(self.max_z))
@@ -181,8 +185,7 @@ class Zstage():
                     except:
                         time.sleep(2)
 
-        for i in range(3):
-            self.position[i] = old_position[i]                                  # Set position
+        self.position = old_position                                            # Set position
 
         return self.position                                                    # Return position
 

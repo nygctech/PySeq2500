@@ -449,6 +449,9 @@ def initialize_hs(virtual, IMAG_counter):
     if hs.AF not in ['partial', 'partial once', 'full', 'full once', None]:
         error('ConfigFile:: Auto focus method not valid.')
 
+    #Enable/Disable z stage
+    hs.z.active = bool(method.get('enable z stage', fallback = True))
+
     # Assign output directory
     save_path = experiment['save path']
     experiment_name = experiment['experiment name']

@@ -72,11 +72,12 @@ class Zstage():
         self.spum = 0.656
         self.max_z = 25000
         self.min_z = 0
-        self.position = [21500, 21500, 21500]
+        self.position = [0, 0, 0]
         #self.xstep = [-10060, -10060, 44990]                                     # x step position of motors
         #self.ystep = [-2580000, 5695000, 4070000]                                # y step position of motors
         self.xstep = [60720,   -8930, -8930]
         self.ystep = [2950000, 7950000, -4050000]
+        self.active = True
 
     def get_motor_points(self):
         points = [[self.xstep[0], self.ystep[0], self.position[0]],
@@ -100,7 +101,8 @@ class Zstage():
         for i in range(3):
             position[i] = int(position[i])
             if position[i] <= self.max_z and position[i] >= self.min_z:
-                self.position[i] = position[i]
+                if self.active:
+                    self.position[i] = position[i]
             else:
                 print("ZSTAGE can only move between " + str(self.min_z) +
                     ' and ' + str(self.max_z))
@@ -1036,7 +1038,7 @@ class HiSeq():
             im_name = image_name + '_x' + str(self.x.position)
             stack_time = self.zstack(n_Zplanes, n_frames, im_name)              # Take a zstack
             self.x.move(self.x.position + dx)                                   # Move to next x position
-            
+
         stop = time.time()
         self.scan_flag = False
 
