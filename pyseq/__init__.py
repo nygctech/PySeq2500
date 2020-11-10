@@ -109,6 +109,7 @@ class HiSeq():
         - channels: List of imaging channel names.
         - AF: Autofocus routine, options are full, partial, full once,
           partial once, or None, the default is partial once.
+        - focus_tol: Focus tolerance, distance in microns.
         - overlap: Pixel overlap, the default is 0.
         - virtual: Flag for using virtual HiSeq
         - fc_origin: Upper right X and Y stage step position for flowcell slots.
@@ -162,6 +163,7 @@ class HiSeq():
         self.logger = Logger
         self.channels = None
         self.AF = 'partial'                                                     # autofocus routine
+        self.focus_tol = 0                                                      # um, focus tolerance
         self.overlap = 0
         self.virtual = False                                                    # virtual flag
         self.scan_flag = False                                                  # imaging/scanning flag

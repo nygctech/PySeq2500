@@ -198,7 +198,8 @@ class Autofocus():
             if f_fs is not False:
                obj_pos = self.fit_mixed_gaussian(f_fs)
                if obj_pos:
-                   self.message(name_+'Found focus point ', n_obj+1)
+                   n_obj += 1
+                   self.message(name_+'Found focus point ', n_obj)
                    self.message(False, name_+'Point at x =', x_pos,
                                        'y =',y_pos,'obj =', obj_pos )
 
@@ -214,18 +215,29 @@ class Autofocus():
                    ##################################################################
 
                    focus_points[n_obj,:] = [x_pos, y_pos, obj_pos, i]
-                   n_obj += 1
 
                else:
-                   self.message(False, name_+'No Focus at point',n_obj+1,
-                                 'at x =',x_pos,'and y =',y_pos)
+                   self.message(False, name_+'No Focus at x =', x_pos,
+                                                     'and y =',y_pos)
 
+            # Check if at end of potential marker list
             if i == len(px_points)-1:
                 focus_points = focus_points[focus_points[:,3]>-1,:]
                 self.message(name_+'Only found',n_obj+1,'focus points')
                 break
             else:
                 i += 1
+
+            # Check if focus positions are high quality
+            if focus_tol:
+                if n_obj == n_markers:
+                    fp = focus_points[:,2]
+                    fp_med = np.median(fp, axis = None)
+                    for i, fp_ in enumerate(fp):
+                        if abs(fp_-fp_med) > hs.obj.spum*hs.focus_tol*2:
+                            focus_points = np.delete(focus_points, i, 0)        # remove points points far from median
+                            self.message(name_+'Removed point', i)
+                    n_obj = focus_points.shape[0]
 
         return focus_points
 

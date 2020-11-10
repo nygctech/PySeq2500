@@ -452,6 +452,9 @@ def initialize_hs(virtual, IMAG_counter):
     #Enable/Disable z stage
     hs.z.active = bool(method.get('enable z stage', fallback = True))
 
+    # Get focus Tolerance
+    hs.focus_tol = float(method.get('focus tolerance', fallback = 0))
+
     # Assign output directory
     save_path = experiment['save path']
     experiment_name = experiment['experiment name']

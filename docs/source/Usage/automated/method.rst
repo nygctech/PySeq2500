@@ -30,7 +30,8 @@ key in this section is **recipe**. The other keys are optional.
  - **default filter 2**: filter for red laser if not specified in **[filter]** section of experiment config file (float/string), default is `home`
  - **rinse**: reagent to rinse the flowcell with between completion of the experiment and flushing of the lines during shutdown (string), default is `None`
  - **autofocus**: routine used for autofocusing (string), see **Autofocus** for more info, default is `partial once`
- - **enable z stage**: Enable/disable z stage movements (bool), default is True. 
+ - **focus tolerance**: distance in microns for acceptable focus error, default is 0 um which allows for maximum error
+ - **enable z stage**: Enable/disable z stage movements (bool), default is True.
  - **bundle height:** sensor bundle height of cameras (integer), only certain values are valid, default is 128
 
     ::
