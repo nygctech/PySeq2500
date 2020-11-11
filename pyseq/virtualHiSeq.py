@@ -670,6 +670,7 @@ class HiSeq():
         self.virtual = True
         self.focus_data = join(dirname(__file__), 'focus_data')
         self.AF = 'partial'
+        self.focus_tol = 0
         self.scan_flag = False
 
     def initializeCams(self, Logger=None):
@@ -732,6 +733,8 @@ class HiSeq():
         self.f.write_position(0)
 
         self.message(msg+'HiSeq initialized!')
+
+        return True
 
     def move_inlet(self, n_ports):
         """Move 10 port valves to 2 inlet row or 8 inlet row ports."""

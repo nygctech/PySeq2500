@@ -3,7 +3,7 @@
 import numpy as np
 import pandas as pd
 from math import log2
-from os import listdir, stat, path
+from os import listdir, stat, path, getcwd
 from scipy import stats
 from scipy.spatial.distance import cdist
 from skimage.exposure import match_histograms
@@ -29,7 +29,7 @@ def message(logger, *args):
         logger.info(msg)
 
 
-def get_image_df(image_path, image_name = None):
+def get_image_df(image_path = None, image_name = None):
     """Get dataframe of rough focus images.
 
        **Parameters:**
@@ -41,6 +41,8 @@ def get_image_df(image_path, image_name = None):
 
     """
 
+    if image_path is None:
+        image_path = getcwd()
 
     all_names = listdir(image_path)
     if image_name is None:
