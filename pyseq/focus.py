@@ -228,15 +228,22 @@ class Autofocus():
                 i += 1
 
             # Check if focus positions are high quality
+            del_j = []
             if hs.focus_tol:
                 if n_obj == n_markers:
                     fp = focus_points[:,2]
                     fp_med = np.median(fp, axis = None)
                     for j, fp_ in enumerate(fp):
                         if abs(fp_-fp_med) > hs.obj.spum*hs.focus_tol*2:
-                            focus_points = np.delete(focus_points, j, 0)        # remove points points far from median
+                            del_j.append(j)
                             self.message(name_+'Removed point', j)
+                            self.message(False, name_, focus_points[j,:])
+                    focus_points = np.delete(focus_points, del_j, 0)            # remove points points far from median
                     n_obj = focus_points.shape[0]
+                    focus_points = np.append(focus_points,
+                                             np.full((len(del_j),4), -1),
+                                             axis =0)
+
 
         return focus_points
 
@@ -412,6 +419,10 @@ class Autofocus():
                 if len(amp) == max_peaks:
                     self.message(False, name_, 'Bad fit')
                     break
+
+        #DELETE ME#
+        optobjstep = np.random.randint(hs.obj.focus_start,hs.obj.focus_stop)
+        #DELETE ME#
 
         return optobjstep
 
