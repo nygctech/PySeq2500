@@ -420,10 +420,6 @@ class Autofocus():
                     self.message(False, name_, 'Bad fit')
                     break
 
-        #DELETE ME#
-        optobjstep = np.random.randint(hs.obj.focus_start,hs.obj.focus_stop)
-        #DELETE ME#
-
         return optobjstep
 
 

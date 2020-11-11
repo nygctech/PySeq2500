@@ -450,7 +450,7 @@ def initialize_hs(virtual, IMAG_counter):
         error('ConfigFile:: Auto focus method not valid.')
 
     #Enable/Disable z stage
-    hs.z.active = bool(method.get('enable z stage', fallback = True))
+    hs.z.active = method.getboolean('enable z stage', fallback = True)
 
     # Get focus Tolerance
     hs.focus_tol = float(method.get('focus tolerance', fallback = 0))
