@@ -150,7 +150,12 @@ class Valve():
     def move(self, port_name):
         """Move valve to the specified port_name (str)."""
 
-        position = self.port_dict[port_name]
+        if isinstance(port_name, int):
+            if port_name in range(1,self.n_ports+1):
+                position = port_name
+        else:
+            position = self.port_dict[port_name]
+
         while position != self.check_valve():
             response = self.command('GO' + str(position))
             time.sleep(1)

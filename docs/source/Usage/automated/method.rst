@@ -14,8 +14,11 @@ The name of this section should match the name of the method. The only required
 key in this section is **recipe**. The other keys are optional.
 
  - **recipe**: path to the method recipe as its value (path), required
+ - **flush volume**: volume to flush line with in uL (integer), default is 1000
+ - **main prime volume**: volume to prime main lines (ports  1-8 & 10-19) in uL (integer), default is 500
+ - **side prime volume**: volume to prime side lines (ports 9 & 22-24) in uL (integer), default is 350
+ - **sample prime volume**: volume to prime samples lines (port 20) in uL (integer), default is 250
  - **flush speed**: flowrate to flush lines with in uL/min (integer), default is 700
- - **flush volume**:  volume to flush line with in uL (integer), default is 2000
  - **reagent speed**: flowrate to pump reagents during recipe in uL/min (integer), default is the :ref:`minimum flow rate<pump>`
  - **variable reagents**: name of variable ports in recipes that are cycle dependent (string)
  - **first port**: port to start recipe at on first cycle (string)
