@@ -824,13 +824,13 @@ def do_flush():
     LED('all', 'user')
     confirm = False
     while not confirm:
-        flush_ports = input("Flush all, some, or none of the lines?")
+        flush_ports = input("Flush all, some, or none of the lines? ")
 
-        if flush_ports.strip().lowercase() = 'all':
+        if flush_ports.strip().lower() == 'all':
             flush_ports = port_dict.keys()
             confirm = userYN('Confirm flush all lines')
-        elif flush_ports.strip().lowercase() in ['none', 'N', 'n', '']:
-            flush_ports = None
+        elif flush_ports.strip().lower() in ['none', 'N', 'n', '']:
+            flush_ports = []
             confirm = userYN('Confirm skip flushing lines')
         else:
             good =[]
@@ -851,46 +851,49 @@ def do_flush():
             if len(bad) > 0:
                 hs.message('Valid ports:', good)
                 hs.message('Invalid ports:', bad)
-                confirm = userYN('Re-enter lines to flush')
+                confirm = not userYN('Re-enter lines to flush')
             else:
                 confirm = userYN('Confirm only flushing '+str(good))
 
             if confirm:
                 flush_ports = good
 
-    if flush_ports is not None:
+    if len(flush_ports) > 0:
         hs.message('Lock temporary flowcell(s) on to stage')
         hs.message('Place all valve input lines in water')
         input("Press enter to continue...")
+        LED('all', 'startup')
 
-    LED('all', 'startup')
-    # Flush ports
-    speed = flowcells[AorB_].pump_speed['flush']
-    volume = flowcells[AorB_].volume['flush']
-    for port in flush_ports:
-        hs.message('Flushing ' + str(port))
-        for fc in flowcells.values():
-            AorB = fc.position
-            fc.thread = threading.Thread(target=hs.v24[AorB].move,
-                                         args=(port,))
-            fc.thread.start()
-        alive = True
-        while alive:
-            alive_ = []
-            for fc in flowcells.values():
-                alive_.append(fc.thread.is_alive())
-                alive = any(alive_)
-        for fc in flowcells.values():
-            AorB = fc.position
-            fc.thread = threading.Thread(target=hs.p[AorB].pump,
-                                         args=(volume, speed,))
-            fc.thread.start()
-        alive = True
-        while alive:
-            alive_ = []
-            for fc in flowcells.values():
-                alive_.append(fc.thread.is_alive())
-                alive = any(alive_)
+        # Flush ports
+        speed = flowcells[AorB_].pump_speed['flush']
+        volume = flowcells[AorB_].volume['flush']
+        for port in flush_ports:
+            if port in hs.v24[AorB_].variable_ports:
+                flush_ports.append(*hs.v24[AorB_].port_dict[port].values())
+            else:
+                hs.message('Flushing ' + str(port))
+                for fc in flowcells.values():
+                    AorB = fc.position
+                    fc.thread = threading.Thread(target=hs.v24[AorB].move,
+                                                 args=(port,))
+                    fc.thread.start()
+                alive = True
+                while alive:
+                    alive_ = []
+                    for fc in flowcells.values():
+                        alive_.append(fc.thread.is_alive())
+                        alive = any(alive_)
+                for fc in flowcells.values():
+                    AorB = fc.position
+                    fc.thread = threading.Thread(target=hs.p[AorB].pump,
+                                                 args=(volume, speed,))
+                    fc.thread.start()
+                alive = True
+                while alive:
+                    alive_ = []
+                    for fc in flowcells.values():
+                        alive_.append(fc.thread.is_alive())
+                        alive = any(alive_)
 
 ##########################################################
 ## Flush Lines ###########################################
@@ -916,7 +919,7 @@ def do_prime():
         while True:
             AorB_ = [*flowcells.keys()][0]
             port_dict = hs.v24[AorB_].port_dict
-            speed = flowcells[AorB_].pump_speed['prime']
+            speed = flowcells[AorB_].pump_speed['reagent']
 
             for port in port_dict.keys():
                 if isinstance(port_dict[port], int):
@@ -1270,7 +1273,7 @@ def do_shutdown():
 
     hs.z.move([0, 0, 0])
     hs.move_stage_out()
-    hs.do_flush()
+    do_flush()
     ##Flush all lines##
     # LED('all', 'user')
     #
@@ -1295,8 +1298,8 @@ def do_shutdown():
     #     LED('all', 'user')
 
 
-        hs.message('Retrieve experiment flowcells')
-        input('Press any key to finish shutting down')
+    hs.message('Retrieve experiment flowcells')
+    input('Press any key to finish shutting down')
 
     for fc in flowcells.values():
         AorB = fc.position

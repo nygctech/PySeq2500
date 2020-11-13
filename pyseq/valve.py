@@ -160,6 +160,8 @@ class Valve():
             response = self.command('GO' + str(position))
             time.sleep(1)
 
+        return position
+
 
     def check_valve(self):
         """Return the port number position of the valve (int)."""
