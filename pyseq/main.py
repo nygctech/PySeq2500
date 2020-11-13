@@ -825,9 +825,12 @@ def do_flush():
     confirm = False
     while not confirm:
         flush_ports = input("Flush all, some, or none of the lines? ")
-
         if flush_ports.strip().lower() == 'all':
-            flush_ports = port_dict.keys()
+            flush_all = True
+            flush_ports = [*port_dict.keys()]
+            for vp in hs.v24[AorB_].variable_ports:
+                if vp in flush_ports:
+                    flush_ports.remove(vp)
             confirm = userYN('Confirm flush all lines')
         elif flush_ports.strip().lower() in ['none', 'N', 'n', '']:
             flush_ports = []
