@@ -225,6 +225,7 @@ class HiSeq():
 
         #Initialize X Stage before Y Stage!
         self.message(msg+'Initializing X & Y stages')
+        self.y.command('OFF')
         homed = self.x.initialize()
         self.y.initialize()
         self.message(msg+'Initializing lasers')
