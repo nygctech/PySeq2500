@@ -85,24 +85,24 @@ def print_method(method):
         for line in f:
             print(line[0:-1])
 
-def list_settings():
+def list_settings(instrument = 'HiSeq2500'):
     settings = configparser.ConfigParser()
-    with pkg_resources.path(recipes, 'hiseq_settings.cfg') as settings_path:
+    with pkg_resources.path(recipes, 'settings.cfg') as settings_path:
         settings.read(settings_path)
 
-    settings = settings['settings']
+    settings = settings[instrument]
     for s in settings:
         print(s,':', settings[s])
         print()
 
-def check_settings(input_settings):
+def check_settings(input_settings, instrument = 'HiSeq2500'):
     settings = configparser.ConfigParser()
-    with pkg_resources.path(recipes, 'hiseq_settings.cfg') as settings_path:
+    with pkg_resources.path(recipes, 'settings.cfg') as settings_path:
         settings.read(settings_path)
 
     all_clear = True
     for s in input_settings:
-        if s not in [*settings['settings'].keys()]:
+        if s not in [*settings[instrument].keys()]:
             print(s, 'is not a valid setting')
             all_clear = False
 
