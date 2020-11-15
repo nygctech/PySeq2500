@@ -472,6 +472,7 @@ def initialize_hs(virtual, IMAG_counter):
         x_homed = hs.initializeInstruments()
         if not x_homed:
             error('HiSeq:: X-Stage did not home correctly')
+        LED('all', 'startup')
         hs.initializeCams(logger)
 
         # HiSeq Settings
@@ -1446,10 +1447,9 @@ if __name__ == 'pyseq.main':
     hs = integrate_fc_and_hs(port_dict)                                         # Integrate flowcell info with hs
 
     if n_errors is 0:
-        hs.z.move([0,0,0])
         hs.move_stage_out()
 
-        do_flush()                                                              # Ask to flushing out lines
+        do_flush()                                                              # Ask to flush out lines
         do_prime()                                                              # Ask to prime lines
 
         cycles_complete = False
