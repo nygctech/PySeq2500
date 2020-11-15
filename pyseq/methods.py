@@ -53,7 +53,7 @@ def get_methods():
 
 def list_methods():
     '''Print list of methods.'''
-    
+
     methods = get_methods()
     for i in methods:
         print(i)
@@ -84,3 +84,26 @@ def print_method(method):
             f = open(recipe_path)
         for line in f:
             print(line[0:-1])
+
+def list_settings():
+    settings = configparser.ConfigParser()
+    with pkg_resources.path(recipes, 'hiseq_settings.cfg') as settings_path:
+        settings.read(settings_path)
+
+    settings = settings['settings']
+    for s in settings:
+        print(s,':', settings[s])
+        print()
+
+def check_settings(input_settings):
+    settings = configparser.ConfigParser()
+    with pkg_resources.path(recipes, 'hiseq_settings.cfg') as settings_path:
+        settings.read(settings_path)
+
+    all_clear = True
+    for s in input_settings:
+        if s not in [*settings['settings'].keys()]:
+            print(s, 'is not a valid setting')
+            all_clear = False
+
+    return all_clear

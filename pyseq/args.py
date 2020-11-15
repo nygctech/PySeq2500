@@ -59,6 +59,12 @@ parser.add_argument('-virtual',
                     action = 'store_true',
                     )
 
+# Flag to print HiSeq settings
+parser.add_argument('-settings',
+                    help='print optional HiSeq settings',
+                    action = 'store_true',
+                    )
+
 def get_arguments():
     """Return arguments from command line"""
 
@@ -71,6 +77,10 @@ def get_arguments():
 
     if args['method'] in methods.get_methods():
         methods.print_method(args['method'])
+        sys.exit()
+
+    if args['settings']:
+        methods.list_settings()
         sys.exit()
 
     return args

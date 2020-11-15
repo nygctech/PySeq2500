@@ -237,6 +237,12 @@ def setup_flowcells(first_line, IMAG_counter):
             if isinstance(IMAG_counter, int):
                 error('Recipe::Need WAIT before IMAG with 2 flowcells.')
 
+    for fc in flowcells.values():
+        print('Flowcell', fc.position)
+        print(*fc.sections.keys())
+
+    userYN('Confirm flowcell(s)')
+
     return flowcells
 
 
@@ -472,7 +478,6 @@ def initialize_hs(virtual, IMAG_counter):
         x_homed = hs.initializeInstruments()
         if not x_homed:
             error('HiSeq:: X-Stage did not home correctly')
-        LED('all', 'startup')
         hs.initializeCams(logger)
 
         # HiSeq Settings
@@ -797,8 +802,12 @@ def LED(AorB, indicate):
 
     return True
 
-def userYN(question):
+def userYN(*args):
     """Ask a user a Yes/No question and return True if Yes, False if No."""
+
+    question = ''
+    for a in args:
+        question += str(a) + ' '
 
     response = True
     while response:
@@ -853,11 +862,11 @@ def do_flush():
                     except:
                         bad.append(fp)
             if len(bad) > 0:
-                hs.message('Valid ports:', good)
-                hs.message('Invalid ports:', bad)
+                hs.message('Valid ports:', *good)
+                hs.message('Invalid ports:', *bad)
                 confirm = not userYN('Re-enter lines to flush')
             else:
-                confirm = userYN('Confirm only flushing '+str(good))
+                confirm = userYN('Confirm only flushing',*good)
 
             if confirm:
                 flush_ports = good
@@ -1417,6 +1426,12 @@ def get_config(args):
     else:
         error('ConfigFile::Error reading method configuration')
         sys.exit()
+
+    # Check method keys
+    if not methods.check_settings(config[method]):
+        go = userYN('Proceed with experiment')
+        if not go:
+            sys.exit()
 
     # Get recipe
     recipe_name = config[method]['recipe']
