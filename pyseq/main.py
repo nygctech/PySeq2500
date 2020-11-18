@@ -11,6 +11,7 @@ import sys
 import configparser
 import threading
 import argparse
+import tabulate
 
 from . import methods
 from . import args
@@ -237,11 +238,13 @@ def setup_flowcells(first_line, IMAG_counter):
             if isinstance(IMAG_counter, int):
                 error('Recipe::Need WAIT before IMAG with 2 flowcells.')
 
-    for fc in flowcells.values():
-        print('Flowcell', fc.position)
-        print(*fc.sections.keys())
-
-    userYN('Confirm flowcell(s)')
+    # table = {}
+    # for fc in flowcells:
+    #     table[fc] = flowcells[fc].sections.keys()
+    # print('Flowcell section summary')
+    # print(tabulate.tabulate(table, headers = 'keys', tablefmt = 'presto'))
+    #
+    # userYN('Confirm flowcell(s)')
 
     return flowcells
 
@@ -392,17 +395,21 @@ def get_obj_pos(section, cycle):
     return obj_pos
 
 
-##########################################################
-## Setup HiSeq ###########################################
-##########################################################
-def initialize_hs(virtual, IMAG_counter):
-    """Initialize the HiSeq and return the handle."""
+
+def configure_instrument(virtual, IMAG_counter, port_dict):
 
     global n_errors
 
     experiment = config['experiment']
-    method = config[experiment['method']]
+    method = experiment['method']
+    method = config[method]
 
+    try:
+        total_cycles = int(experiment.get('cycles'))
+    except:
+        error('ConfigFile:: Cycles not specified')
+
+    # Creat HiSeq Object
     if virtual:
         from . import virtualHiSeq
         hs = virtualHiSeq.HiSeq(logger)
@@ -410,10 +417,6 @@ def initialize_hs(virtual, IMAG_counter):
         import pyseq
         hs = pyseq.HiSeq(logger)
 
-    # Check inlet ports
-    inlet_ports = int(method.get('inlet ports', fallback = 2))
-    if inlet_ports not in [2,8]:
-        error('MethodFile:: inlet ports must be 2 or 8.')
     # Check side ports
     try:
         side_ports = method.get('side ports', fallback = '9,21,22,23,24')
@@ -430,22 +433,55 @@ def initialize_hs(virtual, IMAG_counter):
     n_barrels = int(method.get('barrels per lane', fallback = 1))               # Get method specific pump barrels per lane, fallback to 1
     if n_barrels not in [1,2,4,8]:
         error('ConfigFile:: Barrels per lane must be 1, 2, 4 or 8')
+    # Check inlet ports, note switch inlet ports in initialize_hs
+    inlet_ports = int(method.get('inlet ports', fallback = 2))
+    if inlet_ports not in [2,8]:
+        error('MethodFile:: inlet ports must be 2 or 8.')
+
+    variable_ports = method.get('variable reagents', fallback = None)
+    z_pos = int(method.get('z position', fallback = 21500))
+
+    for fc in flowcells.values():
+        AorB = fc.position
+        hs.v24[AorB].side_ports = side_ports
+        hs.v24[AorB].sample_port = sample_port
+        hs.v24[AorB].port_dict = port_dict                                      # Assign ports on HiSeq
+        if variable_ports is not None:
+            v_ports = variable_ports.split(',')
+            for v in v_ports:                                                   # Assign variable ports
+                hs.v24[AorB].variable_ports.append(v.strip())
+        hs.p[AorB].update_limits(n_barrels)                                     # Assign barrels per lane to pump
+        for section in fc.sections:                                             # Convert coordinate sections on flowcell to stage info
+            pos = hs.position(AorB, fc.sections[section])
+            fc.stage[section] = pos
+            fc.stage[section]['z_pos'] = [z_pos, z_pos, z_pos]
+
     ## TODO: Changing laser color unecessary for now, revist if upgrading HiSeq
     # Configure laser color & filters
-    colors = [method.get('laser color 1', fallback = 'green'),
-              method.get('laser color 2', fallback = 'red')]
+    # colors = [method.get('laser color 1', fallback = 'green'),
+    #           method.get('laser color 2', fallback = 'red')]
+    # for i, color in enumerate(default_colors):
+    #     if color is not colors[i]:
+    #         laser = hs.lasers.pop(color)                                        # Remove default laser color
+    #         hs.lasers[colors[i]] = laser                                        # Add new laser
+    #         hs.lasers[colors[i]].color = colors[i]                              # Update laser color
+    #         hs.optics.colors[i] = colors[i]                                     # Update laser line color
+
+    # Check laser power
+    laser_power = [int(method.get('green laser power', fallback = 10)),
+                   int(method.get('red laser power', fallback = 10))]
     default_colors = hs.optics.colors
     for i, color in enumerate(default_colors):
-        if color is not colors[i]:
-            laser = hs.lasers.pop(color)                                        # Remove default laser color
-            hs.lasers[colors[i]] = laser                                        # Add new laser
-            hs.lasers[colors[i]].color = colors[i]                              # Update laser color
-            hs.optics.colors[i] = colors[i]                                     # Update laser line color
+        lp = laser_power[i]
+        if hs.lasers[color].min_power <= lp <= hs.lasers[color].max_power:
+            hs.lasers[color].set_point = lp
+        else:
+            error('MethodFile:: Invalid '+color+' laser power')
 
     #Check filters for laser at each cycle are valid
     hs.optics.cycle_dict = check_filters(hs.optics.cycle_dict, hs.optics.ex_dict)
-    focus_filters = [float(method.get('focus filter 1', fallback = 2.0)),
-                     float(method.get('focus filter 2', fallback = 2.0))]
+    focus_filters = [method.get('gree focus filter', fallback = 2.0),
+                     method.get('red focus filter', fallback = 2.0)]
     for i, f in enumerate(focus_filters):
         if f not in hs.optics.ex_dict[hs.optics.colors[i]]:
             error('ConfigFile:: Focus filter not valid.')
@@ -456,12 +492,13 @@ def initialize_hs(virtual, IMAG_counter):
     hs.AF = method.get('autofocus', fallback = 'partial once')
     if hs.AF not in ['partial', 'partial once', 'full', 'full once', None]:
         error('ConfigFile:: Auto focus method not valid.')
-
     #Enable/Disable z stage
     hs.z.active = method.getboolean('enable z stage', fallback = True)
-
     # Get focus Tolerance
     hs.focus_tol = float(method.get('focus tolerance', fallback = 0))
+
+    hs.bundle_height = int(method.get('bundle height', fallback = 128))
+    hs.overlap = int(method.get('overlap', fallback = 0))
 
     # Assign output directory
     save_path = experiment['save path']
@@ -472,6 +509,151 @@ def initialize_hs(virtual, IMAG_counter):
             os.mkdir(save_path)
         except:
             error('ConfigFile:: Save path not valid.')
+    # Assign image directory
+    image_path = join(save_path, experiment['image path'])
+    if not os.path.exists(image_path):
+        os.mkdir(image_path)
+    hs.image_path = image_path
+    # Assign log directory
+    log_path = join(save_path, experiment['log path'])
+    if not os.path.exists(log_path):
+        os.mkdir(log_path)
+    hs.log_path = log_path
+
+    return hs
+
+def confirm_settings():
+    experiment = config['experiment']
+    method = experiment['method']
+    method = config[method]
+    total_cycles = int(experiment['cycles'])
+    # Print settings to screen
+    try:
+        import tabulate
+        print_table = True
+    except:
+        print_table = False
+
+    # Experiment summary
+    print()
+    print('-'*80)
+    print()
+    print(experiment['experiment name'], 'summary')
+    print()
+    print('method:', experiment['method'])
+    print('recipe:', method['recipe'])
+    print('cycles:', experiment['cycles'])
+    print('save path:', experiment['save path'])
+    print('z stage active:', hs.z.active)
+    print()
+    if not userYN('Confirm experiment'):
+        sys.exit()
+    print()
+
+    # Flowcell summary
+    table = {}
+    for fc in flowcells:
+        table[fc] = flowcells[fc].sections.keys()
+    print('-'*80)
+    print()
+    print('Flowcells:')
+    print()
+    if print_table:
+        print(tabulate.tabulate(table, headers = 'keys', tablefmt = 'presto'))
+    else:
+        print(table)
+    print()
+    if not userYN('Confirm flowcells'):
+        sys.exit()
+    print()
+
+    # Valve summary:
+    table = []
+    for port in port_dict:
+        if not isinstance(port_dict[port], dict):
+            table.append([port_dict[port], port])
+    print('-'*80)
+    print()
+    print('Valve:')
+    print()
+    if print_table:
+        print(tabulate.tabulate(table, headers=['port', 'reagent'], tablefmt = 'presto'))
+    else:
+        print(table)
+    print()
+    if not userYN('Confirm valve assignment'):
+        sys.exit()
+    print()
+
+    # Cycle summary:
+    AorB = [*flowcells.keys()][0]
+    variable_ports = hs.v24[AorB].variable_ports
+    table = []
+    for cycle in range(1,total_cycles+1):
+        row = []
+        row.append(cycle)
+        if len(variable_ports) > 0:
+            for vp in variable_ports:
+                row.append(port_dict[vp][cycle])
+        if IMAG_counter > 0:
+            colors = hs.optics.colors
+            for color in colors:
+                row.append(hs.optics.cycle_dict[color][cycle])
+        else:
+            colors = []
+        table.append(row)
+
+    if len(variable_ports) + len(colors) > 0:
+        headers = ['cycle', *variable_ports, *colors]
+        print('-'*80)
+        print()
+        print('Cycles:')
+        print()
+        if print_table:
+            print(tabulate.tabulate(table, headers, tablefmt='presto'))
+        else:
+            print(table)
+        print()
+        if not userYN('Confirm cycles'):
+            sys.exit()
+        print()
+
+    if IMAG_counter > 0:
+        print('-'*80)
+        print()
+        print('Imaging settings:')
+        print()
+        laser_power = [hs.lasers['green'].set_point,
+                       hs.lasers['red'].set_point]
+        print('green laser power:', laser_power[0], 'mW')
+        print('red laser power:',laser_power[1], 'mW')
+        print('autofocus:', hs.AF)
+        if hs.focus_tol > 0:
+            print('focus_tolerance', hs.focus_tol, 'um')
+        for i, filter in enumerate(hs.optics.focus_filters):
+            if filter == 'home':
+                focus_laser_power = 0
+            elif filter == 'open':
+                focus_laser_power = laser_power[i]
+            else:
+                focus_laser_power = laser_power[i]*10**(-float(filter))
+            print(colors[i], 'focus laser power ~', focus_laser_power, 'mW')
+        print('z stage step position when imaging:', method['z position'])
+        print()
+        if not userYN('Confirm imaging settings'):
+            sys.exit()
+
+##########################################################
+## Setup HiSeq ###########################################
+##########################################################
+def initialize_hs(virtual, IMAG_counter):
+    """Initialize the HiSeq and return the handle."""
+
+    global n_errors
+
+    experiment = config['experiment']
+    method = experiment['method']
+    method = config[method]
 
     if n_errors is 0:
 
@@ -481,15 +663,8 @@ def initialize_hs(virtual, IMAG_counter):
         hs.initializeCams(logger)
 
         # HiSeq Settings
-        hs.bundle_height = int(method.get('bundle height', fallback = 128))
-        hs.overlap = int(method.get('overlap', fallback = 0))
+        inlet_ports = int(method.get('inlet ports', fallback = 2))
         hs.move_inlet(inlet_ports)                                              # Move to 2 or 8 port inlet
-
-        # Set side ports, sample ports, barrels_per_lane
-        for AorB in ['A','B']:
-            hs.v24[AorB].side_ports = side_ports
-            hs.v24[AorB].sample_port = sample_port
-            hs.p[AorB].update_limits(n_barrels)                                 # Assign barrels per lane to pump
 
         # Set laser power
         laser_power = int(method.get('laser power', fallback = 10))
@@ -499,17 +674,9 @@ def initialize_hs(virtual, IMAG_counter):
                 if not hs.lasers[color].on:
                     error('HiSeq:: Lasers did not turn on.')
 
-        # Assign image directory
-        image_path = join(save_path, experiment['image path'])
-        if not os.path.exists(image_path):
-            os.mkdir(image_path)
-        hs.image_path = image_path
-
-        # Assign log directory
-        log_path = join(save_path, experiment['log path'])
-        if not os.path.exists(log_path):
-            os.mkdir(log_path)
-        hs.log_path = log_path
+        hs.f.LED('A', 'off')
+        hs.f.LED('B', 'off')
+        LED('all', 'startup')
 
     return hs
 
@@ -688,6 +855,13 @@ def check_ports():
     else:
         print('WARNING::No ports are specified')
 
+    # table = []
+    # for port in port_dict:
+    #     if not isinstance(port_dict[port], dict):
+    #         table.append([port_dict[port], port])
+    # print('Valve summary')
+    # print(tabulate.tabulate(table, headers=['port', 'reagent'], tablefmt = 'presto'))
+
     return port_dict
 
 
@@ -746,11 +920,11 @@ def check_filters(cycle_dict, ex_dict):
                                         fallback = 'True')
         if c not in cycle_dict[colors[1]]:
             cycle_dict[colors[1]][c] = method.get(
-                                       'default filter 1',
+                                       'default green filter',
                                         fallback = 'home')
         if c not in cycle_dict[colors[2]]:
             cycle_dict[colors[2]][c] = method.get(
-                                       'default filter 2',
+                                       'default red filter',
                                         fallback = 'home')
 
     return cycle_dict
@@ -862,8 +1036,8 @@ def do_flush():
                     except:
                         bad.append(fp)
             if len(bad) > 0:
-                hs.message('Valid ports:', *good)
-                hs.message('Invalid ports:', *bad)
+                print('Valid ports:', *good)
+                print('Invalid ports:', *bad)
                 confirm = not userYN('Re-enter lines to flush')
             else:
                 confirm = userYN('Confirm only flushing',*good)
@@ -872,9 +1046,12 @@ def do_flush():
                 flush_ports = good
 
     if len(flush_ports) > 0:
-        hs.message('Lock temporary flowcell(s) on to stage')
-        hs.message('Place all valve input lines in water')
-        input("Press enter to continue...")
+        print('Lock temporary flowcell(s) on to stage')
+        print('Place all valve input lines in water')
+        ready = True
+        while ready:
+            ready = not userYN('Ready to continue')
+
         LED('all', 'startup')
 
         # Flush ports
@@ -918,15 +1095,22 @@ def do_prime():
 
     ## Flush lines
     flush_YorN = userYN("Prime lines")
+    if flush_YorN:
+        flush_YorN = userYN("Confirm prime lines")
+    else:
+        flush_YorN = userYN("Confirm skip priming lines")
     # LED('all', 'startup')
     # hs.z.move([0,0,0])
     # hs.move_stage_out()
     #LED('all', 'user')
-    if flush_YorN:
-        hs.message('Lock temporary flowcell(s) on to stage')
-        hs.message('Place all valve input lines in reagents')
-        input("Press enter to continue...")
 
+    if flush_YorN:
+        print('Lock temporary flowcell(s) on to stage')
+        print('Place all valve input lines in reagents')
+        ready = True
+        while ready:
+            ready = not userYN('Ready to continue')
+            
         #Flush all lines
         LED('all', 'startup')
         while True:
@@ -969,15 +1153,15 @@ def do_prime():
             LED('all', 'user')
             break
 
-        hs.message('Replace temporary flowcell with experiment flowcell and lock on to stage')
-        hs.message('Place all valve input lines in correct reagent')
-        input("Press enter to continue...")
-    else:
-        hs.message('Lock experiment flowcells on to stage')
-        input("Press enter to continue...")
 
-    for fc in flowcells.values():
-        fc.restart_recipe()
+        print('Remove temporary flowcell(s)')
+
+
+    print('Lock experiment flowcell(s) on to stage')
+    print('Place all valve input lines in correct reagents')
+    ready = True
+    while ready:
+        ready = not userYN("Ready to continue")
 
 ##########################################################
 def do_nothing():
@@ -1355,34 +1539,6 @@ def free_fc():
 
 
 
-def integrate_fc_and_hs(port_dict):
-    """Integrate flowcell info with HiSeq configuration info."""
-
-    hs.f.LED('A', 'off')
-    hs.f.LED('B', 'off')
-    LED('all', 'green')
-
-    method = config.get('experiment', 'method')                                 # Read method specific info
-    method = config[method]
-    variable_ports = method.get('variable reagents', fallback = None)
-    z_pos = int(method.get('z position', fallback = 21500))
-    n_barrels = int(method.get('barrels per lane', fallback = 1))               # Get method specific pump barrels per lane, fallback to 8
-
-    for fc in flowcells.values():
-        AorB = fc.position
-        hs.v24[AorB].port_dict = port_dict                                      # Assign ports on HiSeq
-        if variable_ports is not None:
-            v_ports = variable_ports.split(',')
-            for v in v_ports:                                                   # Assign variable ports
-                hs.v24[AorB].variable_ports.append(v.strip())
-        hs.p[AorB].update_limits(n_barrels)                                     # Assign barrels per lane to pump
-        for section in fc.sections:                                             # Convert coordinate sections on flowcell to stage info
-            pos = hs.position(AorB, fc.sections[section])
-            fc.stage[section] = pos
-            fc.stage[section]['z_pos'] = [z_pos, z_pos, z_pos]
-
-    return hs
-
 def get_config(args):
     """Return the experiment config appended with the method config.
 
@@ -1458,14 +1614,17 @@ if __name__ == 'pyseq.main':
     port_dict = check_ports()                                                   # Check ports in configuration file
     first_line, IMAG_counter = check_instructions()                             # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, IMAG_counter)                       # Create flowcells
+    hs = configure_instrument(args_['virtual'], IMAG_counter, port_dict)
+    confirm_settings()
     hs = initialize_hs(args_['virtual'], IMAG_counter)                          # Initialize HiSeq, takes a few minutes
-    hs = integrate_fc_and_hs(port_dict)                                         # Integrate flowcell info with hs
 
     if n_errors is 0:
-        hs.move_stage_out()
-
         do_flush()                                                              # Ask to flush out lines
         do_prime()                                                              # Ask to prime lines
+        if not userYN('Start experiment'):
+            sys.exit()
+        for fc in flowcells.values():                                           #initialize flowcells
+            fc.restart_recipe()
 
         cycles_complete = False
 

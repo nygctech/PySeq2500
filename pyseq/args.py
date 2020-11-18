@@ -80,7 +80,10 @@ def get_arguments():
         sys.exit()
 
     if args['settings']:
-        methods.list_settings()
+        settings = methods.get_settings()
+        for s in settings:
+            print(s, '=', settings[s])
+            print()
         sys.exit()
 
     return args

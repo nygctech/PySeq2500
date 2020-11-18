@@ -64,6 +64,7 @@ class Laser():
                                             errors = 'ignore')
         self.on = False
         self.power = 0
+        self.set_point = 0
         self.max_power = 500
         self.min_power = 0
         self.suffix = '\r'

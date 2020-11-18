@@ -95,6 +95,15 @@ def list_settings(instrument = 'HiSeq2500'):
         print(s,':', settings[s])
         print()
 
+def get_settings(instrument = 'HiSeq2500'):
+    settings = configparser.ConfigParser()
+    with pkg_resources.path(recipes, 'settings.cfg') as settings_path:
+        settings.read(settings_path)
+
+    settings = settings[instrument]
+
+    return settings
+
 def check_settings(input_settings, instrument = 'HiSeq2500'):
     settings = configparser.ConfigParser()
     with pkg_resources.path(recipes, 'settings.cfg') as settings_path:

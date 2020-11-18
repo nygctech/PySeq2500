@@ -239,9 +239,6 @@ class HiSeq():
         self.v24['A'].initialize()
         self.v24['B'].initialize()
 
-        return homed
-
-
         # Initialize Z, objective stage, and optics after FPGA
         self.message(msg+'Initializing optics and Z stages')
         self.z.initialize()
@@ -257,6 +254,7 @@ class HiSeq():
 
         self.message(msg+'Initialized!')
 
+        return homed
 
     def write_metadata(self, n_frames, image_name):
         """Write image metadata to file.
