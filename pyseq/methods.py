@@ -55,6 +55,7 @@ def list_methods():
     '''Print list of methods.'''
 
     methods = get_methods()
+    methods.remove('settings')
     for i in methods:
         print(i)
 

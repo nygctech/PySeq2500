@@ -1,6 +1,6 @@
+WAIT: dum2    #Hold until other port 2
 PORT:	dum1		#Move valve to port 1
-PUMP:	100		#Pump 100 uL
+PUMP:	1		    #Pump 1 uL
+HOLD:	1		    #Hold for 1 min
 PORT:	dum2		#Move valve to port 2
-PUMP:	100		#Pump 100 uL
-WAIT:	dum1		#Hold until other port 1
-HOLD:	1		#Hold for 1 min
+PUMP:	1		    #Pump 1 uL

@@ -44,6 +44,7 @@ class Zstage():
         - max_z (int): Maximum safe zstage step position.
         - xstep ([int, int, int]): Xstage position of the respective motors.
         - ystep ([int, int, int]): Ystage position of the respective motors.
+        - image_step (int): Initial step position of motors for imaging
         - logger (logger): Logger for messaging.
         - focus_pos (int): Step used used for imaging.
         - active (bool): Flag to enable/disable z stage movements.

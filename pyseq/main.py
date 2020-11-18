@@ -397,6 +397,7 @@ def get_obj_pos(section, cycle):
 
 
 def configure_instrument(virtual, IMAG_counter, port_dict):
+    """Configure and check HiSeq settings."""
 
     global n_errors
 
@@ -439,7 +440,7 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
         error('MethodFile:: inlet ports must be 2 or 8.')
 
     variable_ports = method.get('variable reagents', fallback = None)
-    z_pos = int(method.get('z position', fallback = 21500))
+    hs.z.image_step = int(method.get('z position', fallback = 21500))
 
     for fc in flowcells.values():
         AorB = fc.position
@@ -454,7 +455,7 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
         for section in fc.sections:                                             # Convert coordinate sections on flowcell to stage info
             pos = hs.position(AorB, fc.sections[section])
             fc.stage[section] = pos
-            fc.stage[section]['z_pos'] = [z_pos, z_pos, z_pos]
+            fc.stage[section]['z_pos'] = [hs.z.image_step]*3
 
     ## TODO: Changing laser color unecessary for now, revist if upgrading HiSeq
     # Configure laser color & filters
@@ -523,6 +524,8 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     return hs
 
 def confirm_settings():
+    """Have user confirm the HiSeq settings before experiment."""
+
     experiment = config['experiment']
     method = experiment['method']
     method = config[method]
@@ -603,20 +606,29 @@ def confirm_settings():
             colors = []
         table.append(row)
 
+
+
+    print('-'*80)
+    print()
+    print('Cycles:')
+    print()
     if len(variable_ports) + len(colors) > 0:
         headers = ['cycle', *variable_ports, *colors]
-        print('-'*80)
-        print()
-        print('Cycles:')
-        print()
         if print_table:
             print(tabulate.tabulate(table, headers, tablefmt='presto'))
         else:
             print(table)
         print()
-        if not userYN('Confirm cycles'):
-            sys.exit()
-        print()
+        stop_experiment = not userYN('Confirm cycles')
+    else:
+        if total_cycles == 1:
+            stop_experiment = not userYN('Confirm only 1 cycle')
+        else:
+            stop_experiment = not userYN('Confirm all', total_cycles, 'cycles are the same')
+    if stop_experiment:
+        sys.exit()
+    print()
+
 
     if IMAG_counter > 0:
         print('-'*80)
@@ -638,7 +650,7 @@ def confirm_settings():
             else:
                 focus_laser_power = laser_power[i]*10**(-float(filter))
             print(colors[i], 'focus laser power ~', focus_laser_power, 'mW')
-        print('z stage step position when imaging:', method['z position'])
+        print('z stage step position when imaging:', hs.z.image_step)
         print()
         if not userYN('Confirm imaging settings'):
             sys.exit()
@@ -846,11 +858,6 @@ def check_ports():
                 variable = variable.replace(' ','')
                 if len(port_dict[variable]) != total_cycles:
                     error('ConfigFile::Number of', variable, 'reagents does not match experiment cycles')
-
-        else:
-            same_ports = userYN('Are all ports the same for every cycle')
-            if not same_ports:
-                error('ConfigFile::No variable ports listed')
 
     else:
         print('WARNING::No ports are specified')
@@ -1094,11 +1101,13 @@ def do_prime():
     LED('all', 'user')
 
     ## Flush lines
-    flush_YorN = userYN("Prime lines")
-    if flush_YorN:
-        flush_YorN = userYN("Confirm prime lines")
-    else:
-        flush_YorN = userYN("Confirm skip priming lines")
+    confirm = False
+    while not confirm:
+        flush_YorN = userYN("Prime lines")
+        if flush_YorN:
+            confirm = userYN("Confirm prime lines")
+        else:
+            confirm = userYN("Confirm skip priming lines")
     # LED('all', 'startup')
     # hs.z.move([0,0,0])
     # hs.move_stage_out()
@@ -1110,7 +1119,7 @@ def do_prime():
         ready = True
         while ready:
             ready = not userYN('Ready to continue')
-            
+
         #Flush all lines
         LED('all', 'startup')
         while True:
@@ -1568,6 +1577,12 @@ def get_config(args):
     config['experiment']['save path'] = args['output']
     # Set experiment name
     config['experiment']['experiment name'] = args['name']
+    # save user valve
+    USERVALVE = False
+    if config.has_section('reagents'):
+        valve = config['reagents'].items()
+        if len(valve) > 0:
+            USERVALVE = True
 
     # Get method specific configuration
     method = config['experiment']['method']
@@ -1582,6 +1597,12 @@ def get_config(args):
     else:
         error('ConfigFile::Error reading method configuration')
         sys.exit()
+
+    # Don't override user defined valve
+    if USERVALVE:
+        user_config = configparser.ConfigParser()
+        user_config.read(args['config'])
+        config['reagents'] = user_config['reagents']
 
     # Check method keys
     if not methods.check_settings(config[method]):

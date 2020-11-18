@@ -32,6 +32,7 @@ class Laser():
        **Attributes:**
         - on (bool): True if the laser is on, False if the laser is off.
         - power (int): Power in mW of the laser:
+        - set_point(int): Set power point of laser in mW.
         - max_power (int): Maximum power of the laser in mW.
         - min_power (int): Minimum power of the laser in mW.
         - color (str): Color of the laser.
