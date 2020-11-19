@@ -158,7 +158,7 @@ class Flowcell():
                 self.temp_timer.cancel()
                 self.temp_timer = None
                 self.temperature = None
-                hs.chem.fc_off(fc.position)
+                hs.T.fc_off(fc.position)
         else:
             restart_message = msg+'Starting cycle '+str(self.cycle)
             self.thread = threading.Thread(target = hs.message,
@@ -546,6 +546,8 @@ def check_instructions():
     valid_wait = ports
     valid_wait.append('IMAG')
     valid_wait.append('STOP')
+    valid_wait.append('TEMP')
+    print(valid_wait)
 
     f = open(config['experiment']['recipe path'])
 
@@ -949,7 +951,8 @@ def do_recipe(fc):
                 holdTime = float(command)*60
                 log_message = 'Flowcell holding for ' + str(command) + ' min.'
                 if hs.virtual:
-                    fc.thread = threading.Timer(holdTime/100/60, fc.endHOLD)
+                    #fc.thread = threading.Timer(holdTime/100/60, fc.endHOLD)
+                    fc.thread = threading.Timer(holdTime, fc.endHOLD)
                 else:
                     fc.thread = threading.Timer(holdTime, fc.endHOLD)
             elif command == 'STOP':
@@ -962,12 +965,16 @@ def do_recipe(fc):
             LED(AorB, 'sleep')
         # Wait for other flowcell to finish event before continuing with current flowcell
         elif instrument == 'WAIT':
-            if fc.waits_for is not None:
+            if command == 'TEMP':
+                fc.thread = threading.Thread(target = hs.T.wait_fc_T,
+                                             args=(AorB, fc.temperature,))
+                log_message = ('Waiting to reach '+str(fc.temperature)+'°C')
+            elif fc.waits_for is not None:
                 if command in flowcells[fc.waits_for].events_since_IMAG:
                     log_message = command + ' has occurred, skipping WAIT'
                     fc.thread = threading.Thread(target = do_nothing)
                 else:
-                    log_message = 'Flowcell waiting for ' + command
+                    log_message = 'Waiting for ' + command
                     fc.thread = threading.Thread(target = WAIT,
                         args = (AorB, command,))
             else:
@@ -989,8 +996,8 @@ def do_recipe(fc):
         elif instrument == 'TEMP':
             log_message = 'Setting temperature to ' + command + ' °C'
             command  = float(command)
-            fc.thread = threading.Thread(target = hs.chem.set_fc_T,
-                args = (fc.position,command,))
+            fc.thread = threading.Thread(target = hs.T.set_fc_T,
+                args = (AorB,command,))
             fc.temperature = command
         # Block all further processes until user input
         # elif instrument == 'STOP':
@@ -1365,7 +1372,7 @@ def check_fc_temp(fc):
             fc.temp_timer = threading.Timer(fc.temp_interval, do_nothing)
             fc.temp_timer.start()
         if not fc.temp_timer.is_alive():
-            T = hs.chem.get_fc_T(fc.position)
+            T = hs.T.get_fc_T(fc.position)
             hs.message(False, 'PySeq::'+fc.position+'::Temperature::',T,'°C')
             fc.temp_timer = None
 

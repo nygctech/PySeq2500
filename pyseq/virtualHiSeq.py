@@ -2,7 +2,163 @@
 from os.path import join
 import importlib.resources as pkg_resources
 
+
 # HiSeq Simulater
+class Temperature():
+    def __init__(self):
+        self.T_fc = [None, None]
+        self.T_chiller = [None, None, None]
+        self.min_fc_T = 20.0
+        self.max_fc_T = 60.0
+        self.min_chiller_T = 0.1
+        self.max_chiller_T = 20.0
+        self.delay = 5*60
+
+    def initialize(self):
+        self.T_fc = [20, 20]
+        self.T_chiller = [20, 20, 20]
+
+    def get_fc_index(self, fc):
+        """Return flowcell index."""
+
+        if fc == 'A':
+            fc = 0
+        elif fc == 'B':
+            fc = 1
+        elif fc not in (0,1):
+            self.write_log('get_fc_index::Invalid flowcell')
+            fc = None
+
+        return fc
+
+    def get_fc_T(self, fc):
+        """Return temperature of flowcell in °C."""
+
+        fc = self.get_fc_index(fc)
+
+        T = None
+        if fc is not None:
+            while T is None:
+                try:
+                    T = self.T_fc[fc]
+                except:
+                    T = None
+
+        return T
+
+    def get_chiller_T(self):
+        """Return temperature of chiller in °C.
+
+           NOTE: There are 3 TEC blocks cooling the chiller. I'm not sure if all
+           3 cool chiller. I think the 3rd one cools something else because the
+           control parameters are different. - Kunal
+
+        """
+
+        T = [None,None,None]
+        for i, t in enumerate(T):
+              T[i] = float(self.T_chiller[i])
+
+        return T
+
+    def set_fc_T(self, fc, T):
+        """Set temperature of flowcell in °C.
+
+           **Parameters:**
+            - fc (str or int): Flowcell position either A or 0, or B or 1
+            - T (float): Temperature in °C.
+
+           **Returns:**
+            - int: Flowcell index, 0 for A and 1 or B.
+
+        """
+
+        fc = self.get_fc_index(fc)
+
+        if type(T) not in [int, float]:
+            self.write_log('set_fc_T::ERROR::Temperature must be a number')
+            T = None
+
+        if fc is not None and T is not None:
+            if self.min_fc_T > T:
+                T = self.min_fc_T
+                self.write_log('set_fc_T::Set temperature too cold, ' +
+                               'setting to ' + str(T))
+            elif self.max_fc_T < T:
+                T = self.max_fc_T
+                self.write_log('set_fc_T::Set temperature too hot, ' +
+                               'setting to ' + str(T))
+
+            direction = T - self.get_fc_T(fc)
+
+            self.T_fc[fc] = T
+        else:
+            direction = None
+
+        return direction
+
+    def wait_fc_T(self, fc, T):
+        """Set and wait for flowcell to reach temperature in °C.
+
+           **Parameters:**
+            - fc (str or int): Flowcell position either A or 0, or B or 1
+            - T (float): Temperature in °C.
+
+        """
+
+        direction = self.set_fc_T(fc,T)
+        if direction is None:
+            self.message('Unable to wait for flowcell', fc, 'to reach', T, '°C')
+        if direction < 0:
+            while self.get_fc_T(fc) >= T:
+                time.sleep(self.delay)
+        elif direction > 0:
+            while self.get_fc_T(fc) <= T:
+                time.sleep(self.delay)
+
+        return self.get_fc_T(fc)
+
+    def fc_off(self, fc):
+        """Turn off temperature control for flowcell fc."""
+
+        fc = self.get_fc_index(fc)
+
+        return False
+
+    def set_chiller_T(self, T, i):
+        """Return temperature of chiller in °C."""
+
+        T = float(T)
+        if self.min_chiller_T >= T:
+            T = self.min_chiller_T
+            self.write_log('set_chiller_T::Set temperature too cold, setting to ' + str(T))
+        elif self.max_chiller_T <= T:
+            T = self.max_chiller_T
+            self.write_log('set_chiller_T::Set temperature too hot, setting to ' + str(T))
+
+        if i not in (0,1,2):
+            self.write_log('set_chiller_T::Chiller index must 0, 1, or 2')
+            response = None
+        else:
+            self.T_chiller[i] = T
+
+        return response
+
+    def write_log(self, *args):
+        """Write messages to the log."""
+
+
+        msg = 'ARM9CHEM::'
+        for a in args:
+            msg += ' ' + str(a)
+
+        if self.logger is None:
+            print(msg)
+        else:
+            self.logger.info(msg)
+
+
+
 class Xstage():
     def __init__(self):
         self.spum = 100/244
@@ -582,7 +738,7 @@ class CHEM():
 
     def get_fc_index(self, fc):
         """Return flowcell index."""
-        
+
         if fc == 'A':
             fc = 0
         elif fc == 'B':
@@ -619,6 +775,8 @@ class CHEM():
 
         fc = self.get_fc_index(fc)
 
+        print('Flowcell index is', fc)
+
         if type(T) not in [int, float]:
             self.write_log('set_fc_T::ERROR::Temperature must be a number')
             T = None
@@ -637,13 +795,14 @@ class CHEM():
                 self.get_fc_T(fc)
 
             direction = T - self.T_fc[fc]
+            print('direction', direction)
             self.T_fc[fc] = T
 
             return direction
 
     def fc_off(self, fc):
         """Turn off temperature control for flowcell fc."""
-        
+
         fc = self.get_fc_index(fc)
 
         return False
@@ -746,7 +905,7 @@ class HiSeq():
                     'B': Valve('valveB10', 10)}
         self.v24 = {'A': Valve('valveA24', 24),
                     'B': Valve('valveB24', 24)}
-        self.chem = CHEM(logger = Logger)
+        self.T = Temperature()
         self.optics = Optics()
         self.cam1 = None
         self.cam2 = None
@@ -826,7 +985,8 @@ class HiSeq():
         self.optics.initialize()
         self.f.write_position(0)
 
-        self.message(msg+'HiSeq initialized!')
+        # Initialize ARM9 Temperature control
+        self.T.initialize()
 
     def move_inlet(self, n_ports):
         """Move 10 port valves to 2 inlet row or 8 inlet row ports."""

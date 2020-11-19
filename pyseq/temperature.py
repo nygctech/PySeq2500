@@ -28,11 +28,27 @@ import serial
 import io
 import time
 
-class CHEM():
-    """HiSeq 2500 System :: ARM9 CHEM
+class Temperature():
+    """HiSeq 2500 System :: Stage & Chiller Temperature Control (ARM9 CHEM)
 
        **Attributes**
+        - serial_port: IO wrapper around serial port
+        - suffix: Suffix to send commands
         - logger (logger): Logger used for messaging
+        - version (str): Controller version.
+        - T_fc [float, float]: Set temperature of flowcell in °C.
+        - T_chiller [float, float, float]: Set temperature of chillers in °C.
+        - min_fc_T (float): Minimum flowcell temperature in  °C.
+        - max_fc_T (float): Maximum flowcell temperature in  °C.
+        - min_chiller_T (float): Minimum chiller temperature in °C.
+        - max_chiller_T (float): Maximum flowcell temperature in °C.
+        - fc_PIDSF0: Flowcell A Temperature servo-loop parameters
+        - fc_PIDSF1: Flowcell B Temperature servo-loop parameters
+        - tec_PIDSF0: Chiller 0 Temperature servo-loop parameters
+        - tec_PIDSF1: Chiller 1 Temperature servo-loop parameters
+        - tec_PIDSF2: Chiller 2 Temperature servo-loop parameters
+        - p_ = servo-loop parameters: Servo_Proportional, Servo_Integral, Servo_Derivative, Feed_Frw_StepSize, Feed_frw_Threshold
+        - delay (int): Delay time in querying temperature.
 
     """
     def __init__(self, com_port, baudrate = 115200, logger = None):
@@ -44,20 +60,6 @@ class CHEM():
               second.
             - logger (log, optional): The log file to write communication with
               the ARM9 CHEM.
-            - version (str): Controller version.
-            - T_fc [float, float]: Set temperature of flowcell in °C.
-            - T_chiller [float, float, float]: Set temperature of chillers in °C.
-            - min_fc_T (float): Minimum flowcell temperature in  °C.
-            - max_fc_T (float): Maximum flowcell temperature in  °C.
-            - min_chiller_T (float): Minimum chiller temperature in °C.
-            - max_chiller_T (float): Maximum flowcell temperature in °C.
-            - fc_PIDSF0: Flowcell A Temperature servo-loop parameters
-            - fc_PIDSF1: Flowcell B Temperature servo-loop parameters
-            - tec_PIDSF0: Chiller 0 Temperature servo-loop parameters
-            - tec_PIDSF1: Chiller 1 Temperature servo-loop parameters
-            - tec_PIDSF2: Chiller 2 Temperature servo-loop parameters
-            - p_ = servo-loop parameters: Servo_Proportional, Servo_Integral, Servo_Derivative, Feed_Frw_StepSize, Feed_frw_Threshold
-            - delay (int): Delay time in querying temperature.
 
 
            **Returns:**
@@ -89,7 +91,7 @@ class CHEM():
         self.tec_PIDSF1 = (0.8, 0.2, 0.0, 1.875, 6.0)       # TEC1
         self.tec_PIDSF2 = (1.7, 1.1, 0.0)                   # TEC2
         self.p_ = 'PIDSF'
-        self.delay = 2                                      # delay time in s
+        self.delay = 60                                     # delay time in s
 
 
     def initialize(self):
@@ -143,7 +145,7 @@ class CHEM():
 
     def get_fc_index(self, fc):
         """Return flowcell index."""
-        
+
         if fc == 'A':
             fc = 0
         elif fc == 'B':
@@ -153,17 +155,20 @@ class CHEM():
             fc = None
 
         return fc
-    
+
     def get_fc_T(self, fc):
         """Return temperature of flowcell in °C."""
 
         fc = self.get_fc_index(fc)
 
+        T = None
         if fc is not None:
-            response = self.command('?FCTEMP:'+str(fc))
-            T = float(response.split(':')[0][:-1])
-        else:
-            T = None
+            while T is None:
+                try:
+                    response = self.command('?FCTEMP:'+str(fc))
+                    T = float(response.split(':')[0][:-1])
+                except:
+                    T = None
 
         return T
 
@@ -215,14 +220,13 @@ class CHEM():
             response = self.command('FCTEMP:'+str(fc)+':'+str(T))
             response = self.command('FCTEC:'+str(fc)+':1')
 
-            if self.T_fc[fc] is None:
-                direction = T - self.get_fc_T(fc)
-            else:
-                direction = T - self.T_fc[fc]
-                
-            self.T_fc[fc] = T
+            direction = T - self.get_fc_T(fc)
 
-            return direction
+            self.T_fc[fc] = T
+        else:
+            direction = None
+
+        return direction
 
     def wait_fc_T(self, fc, T):
         """Set and wait for flowcell to reach temperature in °C.
@@ -234,6 +238,8 @@ class CHEM():
         """
 
         direction = self.set_fc_T(fc,T)
+        if direction is None:
+            self.message('Unable to wait for flowcell', fc, 'to reach', T, '°C')
         if direction < 0:
             while self.get_fc_T(fc) >= T:
                 time.sleep(self.delay)
@@ -245,7 +251,7 @@ class CHEM():
 
     def fc_off(self, fc):
         """Turn off temperature control for flowcell fc."""
-        
+
         fc = self.get_fc_index(fc)
         response = self.command('FCTEC:'+str(fc)+':0')
 
@@ -271,10 +277,14 @@ class CHEM():
 
         return response
 
-    def write_log(self, text):
+    def write_log(self, *args):
         """Write messages to the log."""
 
-        msg = 'ARM9CHEM::' + text
+
+        msg = 'ARM9CHEM::'
+        for a in args:
+            msg += ' ' + str(a)
+
         if self.logger is None:
             print(msg)
         else:

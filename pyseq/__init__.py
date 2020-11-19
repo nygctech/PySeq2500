@@ -63,7 +63,7 @@ from . import xstage
 from . import ystage
 from . import zstage
 from . import focus
-from . import chemistry
+from . import temperature
 
 import time
 from os.path import getsize
@@ -100,6 +100,7 @@ class HiSeq():
         - optics (optics): Illumina HiSeq 2500 :: Optics.
         - cam1 (camera): Camera for 558 nm and 687 nm emissions.
         - cam2 (camera): Camera for 610 nm and 740 nm emissions.
+        - T (temperature): ARM9 CHEM for stage and temperature control.
         - logger (logger): Logger object to log communication with HiSeq.
         - image_path (path): Directory to store images in.
         - log_path (path): Directory to write log files in.
@@ -129,7 +130,7 @@ class HiSeq():
                        fpgaCOM = ['COM12','COM15'],
                        laser1COM = 'COM13',
                        laser2COM = 'COM14',
-                       arm9chemCOM = 'COM8'):
+                       tempCOM = 'COM8'):
         """Constructor for the HiSeq."""
 
         self.y = ystage.Ystage(yCOM, logger = Logger)
@@ -153,7 +154,7 @@ class HiSeq():
         self.v24 = {'A': valve.Valve(valveA24COM, 'valveA24', logger = Logger),
                     'B': valve.Valve(valveB24COM, 'valveB24', logger = Logger)
                     }
-        self.chem = chemistry.CHEM(arm9chemCOM, logger = Logger)
+        self.T = temperature.Temperature(tempCOM, logger = Logger)
         self.image_path = getcwd()                                                  # path to save images in
         self.log_path = getcwd()                                                  # path to save logs in
         self.fc_origin = {'A':[17571,-180000],
@@ -248,14 +249,15 @@ class HiSeq():
         self.obj.initialize()
         self.optics.initialize()
 
+        #Initialize ARM9 CHEM for temperature control
+        self.T.initialize()
+
         #Sync TDI encoder with YStage
         self.message(msg+'Syncing Y stage')
         while not self.y.check_position():
             time.sleep(1)
         self.y.position = self.y.read_position()
         self.f.write_position(0)
-
-        self.message(msg+'Initialized!')
 
 
     def write_metadata(self, n_frames, image_name):
@@ -287,6 +289,7 @@ class HiSeq():
                      'em filter in ' + str(self.optics.em_in) + '\n' +
                      'interval 1 ' + str(self.cam1.getFrameInterval()) + '\n' +
                      'interval 2 ' + str(self.cam2.getFrameInterval()) + '\n'
+                     'temperature' + str(self.T.T_fc)
                      )
 
         return meta_f
