@@ -599,7 +599,7 @@ def confirm_settings():
             for vp in variable_ports:
                 row.append(port_dict[vp][cycle])
         if IMAG_counter > 0:
-            colors = hs.optics.colors
+            colors = [*hs.optics.cycle_dict.keys()]
             for color in colors:
                 row.append(hs.optics.cycle_dict[color][cycle])
         else:
@@ -894,7 +894,13 @@ def check_filters(cycle_dict, ex_dict):
         # Get laser cycle = filter
         filter = item[1]
 
-        if filter not in ['home','open']:                                       # filters are floats, except for home and open
+        # filters are floats, except for home and open,
+        # and emission (True/False)
+        if filter.lower() in ['true', 'yes', '1', 't', 'y']:
+            filter = True
+        elif filter.lower() in ['false', 'no', '0', 'f', 'n']:
+            filter = False
+        elif filter not in ['home','open']:
             filter = float(filter)
         laser, cycle = item[0].split()
         cycle = int(cycle)
@@ -907,11 +913,18 @@ def check_filters(cycle_dict, ex_dict):
 
         if len(laser) > 0:
             laser = laser[0]
-            if filter in ex_dict[laser]:
-                if cycle not in cycle_dict[laser]:
-                    cycle_dict[laser][cycle] = filter
-                else:
-                    error('ConfigFile::Duplicated cycle for', laser, 'laser')
+            if laser in ex_dict.keys():
+                if filter in ex_dict[laser]:
+                    if cycle not in cycle_dict[laser]:
+                        cycle_dict[laser][cycle] = filter
+                    else:
+                        error('ConfigFile::Duplicated cycle for', laser, 'laser')
+            elif laser == 'em':
+                if isinstance(filter, bool):
+                    if cycle not in cycle_dict[laser]:
+                        cycle_dict[laser][cycle] = filter
+                    else:
+                        error('ConfigFile::Duplicated emission filter cycle')
             else:
                 error('ConfigFile::Invalid filter for', laser, 'laser')
         else:
