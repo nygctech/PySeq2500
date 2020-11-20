@@ -111,6 +111,9 @@ class Temperature():
             reponse = self.command('RETEC:1:'+self.p_[i]+':'+str(p))
         for i, p in enumerate(self.tec_PIDSF2):
             reponse = self.command('RETEC:2:'+self.p_[i]+':'+str(p))
+            
+        self.fc_off(0)
+        self.fc_off(1)
 
 
     def command(self, text):
@@ -216,9 +219,11 @@ class Temperature():
                 T = self.max_fc_T
                 self.write_log('set_fc_T::Set temperature too hot, ' +
                                'setting to ' + str(T))
+                
+            if self.T_fc[fc] is None:
+                self.fc_on(fc)
 
             response = self.command('FCTEMP:'+str(fc)+':'+str(T))
-            response = self.command('FCTEC:'+str(fc)+':1')
 
             direction = T - self.get_fc_T(fc)
 
@@ -254,8 +259,18 @@ class Temperature():
 
         fc = self.get_fc_index(fc)
         response = self.command('FCTEC:'+str(fc)+':0')
+        self.T_fc[fc] = None
 
         return False
+
+    def fc_on(self, fc):
+        """Turn on temperature control for flowcell fc."""
+
+        fc = self.get_fc_index(fc)
+        response = self.command('FCTEC:'+str(fc)+':1')
+        self.T_fc[fc] = self.get_fc_T(fc)
+
+        return True       
 
     def set_chiller_T(self, T, i):
         """Return temperature of chiller in °C."""

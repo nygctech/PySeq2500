@@ -547,7 +547,6 @@ def check_instructions():
     valid_wait.append('IMAG')
     valid_wait.append('STOP')
     valid_wait.append('TEMP')
-    print(valid_wait)
 
     f = open(config['experiment']['recipe path'])
 
