@@ -11,7 +11,7 @@ import sys
 import configparser
 import threading
 import argparse
-import tabulate
+
 
 from . import methods
 from . import args
@@ -617,6 +617,7 @@ def confirm_settings():
         if print_table:
             print(tabulate.tabulate(table, headers, tablefmt='presto'))
         else:
+            print(headers)
             print(table)
         print()
         stop_experiment = not userYN('Confirm cycles')
@@ -649,7 +650,7 @@ def confirm_settings():
                 focus_laser_power = laser_power[i]
             else:
                 focus_laser_power = laser_power[i]*10**(-float(filter))
-            print(colors[i], 'focus laser power ~', focus_laser_power, 'mW')
+            print(colors[i+1], 'focus laser power ~', focus_laser_power, 'mW')
         print('z stage step position when imaging:', hs.z.image_step)
         print()
         if not userYN('Confirm imaging settings'):
@@ -689,6 +690,8 @@ def initialize_hs(virtual, IMAG_counter):
         hs.f.LED('A', 'off')
         hs.f.LED('B', 'off')
         LED('all', 'startup')
+
+        hs.move_stage_out()
 
     return hs
 
@@ -1387,7 +1390,7 @@ def IMAG(fc, n_Zplanes):
         n_frames = pos['n_frames']
 
         # Set filters
-        for color in hs.optics.colors:
+        for color in hs.optics.cycle_dict.keys():
             filter = hs.optics.cycle_dict[color][fc.cycle]
             if color is 'em':
                 hs.optics.move_em_in(filter)

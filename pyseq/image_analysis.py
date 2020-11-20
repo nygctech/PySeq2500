@@ -177,7 +177,7 @@ def normalize(im, scale_factor):
 
     return plane
 
-def sum_images(images, logger = None):
+def sum_images(images, thresh = 81, logger = None):
     """Sum pixel values over channel images.
 
        The image with the largest signal to noise ratio is used as the
@@ -189,6 +189,7 @@ def sum_images(images, logger = None):
 
        Parameters:
        - images (list): List of images to sum.
+       - thresh (float): Kurtosis threshold to call signal in channel. 
        - logger (logger): Logger object to record process.
 
        Return:
@@ -200,6 +201,11 @@ def sum_images(images, logger = None):
     sum_im = None
     # ref = None
 
+    try:
+        thresh = float(thresh)
+    except:
+        thresh = 81.0
+
     # Select image with largest signal to noise as reference
     #SNR = np.array([])
     # i = 0
@@ -208,7 +214,7 @@ def sum_images(images, logger = None):
         #kurt_z = stats.kurtosis(im, axis=None)
         k = kurt(im)
         message(logger, name_, 'Channel',c, 'k = ', k)
-        if k > 81:
+        if k > thresh:
             #message(logger, name_, 'Signal in channel',i)
             # Add add image
             if sum_im is None:
@@ -291,7 +297,7 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
     edge_width = int(2048/scale/2)
     im_ = np.zeros_like(im)
     px_score_thresh = 3
-    while np.sum(im_ != 0) == 0:
+    while np.sum(im_ != 0) < min_n_markers:
         # Get brightest pixels
         im_[px_score > px_score_thresh] = im[px_score > px_score_thresh]
         # Remove "saturated" pixels
@@ -348,20 +354,23 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
     # Markers farthest from each other are first
     n_markers = len(c_markers)
     ord_points = np.zeros_like(c_markers)
-    ord_points[0,:] = c_markers[max_ind[0],:]
-    ord_points[1,:] = c_markers[max_ind[1],:]
-    _markers = np.copy(c_markers)
-    prev2 = max_ind[0]
-    prev1 = max_ind[1]
-    dist = np.delete(dist,[prev2,prev1],1)
-    _markers = np.delete(_markers,[prev2,prev1], axis=0)
-    for i in range(2,n_markers):
-      dist2 = np.append(dist[prev2,:],dist[prev1,:], axis =0)
-      ind = np.argmax(np.sum(dist2))
-      ord_points[i,:] = _markers[ind,:]
-      dist = np.delete(dist,ind,1)
-      _markers = np.delete(_markers,ind, axis=0)
-
+    if n_markers > 2:
+        ord_points[0,:] = c_markers[max_ind[0],:]
+        ord_points[1,:] = c_markers[max_ind[1],:]
+        _markers = np.copy(c_markers)
+        prev2 = max_ind[0]
+        prev1 = max_ind[1]
+        dist = np.delete(dist,[prev2,prev1],1)
+        _markers = np.delete(_markers,[prev2,prev1], axis=0)
+        for i in range(2,n_markers):
+          dist2 = np.append(dist[prev2,:],dist[prev1,:], axis =0)
+          ind = np.argmax(np.sum(dist2))
+          ord_points[i,:] = _markers[ind,:]
+          dist = np.delete(dist,ind,1)
+          _markers = np.delete(_markers,ind, axis=0)
+    else:
+        ord_points = c_markers
+        
     return ord_points
 
 def make_image(im_path, df_x, comp=None):

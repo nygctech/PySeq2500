@@ -546,7 +546,10 @@ def autofocus(hs, pos_dict):
     if old_obj_pos is None:
         af.message('Analyzing out of focus image')
         # Sum channels with signal
-        sum_im = IA.sum_images(af.rough_ims, hs.logger)
+        if 'partial' in hs.AF:
+            sum_im = IA.sum_images(af.rough_ims, 1, hs.logger)
+        else:
+            sum_im = IA.sum_images(af.rough_ims, hs.logger)
     else:
         sum_im = None
 
