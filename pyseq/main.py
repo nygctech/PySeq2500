@@ -1187,7 +1187,7 @@ def do_rinse(fc):
                                        args = (volume, speed,))
     else:
         fc.thread = threading.Thread(target = do_nothing)
-
+initialize_hs
 
 ##########################################################
 ## Shut down system ######################################
@@ -1366,11 +1366,12 @@ def get_config(args):
 def check_fc_temp(fc):
     """Check temperature of flowcell."""
 
-    if fc.temperature is not None:
+    if fc.temperature is not None and not hs.T.busy:
         if fc.temp_timer is None:
             fc.temp_timer = threading.Timer(fc.temp_interval, do_nothing)
             fc.temp_timer.start()
         if not fc.temp_timer.is_alive():
+            #print('checking temp')
             T = hs.T.get_fc_T(fc.position)
             hs.message(False, 'PySeq::'+fc.position+'::Temperature::',T,'°C')
             fc.temp_timer = None
