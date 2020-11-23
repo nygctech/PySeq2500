@@ -469,11 +469,8 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     #         hs.optics.colors[i] = colors[i]                                     # Update laser line color
 
     # Check laser power
-    laser_power = [int(method.get('green laser power', fallback = 10)),
-                   int(method.get('red laser power', fallback = 10))]
-    default_colors = hs.optics.colors
-    for i, color in enumerate(default_colors):
-        lp = laser_power[i]
+    for color in hs.lasers.keys():
+        lp = int(method.get(color+' laser power', fallback = 10))
         if hs.lasers[color].min_power <= lp <= hs.lasers[color].max_power:
             hs.lasers[color].set_point = lp
         else:
@@ -680,8 +677,8 @@ def initialize_hs(virtual, IMAG_counter):
         hs.move_inlet(inlet_ports)                                              # Move to 2 or 8 port inlet
 
         # Set laser power
-        laser_power = int(method.get('laser power', fallback = 10))
         for color in hs.lasers.keys():
+            laser_power = int(method.get(color+' laser power', fallback = 10))
             hs.lasers[color].set_power(laser_power)
             if IMAG_counter > 0:
                 if not hs.lasers[color].on:
