@@ -112,7 +112,7 @@ class Temperature():
             reponse = self.command('RETEC:1:'+self.p_[i]+':'+str(p))
         for i, p in enumerate(self.tec_PIDSF2):
             reponse = self.command('RETEC:2:'+self.p_[i]+':'+str(p))
-            
+
         self.fc_off(0)
         self.fc_off(1)
 
@@ -127,6 +127,11 @@ class Temperature():
             - str: The response from the ystage.
         """
 
+        # Block communication if busy
+        while self.busy:
+            pass
+
+        self.busy = True
         text = text + self.suffix
         self.serial_port.write(text)                                            # Write to serial port
         self.serial_port.flush()                                                # Flush serial port
@@ -136,13 +141,14 @@ class Temperature():
             r = self.serial_port.readline()
             if 'A1' in r:
                 response = r
-            
 
         if self.logger is not None:
             self.logger.info('ARM9CHEM::txmt::'+text)
             self.logger.info('ARM9CHEM::rcvd::'+response)
         else:
             print(response)
+
+        self.busy = False
 
         return response
 
@@ -204,7 +210,6 @@ class Temperature():
 
         """
 
-        self.busy = True
         fc = self.get_fc_index(fc)
 
         if type(T) not in [int, float]:
@@ -220,7 +225,7 @@ class Temperature():
                 T = self.max_fc_T
                 self.write_log('set_fc_T::Set temperature too hot, ' +
                                'setting to ' + str(T))
-                
+
             if self.T_fc[fc] is None:
                 self.fc_on(fc)
 
@@ -229,12 +234,11 @@ class Temperature():
 ##            print('temp after setpoint', current_T)
 ##            direction = T - current_T
             direction = T - self.get_fc_T(fc)
-            
+
             self.T_fc[fc] = T
         else:
             direction = None
 
-        self.busy = False
 
         return direction
 
@@ -246,8 +250,7 @@ class Temperature():
             - T (float): Temperature in °C.
 
         """
-        self.busy = True
-        
+
         direction = self.set_fc_T(fc,T)
         if direction is None:
             self.message('Unable to wait for flowcell', fc, 'to reach', T, '°C')
@@ -259,28 +262,27 @@ class Temperature():
                 time.sleep(self.delay)
 
         T = self.get_fc_T(fc)
-        self.busy = False
 
         return T
 
     def fc_off(self, fc):
         """Turn off temperature control for flowcell fc."""
-        self.busy = True
+
         fc = self.get_fc_index(fc)
         response = self.command('FCTEC:'+str(fc)+':0')
         self.T_fc[fc] = None
-        self.busy = False
+
         return False
 
     def fc_on(self, fc):
         """Turn on temperature control for flowcell fc."""
 
-        self.busy = True
+
         fc = self.get_fc_index(fc)
         response = self.command('FCTEC:'+str(fc)+':1')
         self.T_fc[fc] = self.get_fc_T(fc)
-        self.busy = False
-        return True       
+
+        return True
 
     def set_chiller_T(self, T, i):
         """Return temperature of chiller in °C."""

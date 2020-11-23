@@ -1366,7 +1366,7 @@ def get_config(args):
 def check_fc_temp(fc):
     """Check temperature of flowcell."""
 
-    if fc.temperature is not None and not hs.T.busy:
+    if fc.temperature is not None:
         if fc.temp_timer is None:
             fc.temp_timer = threading.Timer(fc.temp_interval, do_nothing)
             fc.temp_timer.start()
