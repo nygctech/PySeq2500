@@ -1369,7 +1369,7 @@ def IMAG(fc, n_Zplanes):
 
         # Calculate objective positions to image
         if n_Zplanes > 1:
-            obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes/3)       # Want 1/3 of planes below opt_ob_pos and 2/3 of planes above
+            obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes*2/3)       # Want 2/3 of planes below opt_ob_pos and 1/3 of planes above
         else:
             obj_start = hs.obj.position
 
