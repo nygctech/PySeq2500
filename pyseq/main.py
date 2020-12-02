@@ -653,6 +653,47 @@ def confirm_settings():
         if not userYN('Confirm imaging settings'):
             sys.exit()
 
+    # Check if previous focus positions have been found, and confirm to use
+    if os.path.exists(join(hs.log_path, 'focus_config.cfg')):
+
+        focus_config = configparser.ConfigParser()
+        focus_config.read(join(hs.log_path, 'focus_config.cfg'))
+        cycles = 0
+        sections = []
+        for section in config.options('sections'):
+            if focus_config.has_section(section):
+                sections.append(section)
+                n_focus_cycles = len(focus_config.options(section))
+                if n_focus_cycles > cycles:
+                    cycles = n_focus_cycles
+
+        table = []
+        for section in sections:
+            row = []
+            row.append(section)
+            for c in range(1,cycles+1):
+                if focus_config.has_option(section, str(c)):
+                    row.append(focus_config[section][str(c)])
+                else:
+                    row.append(None)
+            table.append(row)
+
+        if len(sections) > 0 and cycles > 0:
+            print('-'*80)
+            print()
+            print('Previous Autofocus Objective Positions:')
+            print()
+            headers = ['section', *['cycle'+str(c) for c in range(1,cycles+1)]]
+            if print_table:
+                print(tabulate.tabulate(table, headers, tablefmt='presto'))
+            else:
+                print(headers)
+                print(table)
+            print()
+            if not userYN('Confirm using previous autofocus positions'):
+                sys.exit()
+            print()
+
 ##########################################################
 ## Setup HiSeq ###########################################
 ##########################################################
