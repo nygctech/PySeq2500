@@ -144,22 +144,29 @@ class Flowcell():
     def restart_recipe(self):
         """Restarts the recipe and returns the number of completed cycles."""
 
+        # Restart recipe
         if self.recipe is not None:
             self.recipe.close()
         self.recipe = open(self.recipe_path)
+        # Increase cycle counter
         self.cycle += 1
+        # Reset image counter (if mulitple images per cycle)
         if self.IMAG_counter is not None:
             self.IMAG_counter = 0
+
         msg = 'PySeq::'+self.position+'::'
         if self.cycle > self.total_cycles:
+            # Flowcell completed all cycles
             hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
             do_rinse(self)
+            hs.T.fc_off(fc.position)
+            self.temperature = None
             if self.temp_timer is not None:
                 self.temp_timer.cancel()
                 self.temp_timer = None
-                self.temperature = None
-                hs.T.fc_off(fc.position)
+
         else:
+            # Start new cycle
             restart_message = msg+'Starting cycle '+str(self.cycle)
             self.thread = threading.Thread(target = hs.message,
                                            args = (restart_message,))
@@ -1187,7 +1194,6 @@ def do_rinse(fc):
                                        args = (volume, speed,))
     else:
         fc.thread = threading.Thread(target = do_nothing)
-initialize_hs
 
 ##########################################################
 ## Shut down system ######################################
@@ -1198,8 +1204,9 @@ def do_shutdown():
     for fc in flowcells.values():
         while fc.thread.is_alive():
             fc.wait_thread.set()
-            LED(fc.position, 'startup')
+            time.sleep(60)
 
+    LED('all', 'startup')
     hs.message('PySeq::Shutting down...')
 
 
@@ -1241,6 +1248,7 @@ def do_shutdown():
                               str(fc.history[2][i])+'\n')
 
     # Turn off y stage motor
+    hs.y.move(0)
     hs.y.command('OFF')
     LED('all', 'off')
 

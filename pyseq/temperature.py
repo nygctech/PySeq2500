@@ -206,7 +206,7 @@ class Temperature():
             - T (float): Temperature in °C.
 
            **Returns:**
-            - int: Flowcell index, 0 for A and 1 or B.
+            - (float): Current temperature in °C.
 
         """
 
@@ -230,17 +230,12 @@ class Temperature():
                 self.fc_on(fc)
 
             response = self.command('FCTEMP:'+str(fc)+':'+str(T))
-##            current_T  = self.get_fc_T(fc)
-##            print('temp after setpoint', current_T)
-##            direction = T - current_T
-            direction = T - self.get_fc_T(fc)
-
             self.T_fc[fc] = T
+            current_temp = self.get_fc_T(fc)
         else:
-            direction = None
+            current_temp = None
 
-
-        return direction
+        return current_temp
 
     def wait_fc_T(self, fc, T):
         """Set and wait for flowcell to reach temperature in °C.
@@ -251,15 +246,18 @@ class Temperature():
 
         """
 
-        direction = self.set_fc_T(fc,T)
-        if direction is None:
+
+        try:
+            direction = T - self.set_fc_T(fc,T)
+            if direction < 0:
+                while self.get_fc_T(fc) >= T:
+                    time.sleep(self.delay)
+            elif direction > 0:
+                while self.get_fc_T(fc) <= T:
+                    time.sleep(self.delay)
+        except:
             self.message('Unable to wait for flowcell', fc, 'to reach', T, '°C')
-        if direction < 0:
-            while self.get_fc_T(fc) >= T:
-                time.sleep(self.delay)
-        elif direction > 0:
-            while self.get_fc_T(fc) <= T:
-                time.sleep(self.delay)
+            break
 
         T = self.get_fc_T(fc)
 
