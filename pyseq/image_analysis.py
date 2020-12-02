@@ -111,7 +111,7 @@ def stitch(dir, df_x, overlap = 0, scaled = False):
     """
 
     df_x = df_x.sort_values(by=['x'])
-    scale_factor = None
+    scale_factor = 1
     plane = None
     for name in df_x.index:
         im = imageio.imread(path.join(dir,name))
@@ -119,7 +119,7 @@ def stitch(dir, df_x, overlap = 0, scaled = False):
 
         if scaled:
             # Scale images so they are ~ 512 kb
-            if scale_factor is None:
+            if scale_factor == 1:
                 size = stat(path.join(dir,name)).st_size
                 scale_factor = (2**(log2(size)-19))**0.5
                 scale_factor = round(log2(scale_factor))
@@ -189,7 +189,7 @@ def sum_images(images, thresh = 81, logger = None):
 
        Parameters:
        - images (list): List of images to sum.
-       - thresh (float): Kurtosis threshold to call signal in channel. 
+       - thresh (float): Kurtosis threshold to call signal in channel.
        - logger (logger): Logger object to record process.
 
        Return:
@@ -370,7 +370,7 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
           _markers = np.delete(_markers,ind, axis=0)
     else:
         ord_points = c_markers
-        
+
     return ord_points
 
 def make_image(im_path, df_x, comp=None):
