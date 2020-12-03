@@ -244,6 +244,9 @@ class Temperature():
             - fc (str or int): Flowcell position either A or 0, or B or 1
             - T (float): Temperature in °C.
 
+           **Returns:**
+            - (float): Current temperature in °C.
+
         """
 
 
