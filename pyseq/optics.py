@@ -183,6 +183,7 @@ class Optics():
             self.command('EX' + str(index+1)+ 'HM')                               # Home Filter
             self.ex[index] = position
             if position != 'home':
+                time.sleep(2)
                 position = str(self.ex_dict[color][position])                   # get step position
                 self.command('EX' + str(index+1) + 'MV ' + position)              # Move Filter relative to home
         elif position not in self.ex_dict[color].keys():
