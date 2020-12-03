@@ -158,9 +158,9 @@ class Flowcell():
         if self.cycle > self.total_cycles:
             # Flowcell completed all cycles
             hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
-            do_rinse(self)
             hs.T.fc_off(fc.position)
             self.temperature = None
+            do_rinse(self)
             if self.temp_timer is not None:
                 self.temp_timer.cancel()
                 self.temp_timer = None
@@ -1031,6 +1031,7 @@ def do_recipe(fc):
         fc.restart_recipe()
     elif fc.cycle > fc.total_cycles:
         #End of experiment
+        fc.temperature = None
         fc.thread =  threading.Thread(target = time.sleep, args = (10,))
         fc.thread.start()
 
