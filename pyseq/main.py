@@ -203,9 +203,11 @@ def setup_flowcells(first_line, IMAG_counter):
             fc.volume['side'] = int(method.get('side prime volume', fallback=350))
             fc.volume['sample'] = int(method.get('sample prime volume', fallback=250))
             fc.volume['flush'] = int(method.get('flush volume', fallback=1000))
-            ps = int(method.get('flush speed',fallback=700))
-            fc.pump_speed['flush'] = ps
-            rs = int(method.get('reagent speed', fallback=40))
+            fs = int(method.get('flush flowrate',fallback=700))
+            fc.pump_speed['flush'] = fs
+            ps = int(method.get('prime flowrate',fallback=100))
+            fc.pump_speed['prime'] = ps
+            rs = int(method.get('reagent flowrate', fallback=40))
             fc.pump_speed['reagent'] = rs
             fc.total_cycles = int(config.get('experiment','cycles'))
             if IMAG_counter > 1:
@@ -569,8 +571,10 @@ def confirm_settings():
 
     # Valve summary:
     table = []
+    ports = []
     for port in port_dict:
         if not isinstance(port_dict[port], dict):
+            ports.append(int(port_dict[port]))
             table.append([port_dict[port], port])
     print('-'*80)
     print()
@@ -585,8 +589,32 @@ def confirm_settings():
         sys.exit()
     print()
 
-    # Cycle summary:
+    # Pump summary:
     AorB = [*flowcells.keys()][0]
+    fc = flowcells[AorB]
+    print('-'*80)
+    print()
+    print('Pump Settings:')
+    print()
+    inlet_ports = int(method.get('inlet ports', fallback = 2))
+    print('Reagents pumped through', inlet_ports, 'port inlet')
+    print(hs.p[AorB].n_barrels, 'syringe pump barrels per flowlane')
+    print('Flush volume:',fc.volume['flush'], 'μL')
+    if any([True for port in ports if port in [*range(1,9),*range(10,20)]]):
+        print('Main prime volume:', fc.volume['main'], 'μL')
+    if any([True for port in ports if port in [9,21,22,23,24]]):
+        print('Side prime volume:', fc.volume['side'], 'μL')
+    if 20 in ports:
+        print('Sample prime volume:', fc.volume['sample'], 'μL')
+    print('Flush flowrate:',fc.pump_speed['flush'], 'μL/min')
+    print('Prime flowrate:',fc.pump_speed['prime'], 'μL/min')
+    print('Reagent flowrate:',fc.pump_speed['reagent'], 'μL/min')
+    print()
+    if not userYN('Confirm pump settings'):
+        sys.exit()
+
+    # Cycle summary:
+
     variable_ports = hs.v24[AorB].variable_ports
     table = []
     for cycle in range(1,total_cycles+1):
@@ -1179,7 +1207,7 @@ def do_prime():
         while True:
             AorB_ = [*flowcells.keys()][0]
             port_dict = hs.v24[AorB_].port_dict
-            speed = flowcells[AorB_].pump_speed['reagent']
+            speed = flowcells[AorB_].pump_speed['prime']
 
             for port in port_dict.keys():
                 if isinstance(port_dict[port], int):
@@ -1652,11 +1680,6 @@ def get_config(args):
         error('ConfigFile::Error reading method configuration')
         sys.exit()
 
-    # Don't override user defined valve
-    if USERVALVE:
-        user_config = configparser.ConfigParser()
-        user_config.read(args['config'])
-        config['reagents'] = user_config['reagents']
 
     # Check method keys
     if not methods.check_settings(config[method]):
@@ -1675,6 +1698,13 @@ def get_config(args):
 
     config['experiment']['recipe path'] = recipe_path
 
+    # Don't override user defined valve
+    user_config = configparser.ConfigParser()
+    user_config.read(args['config'])
+    if USERVALVE:
+        config.read(user_config['reagents'])
+    if user_config.has_section(method):
+        config.read(user_config[method])
 
     return config
 
