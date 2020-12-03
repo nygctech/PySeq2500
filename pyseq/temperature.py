@@ -248,16 +248,12 @@ class Temperature():
 
 
         try:
-            direction = T - self.set_fc_T(fc,T)
-            if direction < 0:
-                while self.get_fc_T(fc) >= T:
-                    time.sleep(self.delay)
-            elif direction > 0:
-                while self.get_fc_T(fc) <= T:
-                    time.sleep(self.delay)
+            error = abs(T - self.set_fc_T(fc,T))
+            while error > 1:
+                time.sleep(self.delay)
+                error = abs(T - self.get_fc_T(fc,T))
         except:
             self.message('Unable to wait for flowcell', fc, 'to reach', T, '°C')
-            break
 
         T = self.get_fc_T(fc)
 
