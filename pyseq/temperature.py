@@ -254,9 +254,9 @@ class Temperature():
             error = abs(T - self.set_fc_T(fc,T))
             while error > 1:
                 time.sleep(self.delay)
-                error = abs(T - self.get_fc_T(fc,T))
+                error = abs(T - self.get_fc_T(fc))
         except:
-            self.message('Unable to wait for flowcell', fc, 'to reach', T, '°C')
+            self.write_log('Unable to wait for flowcell', fc, 'to reach', T, '°C')
 
         T = self.get_fc_T(fc)
 
