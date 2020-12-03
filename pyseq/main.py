@@ -74,6 +74,9 @@ class Flowcell():
        - filters (dict): Dictionary of filter set at each cycle, c: em, ex1, ex2.
        - IMAG_counter (None/int): Counter for multiple images per cycle.
        - events_since_IMAG (list): Record events since last IMAG step.
+       - temp_timer: Timer to check temperature of flowcell.
+       - temperature (float): Set temperature of flowcell in °C.
+       - temp_interval (float): Interval in seconds to check flowcell temperature.
 
     """
 
@@ -103,6 +106,9 @@ class Flowcell():
         self.filters = {}                                                       # Dictionary of filter set at each cycle, c: em, ex1, ex2
         self.IMAG_counter = None                                                # Counter for multiple images per cycle
         self.events_since_IMAG = []                                             # List events since last IMAG step
+        self.temp_timer = None                                                  # Timer to check temperature of flowcell
+        self.temperature = None                                                 # Set temperature of flowcell
+        self.temp_interval = None                                               # Interval in minutes to check flowcell temperature
 
         while position not in ['A', 'B']:
             print('Flowcell must be at position A or B')
@@ -140,17 +146,29 @@ class Flowcell():
     def restart_recipe(self):
         """Restarts the recipe and returns the number of completed cycles."""
 
+        # Restart recipe
         if self.recipe is not None:
             self.recipe.close()
         self.recipe = open(self.recipe_path)
+        # Increase cycle counter
         self.cycle += 1
+        # Reset image counter (if mulitple images per cycle)
         if self.IMAG_counter is not None:
             self.IMAG_counter = 0
+
         msg = 'PySeq::'+self.position+'::'
         if self.cycle > self.total_cycles:
+            # Flowcell completed all cycles
             hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
+            hs.T.fc_off(fc.position)
+            self.temperature = None
             do_rinse(self)
+            if self.temp_timer is not None:
+                self.temp_timer.cancel()
+                self.temp_timer = None
+
         else:
+            # Start new cycle
             restart_message = msg+'Starting cycle '+str(self.cycle)
             self.thread = threading.Thread(target = hs.message,
                                            args = (restart_message,))
@@ -210,6 +228,7 @@ def setup_flowcells(first_line, IMAG_counter):
             rs = int(method.get('reagent flowrate', fallback=40))
             fc.pump_speed['reagent'] = rs
             fc.total_cycles = int(config.get('experiment','cycles'))
+            fc.temp_interval = float(method.get('temperature interval', fallback=5))*60
             if IMAG_counter > 1:
                 fc.IMAG_counter = 0
             flowcells[AorB] = fc
@@ -800,6 +819,7 @@ def check_instructions():
     valid_wait = ports
     valid_wait.append('IMAG')
     valid_wait.append('STOP')
+    valid_wait.append('TEMP')
 
     f = open(config['experiment']['recipe path'])
 
@@ -807,15 +827,12 @@ def check_instructions():
     wait_counter = 0
     line_num = 1
 
-    for line in f:
+    #Remove blank lines
+    f_ = [line for line in f if line.strip()]
+    f.close()
+
+    for line in f_:
         instrument, command = parse_line(line)
-        while instrument is None:
-            line = f.readline()
-            line_num += 1
-            if line is None:
-                break
-            else:
-                instrument, command = parse_line(line)
 
         if instrument == 'PORT':
             # Make sure ports in instruction files exist in port dictionary in config file
@@ -856,17 +873,20 @@ def check_instructions():
                 else:
                     print('WARNING::HiSeq will stop until user input at line',
                            line_num)
+        elif instrument == 'TEMP':
+            if not command.isdigit():
+                error('Recipe::Invalid temperature on line', line_num)
         # # Warn user that HiSeq will completely stop with this command
         # elif instrument == 'STOP':
         #     print('WARNING::HiSeq will stop until user input at line',
         #            line_num)
-
         # Make sure the instrument name is valid
         else:
             error('Recipe::Bad instrument name on line',line_num)
+            print(line)
 
         line_num += 1
-    f.close()
+
     return first_line, IMAG_counter
 
 ##########################################################
@@ -1281,7 +1301,7 @@ def do_recipe(fc):
         fc.first_line = None
 
 
-    # get instrument and command
+    #get instrument and command
     instrument = None
     while instrument is None:
         line = fc.recipe.readline()
@@ -1291,6 +1311,7 @@ def do_recipe(fc):
             break
 
     if line:
+
         # Move reagent valve
         if instrument == 'PORT':
             #Move to cycle specific reagent if it is variable a reagent
@@ -1317,7 +1338,8 @@ def do_recipe(fc):
                 holdTime = float(command)*60
                 log_message = 'Flowcell holding for ' + str(command) + ' min.'
                 if hs.virtual:
-                    fc.thread = threading.Timer(holdTime/100/60, fc.endHOLD)
+                    #fc.thread = threading.Timer(holdTime/100/60, fc.endHOLD)
+                    fc.thread = threading.Timer(holdTime, fc.endHOLD)
                 else:
                     fc.thread = threading.Timer(holdTime, fc.endHOLD)
             elif command == 'STOP':
@@ -1330,12 +1352,16 @@ def do_recipe(fc):
             LED(AorB, 'sleep')
         # Wait for other flowcell to finish event before continuing with current flowcell
         elif instrument == 'WAIT':
-            if fc.waits_for is not None:
+            if command == 'TEMP':
+                fc.thread = threading.Thread(target = hs.T.wait_fc_T,
+                                             args=(AorB, fc.temperature,))
+                log_message = ('Waiting to reach '+str(fc.temperature)+'°C')
+            elif fc.waits_for is not None:
                 if command in flowcells[fc.waits_for].events_since_IMAG:
                     log_message = command + ' has occurred, skipping WAIT'
                     fc.thread = threading.Thread(target = do_nothing)
                 else:
-                    log_message = 'Flowcell waiting for ' + command
+                    log_message = 'Waiting for ' + command
                     fc.thread = threading.Thread(target = WAIT,
                         args = (AorB, command,))
             else:
@@ -1354,6 +1380,12 @@ def do_recipe(fc):
             fc.thread = threading.Thread(target = IMAG,
                 args = (fc,int(command),))
             LED(AorB, 'imaging')
+        elif instrument == 'TEMP':
+            log_message = 'Setting temperature to ' + command + ' °C'
+            command  = float(command)
+            fc.thread = threading.Thread(target = hs.T.set_fc_T,
+                args = (AorB,command,))
+            fc.temperature = command
         # Block all further processes until user input
         # elif instrument == 'STOP':
         #     hs.message('PySeq::Paused')
@@ -1380,6 +1412,7 @@ def do_recipe(fc):
         fc.restart_recipe()
     elif fc.cycle > fc.total_cycles:
         #End of experiment
+        fc.temperature = None
         fc.thread =  threading.Thread(target = time.sleep, args = (10,))
         fc.thread.start()
 
@@ -1544,7 +1577,6 @@ def do_rinse(fc):
     else:
         fc.thread = threading.Thread(target = do_nothing)
 
-
 ##########################################################
 ## Shut down system ######################################
 ##########################################################
@@ -1554,8 +1586,9 @@ def do_shutdown():
     for fc in flowcells.values():
         while fc.thread.is_alive():
             fc.wait_thread.set()
-            LED(fc.position, 'startup')
+            time.sleep(60)
 
+    LED('all', 'startup')
     hs.message('PySeq::Shutting down...')
 
 
@@ -1599,6 +1632,7 @@ def do_shutdown():
                               str(fc.history[2][i])+'\n')
 
     # Turn off y stage motor
+    hs.y.move(0)
     hs.y.command('OFF')
     LED('all', 'off')
 
@@ -1612,6 +1646,7 @@ def free_fc():
 
     # Get which flowcell is to be first
     experiment = config['experiment']
+    cycles = int(experiment.get('first flowcell', fallback = 'A'))
     first_fc = experiment.get('first flowcell', fallback = 'A')
 
     if len(flowcells) == 1:
@@ -1619,7 +1654,11 @@ def free_fc():
         fc.wait_thread.set()
         fc.signal_event = None
     else:
-        fc = flowcells[first_fc]
+        flowcells_ = [fc.position for fc in flowcells.values() if fc.total_cycles <= cycles]
+        if len(flowcells_) == 1:
+            fc = flowcells_[0]
+        else:
+            fc = flowcells[first_fc]
         flowcells[fc.waits_for].wait_thread.set()
         flowcells[fc.waits_for].signal_event = None
 
@@ -1708,6 +1747,29 @@ def get_config(args):
 
     return config
 
+def check_fc_temp(fc):
+    """Check temperature of flowcell."""
+
+    if fc.temperature is not None:
+        if fc.temp_timer is None:
+            fc.temp_timer = threading.Timer(fc.temp_interval, do_nothing)
+            fc.temp_timer.start()
+        if not fc.temp_timer.is_alive():
+            #print('checking temp')
+            T = hs.T.get_fc_T(fc.position)
+            hs.message(False, 'PySeq::'+fc.position+'::Temperature::',T,'°C')
+            fc.temp_timer = None
+
+            if abs(fc.temperature - T) > 5:
+                msg =  'PySeq::'+fc.position+'::WARNING::Set Temperature '
+                msg += str(fc.temperature) + ' C'
+                hs.message(msg)
+                msg =  'PySeq::'+fc.position+'::WARNING::Actual Temperature '
+                msg += str(T) + ' C'
+                hs.message(msg)
+
+            return T
+
 ###################################
 ## Run System #####################
 ###################################
@@ -1746,6 +1808,8 @@ if __name__ == 'pyseq.main':
 
                 if fc.cycle > fc.total_cycles:                                  # check if all cycles are complete on flowcell
                     complete += 1
+
+                check_fc_temp(fc)
 
             if stuck == len(flowcells):                                         # Start the first flowcell if they are waiting on each other
                 free_fc()

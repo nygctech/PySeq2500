@@ -36,7 +36,8 @@ key in this section is **recipe**. The other keys are optional.
  - **focus tolerance**: distance in microns for acceptable focus error, default is 0 um which allows for maximum error
  - **enable z stage**: Enable/disable z stage movements (bool), default is True.
  - **bundle height:** sensor bundle height of cameras (integer), only certain values are valid, default is 128
-
+ - **temperature interval:** time between checking temperature of flowcell (integer), default is 5
+ 
     ::
 
        [4i]

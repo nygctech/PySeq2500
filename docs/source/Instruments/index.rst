@@ -10,6 +10,7 @@ Instruments
    objstage
    pump
    valve
+   chemistry
    laser
    fpga
    optics

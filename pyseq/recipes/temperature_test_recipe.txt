@@ -1,0 +1,12 @@
+WAIT: dum1  #HOLD until other port 1
+TEMP: 20    #Set temperature to 20 C
+HOLD: 2     #Hold for 2 min.
+TEMP: 50    #Set temperature to 50 C
+HOLD: 2     #Hold for 2 min.
+PORT: dum1  #Move valve to port 1
+TEMP: 20    #Set temperature to 20 C
+WAIT: TEMP  #Wait till flowcell reaches 20 C
+TEMP: 50    #Set temperature to 20 C
+WAIT: TEMP  #Wait till flowcell reaches 50 C
+TEMP: 20    #Set temperature to 20 C
+WAIT: TEMP  #Wait till flowcell reaches 20 C
