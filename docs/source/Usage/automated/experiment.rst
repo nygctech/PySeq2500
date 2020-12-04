@@ -86,12 +86,12 @@ Specify cycle specific optical filters (optional).
  - **name**: optical density of filter to use (float/string), see table below.
 
 
-  ===========  ========================================
-  laser color  filters (Optical Density)
-  ===========  ========================================
-  green        open, 0.2, 0.6, 1.4, 1.6, 2.0, 4.0, home
-  red          open, 0.2, 0.9, 1.0, 2.0, 3.0, 4.5, home
-  ===========  ========================================
+  ===========  ===========  ========================================
+  laser color  laser index  filters (Optical Density)
+  ===========  ===========  ========================================
+  green        1            open, 1.0, 2.0, 3.5, 3.8, 4.0, 4.5, home
+  red          2            open, 0.2, 0.5, 0.6, 1.0, 2.4, 4.0, home
+  ===========  ===========  ========================================
 
   ::
 

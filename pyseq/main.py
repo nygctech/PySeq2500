@@ -500,8 +500,8 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
 
     #Check filters for laser at each cycle are valid
     hs.optics.cycle_dict = check_filters(hs.optics.cycle_dict, hs.optics.ex_dict)
-    focus_filters = [method.get('gree focus filter', fallback = 2.0),
-                     method.get('red focus filter', fallback = 2.0)]
+    focus_filters = [method.get('green focus filter', fallback = 2.0),
+                     method.get('red focus filter', fallback = 2.4)]
     for i, f in enumerate(focus_filters):
         if f not in hs.optics.ex_dict[hs.optics.colors[i]]:
             error('ConfigFile:: Focus filter not valid.')

@@ -101,12 +101,13 @@ Setup Optics
 ============
 The :ref:`excitaton filters<optics>` need to be moved in place before taking an
 image or autofocusing. In general the emission filter should always be set in
-the path of the light.
+the path of the light when focusing and out of the light path when imaging in
+the lowest 558 nm channel.
 
 .. code-block:: python
 
-  hs.optics.move_ex('green','1.6')
-  hs.optics.move_ex('red','1.0')
+  hs.optics.move_ex('green','open')
+  hs.optics.move_ex('red','open')
   hs.optics.move_em_in(True)
 
 Take Images
