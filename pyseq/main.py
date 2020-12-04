@@ -435,6 +435,7 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     if virtual:
         from . import virtualHiSeq
         hs = virtualHiSeq.HiSeq(logger)
+        hs.speed_up = int(method.get('speed up', fallback = 5000))
     else:
         import pyseq
         hs = pyseq.HiSeq(logger)
@@ -1338,8 +1339,8 @@ def do_recipe(fc):
                 holdTime = float(command)*60
                 log_message = 'Flowcell holding for ' + str(command) + ' min.'
                 if hs.virtual:
-                    #fc.thread = threading.Timer(holdTime/100/60, fc.endHOLD)
-                    fc.thread = threading.Timer(holdTime, fc.endHOLD)
+                    fc.thread = threading.Timer(holdTime/hs.speed_up, fc.endHOLD)
+                    #fc.thread = threading.Timer(holdTime, fc.endHOLD)
                 else:
                     fc.thread = threading.Timer(holdTime, fc.endHOLD)
             elif command == 'STOP':

@@ -934,6 +934,7 @@ class HiSeq():
         self.AF = 'partial'
         self.focus_tol = 0
         self.scan_flag = False
+        self.speed_up = 10
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
