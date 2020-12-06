@@ -503,10 +503,14 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     focus_filters = [method.get('green focus filter', fallback = 2.0),
                      method.get('red focus filter', fallback = 2.4)]
     for i, f in enumerate(focus_filters):
+        try:
+            f = float(f)
+        except:
+            pass
         if f not in hs.optics.ex_dict[hs.optics.colors[i]]:
             error('ConfigFile:: Focus filter not valid.')
         else:
-            hs.optics.focus_filters[i] = focus_filters[i]
+            hs.optics.focus_filters[i] = f
 
     # Check Autofocus Settings
     hs.AF = method.get('autofocus', fallback = 'partial once')

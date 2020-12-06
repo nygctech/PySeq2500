@@ -231,6 +231,7 @@ class Autofocus():
             del_j = []
             if hs.focus_tol:
                 if n_obj == n_markers:
+                    self.message(False, name_+'Focus points:', focus_points)
                     fp = focus_points[:,2]
                     fp_med = np.median(fp, axis = None)
                     for j, fp_ in enumerate(fp):
@@ -245,6 +246,8 @@ class Autofocus():
                                              axis =0)
 
 
+        self.message(False, name_+'Focus points:', focus_points)
+        
         return focus_points
 
 

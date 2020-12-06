@@ -176,7 +176,7 @@ def normalize(im, scale_factor):
     #plane = img_as_ubyte(plane)
 
     return plane
-
+sum
 def sum_images(images, thresh = 81, logger = None):
     """Sum pixel values over channel images.
 
@@ -199,61 +199,34 @@ def sum_images(images, thresh = 81, logger = None):
 
     name_ = 'SumImages:'
     sum_im = None
-    # ref = None
+    finished = False
 
     try:
         thresh = float(thresh)
     except:
         thresh = 81.0
 
-    # Select image with largest signal to noise as reference
-    #SNR = np.array([])
-    # i = 0
-    for c, im in enumerate(images):
-        #kurt_z, pvalue = stats.kurtosistest(im, axis = None)
-        #kurt_z = stats.kurtosis(im, axis=None)
-        k = kurt(im)
-        message(logger, name_, 'Channel',c, 'k = ', k)
-        if k > thresh:
-            #message(logger, name_, 'Signal in channel',i)
-            # Add add image
-            if sum_im is None:
-                sum_im = im.astype('int16')
+    while not finished:
+        for c, im in enumerate(images):
+            #kurt_z, pvalue = stats.kurtosistest(im, axis = None)
+            #kurt_z = stats.kurtosis(im, axis=None)
+            k = kurt(im)
+            message(logger, name_, 'kurtosis threshold (k) = ', thresh)
+            message(logger, name_, 'Channel',c, 'k = ', k)
+            if k > thresh:
+                # Add add image
+                if sum_im is None:
+                    sum_im = im.astype('int16')
+                    finished = True
+                else:
+                    sum_im = np.add(sum_im, im)
+
+        if sum_im is None:
+            if thresh >= 3:
+                thresh = 3
             else:
-                sum_im = np.add(sum_im, im)
-            #SNR = np.append(SNR,np.mean(im)/np.std(im))
-        # else:
-        #     message(logger, name_, 'No signal in channel',i)
-        #     # Remove images without signal
-        #     #SNR = np.append(SNR, 0)
-
-    #     i += 1
-    #
-    # ims = []
-    # for i, s in enumerate(SNR):
-    #   if s > 0:
-    #     ims.append(images[i])
-    # SNR = SNR[SNR > 0]
-    #
-    # if SNR.size > 0:
-    #     ref_i = np.argmax(SNR)
-    #     ref = images[ref_i]
-    #
-    #     # Sum images
-    #     for i, im in enumerate(ims):
-    #         # Match histogram to reference image
-    #         if i != ref_i:
-    #             _im = im
-    #             #_im = match_histograms(im, ref)
-    #         else:
-    #             _im = im
-    #
-    #         # Add add image
-    #         if sum_im is None:
-    #             sum_im = _im.astype('uint16')
-    #         else:
-    #             sum_im = np.add(sum_im, _im)
-
+                finished = True
+                
     return sum_im
 
 def kurt(im):
