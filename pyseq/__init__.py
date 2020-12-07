@@ -292,7 +292,8 @@ class HiSeq():
                      'em filter in ' + str(self.optics.em_in) + '\n' +
                      'interval 1 ' + str(self.cam1.getFrameInterval()) + '\n' +
                      'interval 2 ' + str(self.cam2.getFrameInterval()) + '\n'
-                     'temperature' + str(self.T.T_fc)
+                     'flowcell A ' + str(self.T.T_fc[0] + ' °C' + '\n'
+                     'flowcell B ' + str(self.T.T_fc[1] + ' °C' + '\n')
                      )
 
         return meta_f
