@@ -203,7 +203,7 @@ def setup_flowcells(first_line, IMAG_counter):
        - dict: Dictionary of flowcell position keys with flowcell object values.
 
     """
-
+    err_msg = 'ConfigFile::sections::'
     experiment = config['experiment']
     method = experiment['method']
     method = config[method]
@@ -235,16 +235,20 @@ def setup_flowcells(first_line, IMAG_counter):
 
         # Add section to flowcell
         if sect_name in flowcells[AorB].sections:
-            error('ConfigFile::', sect_name, 'duplicated on flowcell', AorB)
+            error(err_msg, sect_name, 'duplicated on flowcell', AorB)
         else:
             coord = coord.split(',')
             flowcells[AorB].sections[sect_name] = []                            # List to store coordinates of section on flowcell
             flowcells[AorB].stage[sect_name] = {}                               # Dictionary to store stage position of section on flowcell
+            if float(coord[0]) <  float(coord[2]):
+                error(err_msg,'Invalid x coordinates for', sect_name)
+            if float(coord[1]) <  float(coord[3]):
+                error(err_msg, 'Invalid y coordinates for', sect_name)
             for i in range(4):
                 try:
                     flowcells[AorB].sections[sect_name].append(float(coord[i]))
                 except:
-                    error('ConfigFile::No position for', sect_name)
+                    error(err_msg,' No position for', sect_name)
 
         # if runnning mulitiple flowcells...
         # Define first flowcell
@@ -696,7 +700,9 @@ def confirm_settings():
         print('red laser power:',laser_power[1], 'mW')
         print('autofocus:', hs.AF)
         if hs.focus_tol > 0:
-            print('focus_tolerance', hs.focus_tol, 'um')
+            print('focus_tolerance:', hs.focus_tol, 'um')
+        else:
+            print('focus_tolerance:', 'None WARNING::This may result in bad focus)')
         for i, filter in enumerate(hs.optics.focus_filters):
             if filter == 'home':
                 focus_laser_power = 0
@@ -1591,7 +1597,7 @@ def do_shutdown():
     for fc in flowcells.values():
         while fc.thread.is_alive():
             fc.wait_thread.set()
-            time.sleep(60)
+            time.sleep(10)
 
     LED('all', 'startup')
     hs.message('PySeq::Shutting down...')
