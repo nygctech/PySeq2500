@@ -560,6 +560,11 @@ def confirm_settings():
     except:
         print_table = False
 
+    if n_errors > 0:
+        print()
+        if not userYN('Continue checking experiment before exiting'):
+            sys.exit()
+
     # Experiment summary
     print()
     print('-'*80)
@@ -1160,11 +1165,9 @@ def do_flush():
                 flush_ports = good
 
     if len(flush_ports) > 0:
-        print('Lock temporary flowcell(s) on to stage')
-        print('Place all valve input lines in water')
-        ready = True
-        while ready:
-            ready = not userYN('Ready to continue')
+        while not userYN('Temporary flowcell(s) locked on to stage'): pass
+        while not userYN('All valve input lines in water'): pass
+        while not userYN('Ready to flush'): pass
 
         LED('all', 'startup')
 
@@ -1202,16 +1205,16 @@ def do_flush():
 ##########################################################
 ## Flush Lines ###########################################
 ##########################################################
-def do_prime():
+def do_prime(flush_YorN):
     """Prime lines with all reagents in config if prompted."""
 
     LED('all', 'user')
 
-    ## Flush lines
+    ## Prime lines
     confirm = False
     while not confirm:
-        flush_YorN = userYN("Prime lines")
-        if flush_YorN:
+        prime_YorN = userYN("Prime lines")
+        if prime_YorN:
             confirm = userYN("Confirm prime lines")
         else:
             confirm = userYN("Confirm skip priming lines")
@@ -1220,12 +1223,11 @@ def do_prime():
     # hs.move_stage_out()
     #LED('all', 'user')
 
-    if flush_YorN:
-        print('Lock temporary flowcell(s) on to stage')
-        print('Place all valve input lines in reagents')
-        ready = True
-        while ready:
-            ready = not userYN('Ready to continue')
+    if prime_YorN:
+        if flush_YorN:
+            while not userYN('Temporary flowcell(s) locked on to stage'): pass
+        while not userYN('Valve input lines in reagents'): pass
+        while not userYN('Ready to prime lines'): pass
 
         #Flush all lines
         LED('all', 'startup')
@@ -1270,14 +1272,12 @@ def do_prime():
             break
 
 
-        print('Remove temporary flowcell(s)')
+        while not userYN('Temporary flowcell(s) removed'): pass
 
-
-    print('Lock experiment flowcell(s) on to stage')
-    print('Place all valve input lines in correct reagents')
-    ready = True
-    while ready:
-        ready = not userYN("Ready to continue")
+    while not userYN('Experiment flowcell(s) locked on to stage'): pass
+    if not prime_YorN:
+        while not userYN('Valve input lines in reagents'): passs
+    while not userYN('Door closed'): pass
 
 ##########################################################
 def do_nothing():
@@ -1791,8 +1791,8 @@ if __name__ == 'pyseq.main':
     hs = initialize_hs(args_['virtual'], IMAG_counter)                          # Initialize HiSeq, takes a few minutes
 
     if n_errors is 0:
-        do_flush()                                                              # Ask to flush out lines
-        do_prime()                                                              # Ask to prime lines
+        flush_YorN = do_flush()                                                 # Ask to flush out lines
+        do_prime(flush_YorN)                                                    # Ask to prime lines
         if not userYN('Start experiment'):
             sys.exit()
         for fc in flowcells.values():                                           #initialize flowcells

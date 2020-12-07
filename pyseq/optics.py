@@ -91,7 +91,7 @@ class Optics():
         self.focus_filters = [None, None]
         self.ex_dict = {
                         # EX1
-                        self.colors[0]:
+                        colors[0]:
                         {'home' : 0,
                          4.5 : -36,
                          3.8 : -71,
@@ -101,7 +101,7 @@ class Optics():
                          2.0 : 71,
                          4.0 : 36},
                         # EX
-                        self.colors[1]:
+                        colors[1]:
                         {'home' : 0,
                          4.0 : 36,
                          2.4 : 71,
@@ -112,7 +112,9 @@ class Optics():
                          0.5: -71}
                         }
 
-
+        print('red', self.ex_dict['red'])
+        print('green', self.ex_dict['green'])
+        
     def initialize(self):
         """Initialize the optics.
 
