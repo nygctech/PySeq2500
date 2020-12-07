@@ -77,6 +77,7 @@ class Flowcell():
        - temp_timer: Timer to check temperature of flowcell.
        - temperature (float): Set temperature of flowcell in °C.
        - temp_interval (float): Interval in seconds to check flowcell temperature.
+       - z_planes (int): Override number of z planes to image in recipe.
 
     """
 
@@ -109,6 +110,7 @@ class Flowcell():
         self.temp_timer = None                                                  # Timer to check temperature of flowcell
         self.temperature = None                                                 # Set temperature of flowcell
         self.temp_interval = None                                               # Interval in minutes to check flowcell temperature
+        self.z_planes = None                                                    # Override number of z planes to image in recipe.
 
         while position not in ['A', 'B']:
             print('Flowcell must be at position A or B')
@@ -229,6 +231,9 @@ def setup_flowcells(first_line, IMAG_counter):
             fc.pump_speed['reagent'] = rs
             fc.total_cycles = int(config.get('experiment','cycles'))
             fc.temp_interval = float(method.get('temperature interval', fallback=5))*60
+            z_planes = int(method.get('z planes', fallback=0))
+            if z_planes > 0:
+                fc.z_planes = z_planes
             if IMAG_counter > 1:
                 fc.IMAG_counter = 0
             flowcells[AorB] = fc
@@ -550,7 +555,7 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
 
     return hs
 
-def confirm_settings():
+def confirm_settings(recipe_z_planes = []):
     """Have user confirm the HiSeq settings before experiment."""
 
     experiment = config['experiment']
@@ -579,7 +584,7 @@ def confirm_settings():
     print('recipe:', method['recipe'])
     print('cycles:', experiment['cycles'])
     print('save path:', experiment['save path'])
-    print('z stage active:', hs.z.active)
+    print('enable z stage:', hs.z.active)
     print()
     if not userYN('Confirm experiment'):
         sys.exit()
@@ -630,8 +635,8 @@ def confirm_settings():
     print('Pump Settings:')
     print()
     inlet_ports = int(method.get('inlet ports', fallback = 2))
-    print('Reagents pumped through', inlet_ports, 'port inlet')
-    print(hs.p[AorB].n_barrels, 'syringe pump barrels per flowlane')
+    print('Reagents pumped through row with ', inlet_ports, 'inlet ports')
+    print(hs.p[AorB].n_barrels, 'syringe pump barrels per lane')
     print('Flush volume:',fc.volume['flush'], 'μL')
     if any([True for port in ports if port in [*range(1,9),*range(10,20)]]):
         print('Main prime volume:', fc.volume['main'], 'μL')
@@ -700,9 +705,10 @@ def confirm_settings():
         print('red laser power:',laser_power[1], 'mW')
         print('autofocus:', hs.AF)
         if hs.focus_tol > 0:
-            print('focus_tolerance:', hs.focus_tol, 'um')
+            print('focus tolerance:', hs.focus_tol, 'um')
         else:
-            print('focus_tolerance:', 'None WARNING::This may result in bad focus)')
+            print('focus tolerance:', None, end = ' ')
+            print('WARNING::Out of focus image risk increased')
         for i, filter in enumerate(hs.optics.focus_filters):
             if filter == 'home':
                 focus_laser_power = 0
@@ -711,8 +717,13 @@ def confirm_settings():
             else:
                 focus_laser_power = laser_power[i]*10**(-float(filter))
             print(colors[i+1], 'focus laser power ~', focus_laser_power, 'mW')
-        print('z stage step position when imaging:', hs.z.image_step)
-        print()
+        print('z position when imaging:', hs.z.image_step)
+        z_planes = int(method.get('z planes', fallback = 0))
+        if z_planes > 0:
+            print('z planes:', z_planes)
+        else:
+            print('z planes:', *recipe_z_planes)
+
         if not userYN('Confirm imaging settings'):
             sys.exit()
 
@@ -841,6 +852,7 @@ def check_instructions():
 
     IMAG_counter = 0.0
     wait_counter = 0
+    z_planes = []
     line_num = 1
 
     #Remove blank lines
@@ -880,6 +892,8 @@ def check_instructions():
                 IMAG_counter = float(IMAG_counter)
             if command.isdigit() == False:
                 error('Recipe::Invalid number of z planes on line', line_num)
+            else:
+                z_planes.append(command)
 
         # Make sure hold time (minutes) is a number
         elif instrument == 'HOLD':
@@ -903,7 +917,7 @@ def check_instructions():
 
         line_num += 1
 
-    return first_line, IMAG_counter
+    return first_line, IMAG_counter, z_planes
 
 ##########################################################
 ## Check Ports ###########################################
@@ -1480,6 +1494,9 @@ def IMAG(fc, n_Zplanes):
                 pos['obj_pos'] = hs.obj.position
             write_obj_pos(section, cycle)
 
+        #Override recipe number of z planes
+        if fc.z_planes is not None: n_Zplanes = fc.z_planes
+
         # Calculate objective positions to image
         if n_Zplanes > 1:
             obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes*2/3)       # Want 2/3 of planes below opt_ob_pos and 1/3 of planes above
@@ -1790,10 +1807,10 @@ if __name__ == 'pyseq.main':
     config = get_config(args_)                                                  # Get config file
     logger = setup_logger()                                                     # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
-    first_line, IMAG_counter = check_instructions()                             # Checks instruction file is correct and makes sense
+    first_line, IMAG_counter, z_planes = check_instructions()                   # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, IMAG_counter)                       # Create flowcells
     hs = configure_instrument(args_['virtual'], IMAG_counter, port_dict)
-    confirm_settings()
+    confirm_settings(z_planes)
     hs = initialize_hs(args_['virtual'], IMAG_counter)                          # Initialize HiSeq, takes a few minutes
 
     if n_errors is 0:
