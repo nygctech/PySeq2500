@@ -782,6 +782,9 @@ def initialize_hs(virtual, IMAG_counter):
 
     if n_errors is 0:
 
+        if not userYN('Initialize HiSeq'):
+            sys.exit()
+
         x_homed = hs.initializeInstruments()
         if not x_homed:
             error('HiSeq:: X-Stage did not home correctly')

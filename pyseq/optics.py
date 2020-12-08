@@ -112,8 +112,6 @@ class Optics():
                          0.5: -71}
                         }
 
-        print('red', self.ex_dict['red'])
-        print('green', self.ex_dict['green'])
         
     def initialize(self):
         """Initialize the optics.
