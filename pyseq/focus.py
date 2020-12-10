@@ -240,19 +240,19 @@ class Autofocus():
                         if abs(fp_-fp_med) > hs.obj.spum*hs.focus_tol*2:
                             del_j.append(j)
                             #self.message(name_+'Removed point', j)
-                            self.message(False, name_,'Bad point::' focus_points[j,:])
+                            self.message(False, name_,'Bad point::', focus_points[j,:])
                         else:
-                            self.message(False, name_,'Good  point::' focus_points[j,:])
+                            self.message(False, name_,'Good  point::', focus_points[j,:])
                     #focus_points = np.delete(focus_points, del_j, 0)            # remove points points far from median
-                    n_more_markers = n_markers - (len(fp) - len(del_j))
-                    if n_more_markers < 0:
-                        n_more_markers = 0
                     #n_obj = focus_points.shape[0]
                     focus_points = np.append(focus_points,
-                                             np.full((n_more_markers,4), -1),
+                                             np.full((1,4), -1),
                                              axis =0)
-                    n_markers_ += n_more_markers
-
+                    if len(del_j) > 0:
+                        n_markers_ += 1
+                        focus_points = np.append(focus_points,
+                                                 np.full((1,4),-1),
+                                                 axis=0)
 
         self.message(False, name_+'Focus points:', focus_points)
 
