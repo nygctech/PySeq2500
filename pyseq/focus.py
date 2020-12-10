@@ -181,12 +181,14 @@ class Autofocus():
         scale = self.scale
         p2s = self.hs.px_to_step
         name_ = 'GetFocusData::'
+        n_markers_ = n_markers
 
         focus_points = np.full((n_markers,4), -1)
         i = 0
         n_obj = 0
         focus_data = None
-        while n_obj < n_markers:
+
+        while n_obj < n_markers_:
         # Take obj_stack at focus points until n_markers have been found
             px_pt = px_points[i,:]
             [x_pos, y_pos] = p2s(px_pt[0], px_pt[1], pos_dict, scale)
@@ -230,19 +232,26 @@ class Autofocus():
             # Check if focus positions are high quality
             del_j = []
             if hs.focus_tol:
-                if n_obj == n_markers:
+                if n_obj == n_markers_:
                     fp = focus_points[:,2]
                     fp_med = np.median(fp, axis = None)
+                    self.message(False, name_,'Median objective focus step::', fp_med)
                     for j, fp_ in enumerate(fp):
                         if abs(fp_-fp_med) > hs.obj.spum*hs.focus_tol*2:
                             del_j.append(j)
-                            self.message(name_+'Removed point', j)
-                            self.message(False, name_, focus_points[j,:])
-                    focus_points = np.delete(focus_points, del_j, 0)            # remove points points far from median
-                    n_obj = focus_points.shape[0]
+                            #self.message(name_+'Removed point', j)
+                            self.message(False, name_,'Bad point::' focus_points[j,:])
+                        else:
+                            self.message(False, name_,'Good  point::' focus_points[j,:])
+                    #focus_points = np.delete(focus_points, del_j, 0)            # remove points points far from median
+                    n_more_markers = n_markers - (len(fp) - len(del_j))
+                    if n_more_markers < 0:
+                        n_more_markers = 0
+                    #n_obj = focus_points.shape[0]
                     focus_points = np.append(focus_points,
-                                             np.full((len(del_j),4), -1),
+                                             np.full((n_more_markers,4), -1),
                                              axis =0)
+                    n_markers_ += n_more_markers
 
 
         return focus_points
