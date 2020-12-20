@@ -250,9 +250,9 @@ class Autofocus():
                     #                          axis =0)
                     # Check more points if not enough good markers
                     if n_markers_ - len(del_j) < n_markers:
-                        n_markers_ += 1
+                        n_markers_ += 2
                         focus_points = np.append(focus_points,
-                                                 np.full((1,4),-1),
+                                                 np.full((2,4),-1),
                                                  axis=0)
 
         self.message(False, name_+'Focus points:', focus_points)
@@ -576,6 +576,7 @@ def autofocus(hs, pos_dict):
 
         # Get stage positions on in-focus points
         af.message('Finding optimal focus')
+        if not n_markers % 2: n_markers += 1                                    # make sure n_markers is odd, to ensure median is a point and not average
         focus_points = af.get_focus_data(ord_points, n_markers)
         if focus_points.any():
             opt_obj_pos = int(np.median(focus_points[:,2]))
