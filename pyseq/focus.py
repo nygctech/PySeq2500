@@ -248,7 +248,8 @@ class Autofocus():
                     focus_points = np.append(focus_points,
                                              np.full((1,4), -1),
                                              axis =0)
-                    if len(del_j) > 0:
+                    # Check more points if not enough good markers
+                    if n_markers_ - len(del_j) < n_markers:
                         n_markers_ += 1
                         focus_points = np.append(focus_points,
                                                  np.full((1,4),-1),
