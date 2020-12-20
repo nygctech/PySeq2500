@@ -237,7 +237,7 @@ class Autofocus():
                     fp_med = np.median(fp, axis = None)
                     self.message(False, name_,'Median objective focus step::', fp_med)
                     for j, fp_ in enumerate(fp):
-                        if abs(fp_-fp_med) > hs.obj.spum*hs.focus_tol*2:
+                        if abs(fp_-fp_med) > hs.obj.spum*hs.focus_tol:
                             del_j.append(j)
                             #self.message(name_+'Removed point', j)
                             self.message(False, name_,'Bad point::', focus_points[j,:])
