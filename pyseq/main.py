@@ -1299,7 +1299,7 @@ def do_prime(flush_YorN):
 
     while not userYN('Experiment flowcell(s) locked on to stage'): pass
     if not prime_YorN:
-        while not userYN('Valve input lines in reagents'): passs
+        while not userYN('Valve input lines in reagents'): pass
     while not userYN('Door closed'): pass
 
 ##########################################################
