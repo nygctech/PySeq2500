@@ -245,9 +245,9 @@ class Autofocus():
                             self.message(False, name_,'Good  point::', focus_points[j,:])
                     #focus_points = np.delete(focus_points, del_j, 0)            # remove points points far from median
                     #n_obj = focus_points.shape[0]
-                    focus_points = np.append(focus_points,
-                                             np.full((1,4), -1),
-                                             axis =0)
+                    # focus_points = np.append(focus_points,
+                    #                          np.full((1,4), -1),
+                    #                          axis =0)
                     # Check more points if not enough good markers
                     if n_markers_ - len(del_j) < n_markers:
                         n_markers_ += 1
@@ -559,9 +559,9 @@ def autofocus(hs, pos_dict):
         af.message('Analyzing out of focus image')
         # Sum channels with signal
         if 'partial' in hs.AF:
-            sum_im = IA.sum_images(af.rough_ims, 1, hs.logger)
+            sum_im = IA.sum_images(af.rough_ims, thresh=1, logger=hs.logger)
         else:
-            sum_im = IA.sum_images(af.rough_ims, hs.logger)
+            sum_im = IA.sum_images(af.rough_ims, logger=hs.logger)
     else:
         sum_im = None
 
