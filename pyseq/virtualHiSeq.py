@@ -925,6 +925,7 @@ class HiSeq():
                           'B':[43310,-180000]}
         self.tile_width = 0.769                                                 #mm
         self.resolution = 0.375                                                 #um/px
+        self.overlap = 0
         self.bundle_height = 128
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
@@ -1292,7 +1293,8 @@ class HiSeq():
         """
 
         self.scan_flag = True
-        dx = round((self.tile_width*1000-self.resolution*overlap)*self.x.spum)  #number of steps to move x stage
+        dx = self.tile_width*1000-self.resolution*self.overlap                  # x stage delta in in microns
+        dx = round(dx*self.x.spum)
 
         if image_name is None:
             image_name = time.strftime('%Y%m%d_%H%M%S')
@@ -1441,7 +1443,13 @@ class HiSeq():
         URy = box[3]
 
         # Number of scans
-        n_tiles = ceil((LLx - URx)/self.tile_width)
+
+        dx = self.tile_width-self.resolution*self.overlap/1000                  # x stage delta in in mm
+        n_tiles = ceil((LLx - URx)/dx)
+        print(dx)
+        print(self.overlap)
+        print(n_tiles)
+
         pos['n_tiles'] = n_tiles
 
         # X center of scan
@@ -1451,7 +1459,7 @@ class HiSeq():
         x_center = int(x_center)
 
         # initial X of scan
-        x_initial = int(x_center - n_tiles*self.tile_width*1000*self.x.spum/2)
+        x_initial = int(x_center - n_tiles*dx*1000*self.x.spum/2)
         pos['x_initial'] = x_initial
 
         # initial Y of scan
@@ -1475,7 +1483,7 @@ class HiSeq():
 
         # Calculate final x & y stage positions of scan
         pos['y_final'] = int(y_initial - y_length*self.y.spum)
-        pos['x_final'] = int(x_initial + 315*self.tile_width)
+        pos['x_final'] = int(x_initial + dx*n_tiles*self.x.spum)
 
         pos['obj_pos'] = None
 

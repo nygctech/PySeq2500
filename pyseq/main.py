@@ -472,6 +472,8 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
 
     variable_ports = method.get('variable reagents', fallback = None)
     hs.z.image_step = int(method.get('z position', fallback = 21500))
+    hs.overlap = int(method.get('overlap', fallback = 0))
+    print('main::',hs.overlap)
 
     for fc in flowcells.values():
         AorB = fc.position
@@ -531,7 +533,6 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     hs.focus_tol = float(method.get('focus tolerance', fallback = 0))
 
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
-    hs.overlap = int(method.get('overlap', fallback = 0))
 
     # Assign output directory
     save_path = experiment['save path']
@@ -718,6 +719,7 @@ def confirm_settings(recipe_z_planes = []):
                 focus_laser_power = laser_power[i]*10**(-float(filter))
             print(colors[i+1], 'focus laser power ~', focus_laser_power, 'mW')
         print('z position when imaging:', hs.z.image_step)
+        print('pixel overlap:', hs.overlap)
         z_planes = int(method.get('z planes', fallback = 0))
         if z_planes > 0:
             print('z planes:', z_planes)
@@ -1530,7 +1532,7 @@ def IMAG(fc, n_Zplanes):
         hs.message(msg + 'Start Imaging')
 
         try:
-            scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name, hs.overlap)
+            scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name)
             scan_time = str(int(scan_time/60))
             hs.message(msg + 'Imaging completed in', scan_time, 'minutes')
         except:
