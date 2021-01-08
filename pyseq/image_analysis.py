@@ -207,11 +207,11 @@ def sum_images(images, thresh = 81, logger = None):
         thresh = 81.0
 
     while not finished:
+        message(logger, name_, 'kurtosis threshold (k) = ', thresh)
         for c, im in enumerate(images):
             #kurt_z, pvalue = stats.kurtosistest(im, axis = None)
             #kurt_z = stats.kurtosis(im, axis=None)
             k = kurt(im)
-            message(logger, name_, 'kurtosis threshold (k) = ', thresh)
             message(logger, name_, 'Channel',c, 'k = ', k)
             if k > thresh:
                 # Add add image
@@ -226,7 +226,7 @@ def sum_images(images, thresh = 81, logger = None):
                 thresh = 3
             else:
                 finished = True
-                
+
     return sum_im
 
 def kurt(im):

@@ -237,7 +237,7 @@ class Autofocus():
                     fp_med = np.median(fp, axis = None)
                     self.message(False, name_,'Median objective focus step::', fp_med)
                     for j, fp_ in enumerate(fp):
-                        if abs(fp_-fp_med) > hs.obj.spum*hs.focus_tol*2:
+                        if abs(fp_-fp_med) > hs.obj.spum*hs.focus_tol:
                             del_j.append(j)
                             #self.message(name_+'Removed point', j)
                             self.message(False, name_,'Bad point::', focus_points[j,:])
@@ -245,16 +245,17 @@ class Autofocus():
                             self.message(False, name_,'Good  point::', focus_points[j,:])
                     #focus_points = np.delete(focus_points, del_j, 0)            # remove points points far from median
                     #n_obj = focus_points.shape[0]
-                    focus_points = np.append(focus_points,
-                                             np.full((1,4), -1),
-                                             axis =0)
-                    if len(del_j) > 0:
-                        n_markers_ += 1
+                    # focus_points = np.append(focus_points,
+                    #                          np.full((1,4), -1),
+                    #                          axis =0)
+                    # Check more points if not enough good markers
+                    if n_markers_ - len(del_j) < n_markers:
+                        n_markers_ += 2
                         focus_points = np.append(focus_points,
-                                                 np.full((1,4),-1),
+                                                 np.full((2,4),-1),
                                                  axis=0)
 
-        self.message(False, name_+'Focus points:', focus_points)
+        focus_points = np.delete(focus_points, del_j, 0)                                     
 
         return focus_points
 
@@ -558,9 +559,9 @@ def autofocus(hs, pos_dict):
         af.message('Analyzing out of focus image')
         # Sum channels with signal
         if 'partial' in hs.AF:
-            sum_im = IA.sum_images(af.rough_ims, 1, hs.logger)
+            sum_im = IA.sum_images(af.rough_ims, thresh=1, logger=hs.logger)
         else:
-            sum_im = IA.sum_images(af.rough_ims, hs.logger)
+            sum_im = IA.sum_images(af.rough_ims, logger=hs.logger)
     else:
         sum_im = None
 
@@ -575,6 +576,7 @@ def autofocus(hs, pos_dict):
 
         # Get stage positions on in-focus points
         af.message('Finding optimal focus')
+        if not n_markers % 2: n_markers += 1                                    # make sure n_markers is odd, to ensure median is a point and not average
         focus_points = af.get_focus_data(ord_points, n_markers)
         if focus_points.any():
             opt_obj_pos = int(np.median(focus_points[:,2]))
