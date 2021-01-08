@@ -473,7 +473,6 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     variable_ports = method.get('variable reagents', fallback = None)
     hs.z.image_step = int(method.get('z position', fallback = 21500))
     hs.overlap = int(method.get('overlap', fallback = 0))
-    print('main::',hs.overlap)
 
     for fc in flowcells.values():
         AorB = fc.position

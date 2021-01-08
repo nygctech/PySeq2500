@@ -1446,9 +1446,6 @@ class HiSeq():
 
         dx = self.tile_width-self.resolution*self.overlap/1000                  # x stage delta in in mm
         n_tiles = ceil((LLx - URx)/dx)
-        print(dx)
-        print(self.overlap)
-        print(n_tiles)
 
         pos['n_tiles'] = n_tiles
 
