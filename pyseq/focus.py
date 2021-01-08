@@ -133,6 +133,7 @@ class Autofocus():
 
         x_initial = hs.x.position
         y_initial = hs.y.position
+        n_tiles = (x_initial - pos_dict['x final'])/(hs.tile_width*1000*hs.x.spum)
         # Move to rough focus position
         #hs.obj.move(hs.obj.focus_rough)
         #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
@@ -255,7 +256,7 @@ class Autofocus():
                                                  np.full((2,4),-1),
                                                  axis=0)
 
-                    focus_points = np.delete(focus_points, del_j, 0)                                     
+        focus_points = np.delete(focus_points, del_j, 0)
 
         return focus_points
 
