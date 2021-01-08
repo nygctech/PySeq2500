@@ -504,7 +504,7 @@ class Optics():
         self.cycle_dict = {'em':{}, self.colors[0]:{}, self.colors[1]:{}}
         self.ex_dict = {
                         # EX1
-                        self.colors[0]:
+                        colors[0]:
                         {'home' : 0,
                          4.5 : -36,
                          3.8 : -71,
@@ -514,7 +514,7 @@ class Optics():
                          2.0 : 71,
                          4.0 : 36},
                         # EX
-                        self.colors[1]:
+                        colors[1]:
                         {'home' : 0,
                          4.0 : 36,
                          2.4 : 71,
