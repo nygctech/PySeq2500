@@ -738,7 +738,7 @@ class HiSeq():
 
         return stop-start
 
-    def scan(self, n_tiles, n_Zplanes, n_frames, image_name=None):
+    def scan(self, n_tiles, n_Zplanes, n_frames, image_name=None, overlap=0):
         """Image a volume.
 
            Images a zstack at incremental x positions.
@@ -759,7 +759,7 @@ class HiSeq():
         """
 
         self.scan_flag = True
-        dx = self.tile_width*1000-self.resolution*self.overlap                  # x stage delta in in microns
+        dx = self.tile_width*1000-self.resolution*overlap                       # x stage delta in in microns
         dx = round(dx*self.x.spum)                                              # x stage delta in steps
 
         if image_name is None:

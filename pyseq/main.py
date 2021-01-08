@@ -1531,7 +1531,7 @@ def IMAG(fc, n_Zplanes):
         hs.message(msg + 'Start Imaging')
 
         try:
-            scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name)
+            scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name, hs.overlap)
             scan_time = str(int(scan_time/60))
             hs.message(msg + 'Imaging completed in', scan_time, 'minutes')
         except:
