@@ -133,7 +133,7 @@ class Autofocus():
 
         x_initial = hs.x.position
         y_initial = hs.y.position
-        n_tiles = (x_initial - pos_dict['x_final'])/(hs.tile_width*1000*hs.x.spum)
+        n_tiles = int((x_initial - pos_dict['x_final'])/(hs.tile_width*1000*hs.x.spum))
         # Move to rough focus position
         #hs.obj.move(hs.obj.focus_rough)
         #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]

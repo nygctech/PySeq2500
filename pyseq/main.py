@@ -945,6 +945,7 @@ def check_ports():
     # Make sure there are no duplicated names in the valve
     if len(valve.values()) != len(set(valve.values())):
         error('ConfigFile: Reagent names are not unique')
+        #TODO: PRINT DUPLICATES
 
     if len(valve) > 0:
         # Create port dictionary
