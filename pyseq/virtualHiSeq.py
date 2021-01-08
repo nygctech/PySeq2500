@@ -1293,7 +1293,7 @@ class HiSeq():
         """
 
         self.scan_flag = True
-        dx = self.tile_width*1000-self.resolution*self.overlap                  # x stage delta in in microns
+        dx = self.tile_width*1000-self.resolution*overlap                  # x stage delta in in microns
         dx = round(dx*self.x.spum)
 
         if image_name is None:
