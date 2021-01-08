@@ -255,7 +255,7 @@ class Autofocus():
                                                  np.full((2,4),-1),
                                                  axis=0)
 
-        focus_points = np.delete(focus_points, del_j, 0)                                     
+                    focus_points = np.delete(focus_points, del_j, 0)                                     
 
         return focus_points
 
