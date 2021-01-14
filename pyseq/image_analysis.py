@@ -1,6 +1,9 @@
 #!/usr/bin/python
 
 import numpy as np
+import dask.array as da
+import xarray
+import napari
 import pandas as pd
 from math import log2
 from os import listdir, stat, path, getcwd
@@ -176,7 +179,7 @@ def normalize(im, scale_factor):
     #plane = img_as_ubyte(plane)
 
     return plane
-sum
+
 def sum_images(images, thresh = 81, logger = None):
     """Sum pixel values over channel images.
 
@@ -206,6 +209,7 @@ def sum_images(images, thresh = 81, logger = None):
     except:
         thresh = 81.0
 
+    i = 0
     while not finished:
         message(logger, name_, 'kurtosis threshold (k) = ', thresh)
         for c, im in enumerate(images):
@@ -222,8 +226,8 @@ def sum_images(images, thresh = 81, logger = None):
                     sum_im = np.add(sum_im, im)
 
         if sum_im is None:
-            if thresh >= 3:
-                thresh = 3
+            if i <= 4:
+                thresh = 3**(4-i)
             else:
                 finished = True
 
