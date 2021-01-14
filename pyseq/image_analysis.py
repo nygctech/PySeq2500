@@ -182,7 +182,7 @@ def normalize(im, scale_factor):
 
     return plane
 
-def sum_images(images, thresh = 81, logger = None):
+def sum_images(images, logger = None):
     """Sum pixel values over channel images.
 
        The image with the largest signal to noise ratio is used as the
@@ -206,11 +206,8 @@ def sum_images(images, thresh = 81, logger = None):
     sum_im = None
     finished = False
 
-    try:
-        thresh = float(thresh)
-    except:
-        thresh = 81.0
 
+    thresh = 81.0
     i = 0
     while not finished:
         message(logger, name_, 'kurtosis threshold (k) = ', thresh)
@@ -228,8 +225,9 @@ def sum_images(images, thresh = 81, logger = None):
                     sum_im = np.add(sum_im, im)
 
         if sum_im is None:
-            if i <= 4:
-                thresh = 3**(4-i)
+            if i <= 3:
+                thresh = 3**(3-i)
+                i+=1
             else:
                 finished = True
 
