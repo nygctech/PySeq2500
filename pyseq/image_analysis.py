@@ -341,7 +341,7 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
         _markers = np.delete(_markers,[prev2,prev1], axis=0)
         for i in range(2,n_markers):
           dist2 = np.array([dist[prev2,:],dist[prev1,:]])
-          ind = np.argmax(np.sum(dist2,axis=0)))
+          ind = np.argmax(np.sum(dist2,axis=0))
           ord_points[i,:] = _markers[ind,:]
           dist = np.delete(dist,ind,1)
           _markers = np.delete(_markers,ind, axis=0)

@@ -1090,13 +1090,12 @@ def check_filters(cycle_dict, ex_dict):
         except:
             pass
         if laser in ex_dict.keys():
-            print(laser, filter)
             if filter in ex_dict[laser].keys():
                 default_filters[laser] = filter
         elif laser == 'em':
             if filter in ['True', 'False']:
                 default_filters[laser] = filter
-    # Assign default filters to missing cycles    
+    # Assign default filters to missing cycles
     for cycle in range(start_cycle,last_cycle):
         for laser in colors:
             if cycle not in cycle_dict[laser]:
