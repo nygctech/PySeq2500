@@ -671,7 +671,6 @@ def confirm_settings(recipe_z_planes = []):
     if method.get('pre recipe', fallback = None) is not None:
         start_cycle = 0
     table = []
-    start_cycle = 0
     for cycle in range(start_cycle,total_cycles+1):
         row = []
         row.append(cycle)
@@ -1081,19 +1080,27 @@ def check_filters(cycle_dict, ex_dict):
     if method.get('pre recipe', fallback = None):
         start_cycle = 0
     last_cycle = int(config.get('experiment','cycles'))+1
-    for c in range(start_cycle,last_cycle):
-        if c not in cycle_dict[colors[0]]:
-            cycle_dict[colors[0]][c] = method.get(
-                                       'default em filter',
-                                        fallback = 'True')
-        if c not in cycle_dict[colors[1]]:
-            cycle_dict[colors[1]][c] = method.get(
-                                       'default green filter',
-                                        fallback = 'home')
-        if c not in cycle_dict[colors[2]]:
-            cycle_dict[colors[2]][c] = method.get(
-                                       'default red filter',
-                                        fallback = 'home')
+    # Get/check default filters
+    default_filters = {}
+    fallbacks = {'red':'home', 'green':'home', 'em':'True'}
+    for laser in colors:
+        filter =  method.get('default '+laser+' filter', fallback = fallbacks[laser])
+        try:
+            filter = float(filter)
+        except:
+            pass
+        if laser in ex_dict.keys():
+            print(laser, filter)
+            if filter in ex_dict[laser].keys():
+                default_filters[laser] = filter
+        elif laser == 'em':
+            if filter in ['True', 'False']:
+                default_filters[laser] = filter
+    # Assign default filters to missing cycles    
+    for cycle in range(start_cycle,last_cycle):
+        for laser in colors:
+            if cycle not in cycle_dict[laser]:
+                 cycle_dict[laser][cycle] = default_filters[laser]
 
     return cycle_dict
 
