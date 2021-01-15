@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from numpy.linalg import svd
 from os import path, listdir, stat, remove
-from math import log2
+from math import log2, ceil
 from . import image_analysis as IA
 from scipy import stats
 from scipy.optimize import least_squares
@@ -133,7 +133,7 @@ class Autofocus():
 
         x_initial = hs.x.position
         y_initial = hs.y.position
-        n_tiles = int((pos_dict['x_final']-x_initial)/hs.tile_width)
+        n_tiles = ceil((pos_dict['x_final']-x_initial)/hs.x.spum/(hs.tile_width*1000))
         # Move to rough focus position
         #hs.obj.move(hs.obj.focus_rough)
         #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]

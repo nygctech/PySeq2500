@@ -1480,7 +1480,7 @@ class HiSeq():
 
         # Calculate final x & y stage positions of scan
         pos['y_final'] = int(y_initial - y_length*self.y.spum)
-        pos['x_final'] = int(x_initial + dx*n_tiles*self.x.spum)
+        pos['x_final'] = int(x_initial +(LLx - URx)*1000*self.x.spum)
 
         pos['obj_pos'] = None
 
