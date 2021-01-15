@@ -507,7 +507,7 @@ class HamamatsuCamera():
             frame = hc_data.getData()
             frame = np.reshape(frame, [self.frame_y, self.frame_x])
             frame = frame[14:30,:]
-            frame = (np.clip(frame,100,365)-100).astype(uint8)
+            frame = (np.clip(frame,100,365)-100).astype('uint8')
             #frame = frame.astype('uint8')
 
             # Split frame into 2 channels
