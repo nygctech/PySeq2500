@@ -1,6 +1,10 @@
 #!/usr/bin/python
 
 import numpy as np
+import dask.array as da
+import xarray as xr
+import zarr
+import napari
 import pandas as pd
 from math import log2
 from os import listdir, stat, path, getcwd
@@ -29,12 +33,13 @@ def message(logger, *args):
         logger.info(msg)
 
 
-def get_image_df(image_path = None, image_name = None):
+def get_image_df(image_path = None, image_name = None, im_type = '.tiff'):
     """Get dataframe of rough focus images.
 
        **Parameters:**
        image_path (path): Directory where images are stored.
        image_name (str): Name common to all images.
+       im_type = (str): Image type suffix common to all images
 
        **Returns:**
        dataframe: Dataframe of image metadata with image names as index.
@@ -46,10 +51,10 @@ def get_image_df(image_path = None, image_name = None):
 
     all_names = listdir(image_path)
     if image_name is None:
-      image_names = [name for name in all_names if '.tiff' in name]
+      image_names = [name for name in all_names if im_type in name]
     else:
       im_names = [name for name in all_names if image_name in name]
-      image_names = [name for name in im_names if '.tiff' in name]
+      image_names = [name for name in im_names if im_type in name]
 
     # Dataframe for metdata
     cols = image_names[0][:-5].split('_')
@@ -176,8 +181,8 @@ def normalize(im, scale_factor):
     #plane = img_as_ubyte(plane)
 
     return plane
-sum
-def sum_images(images, thresh = 81, logger = None):
+
+def sum_images(images, logger = None):
     """Sum pixel values over channel images.
 
        The image with the largest signal to noise ratio is used as the
@@ -201,11 +206,9 @@ def sum_images(images, thresh = 81, logger = None):
     sum_im = None
     finished = False
 
-    try:
-        thresh = float(thresh)
-    except:
-        thresh = 81.0
 
+    thresh = 81.0
+    i = 0
     while not finished:
         message(logger, name_, 'kurtosis threshold (k) = ', thresh)
         for c, im in enumerate(images):
@@ -222,8 +225,9 @@ def sum_images(images, thresh = 81, logger = None):
                     sum_im = np.add(sum_im, im)
 
         if sum_im is None:
-            if thresh >= 3:
-                thresh = 3
+            if i <= 3:
+                thresh = 3**(3-i)
+                i+=1
             else:
                 finished = True
 
@@ -449,3 +453,187 @@ def make_image(im_path, df_x, comp=None):
     #plane = plane.astype('int8')
 
     return plane
+
+def tiff2zarr(image_path):
+    """Convert HiSeq tiffs to zarr.
+
+       **Parameters:**
+       - im_path(path): Path to directory with tiff images
+
+       **Returns:**
+       - path: Path to zarr images
+
+    """
+
+    # Make tiffs into zarr
+    base_dir = path.dirname(image_path)
+    zarr_dir = path.join(base_dir, 'zarr')
+
+    df = ia.get_image_df(tiff_dir)
+
+    if len(df) > 0:
+        col_names = ['s','r','c','o','x']
+        extra_col = [col for col in df.columns if col not in col_names]
+        col_names = [col for col in col_names if col not in df.columns]
+
+        if len(df.columns) > 6:
+            print('Extra columns:', *extra_col)
+        elif len(col_name) == 0:
+            sections = set(df.s)
+            channels = set(df.c)
+            rounds = set(df.r)
+
+            for s in sections:
+                df_s = df[df.s == s]
+                (nrows, ncols) = imageio.imread(path.join(tiff_dir,df_s.index[0])).shape
+                obj_steps = [*set(df_s.o)]
+                obj_steps.sort()
+                nrows -= 64
+                ncols = 2048*len(set(df_s.x))
+                for r in rounds:
+                    df_r = df_s[df_s.r == r]
+                    for c in channels:
+                        df_c = df_r[df_r.c == c]
+                        print('Converting section', s, 'channel', c, 'round', r)
+                        for o in obj_steps:
+                            df_o = df_c[df_c.o == o]
+                            df_x = df_o.sort_values(by='x')
+                            stack = []
+                            for index, row in df_x.iterrows():
+                                im = imageio.imread(path.join(tiff_dir,index))
+                                im = im[64:,]
+                                stack.append(da.array(im))
+                            im = da.concatenate(stack, axis=-1)
+                            im = zarr.create(im, chunks = (nrows, 256), dtype='int16')
+                            zarr_name = 'c'+str(c)+'_s'+str(s)+'_r'+str(r)+'_o'+str(o)+'.zarr'
+                            zarr.save(path.join(zarr_dir, zarr_name), im)
+
+        else:
+            print('Missing', *col, 'columns')
+
+    return zarr_dir
+
+def label_images(df, zarr_path):
+    """Label image dataset with section name, channel, cycle, and objective step.
+
+       **Parameters:**
+       - df(dataframe): Dataframe with image metadata
+
+       **Returns:**
+       - array: Labeled dataset
+
+    """
+
+    sections = [s[1:] for s in [*set(df.s)]]
+    channels = [*set(df.c)]
+    obj_steps = [*set(df.o)]
+    obj_steps.sort()
+    cycles = [*set(df.r)]
+    cycles.sort()
+
+    dim_names = ['section','channel', 'cycle', 'obj_step', 'row', 'col']
+    coord_values = {'section':sections,'channel':channels,
+                    'obj_step':obj_steps, 'cycle':cycles}
+
+    s_stack = []
+    for s in sections:
+        c_stack = []
+        for c in channels:
+            df_c = df[df.c==c]
+            r_stack = []
+            for r in cycles:
+                df_r = df_c[df_c.r==r]
+                o_stack = []
+                for o in obj_steps:
+                    im_name = df_r[df_r.o==o].index[0]
+                    o_stack.append(da.from_zarr(path.join(zarr_path,im_name)))
+                r_stack.append(da.stack(o_stack,axis = 0))
+            c_stack.append(da.stack(r_stack,axis = 0))
+        s_stack.append(da.stack(c_stack,axis = 0))
+    dataset = da.stack(s_stack, axis=0)
+    dataset = xr.DataArray(dataset, dims = dim_names,coords=coord_values)
+
+    return dataset.squeeze()
+
+class HiSeqImages():
+    """HiSeqImages
+
+       **Attributes:**
+        - sections (dict): Dictionary of sections
+        - channel_color (dict): Dictionary colors to display each channel as
+
+    """
+
+    def __init__(self, image_path):
+        """The constructor for the valve.
+
+           **Parameters:**
+            - image_path (path): Path to images with tiffs or zarrs
+
+           **Returns:**
+            - HiSeqImages object: Object to manipulate and view HiSeq image data
+
+        """
+        self.sections = {}
+        self.channel_color = {558:'blue', 610:'green', 687:'magenta', 740:'red'}
+
+        # Get number of tiffs and zarrs
+        all_names = listdir(image_path)
+        n_tiffs = len([name for name in all_names if '.tiff' in name])
+        n_zarrs = len([name for name in all_names if '.zarr' in name])
+
+        # Convert tiffs to zarr
+        if n_tiffs > 0 & n_zarrs == 0:
+            zarr_path = tiff2zarr(image_path)
+            n_zarrs = 1
+            image_path = zarr_path
+        elif n_tiffs > 0 & n_zarrs > 0:
+            print('Detected both zarr and tiff images, using only zarr')
+
+        dataset = None
+        if n_zarrs > 0:
+            df = get_image_df(image_path, im_type = '.zarr')
+            if len(df) > 0:
+                sections = [*set(df.s)]
+                for s in sections:
+                    self.sections[s[1:]] = label_images(df[df.s == s], image_path)
+
+    def show(self, section = None, selection = {}):
+        """Display a section from the dataset.
+
+           **Parameters:**
+            - section (str): Section name to display
+            - selection (dict): Dimension and dimension coordinates to display
+
+        """
+
+        if section is None:
+            section = [*self.sections.keys()]
+            if len(section) > 1:
+                print('There are multiple sections, specify one:', *section)
+            else:
+                section = section[0]
+
+        if section in self.sections.keys():
+            dataset = self.sections[section]
+            dataset  = dataset.sel(selection)
+
+            with napari.gui_qt():
+                viewer = napari.Viewer()
+
+                # Display only 1 layer if there is only 1 channel
+                channels = dataset.channel.values
+                if not channels.shape:
+                    ch = str(channels)
+                    print('Adding', ch, 'channel')
+                    layer = viewer.add_image(dataset.values,
+                                             colormap=self.channel_color[int(ch)],
+                                             name = ch,
+                                             blending = 'additive')
+                else:
+                    for ch in channels:
+                        print('Adding', str(ch), 'channel')
+                        layer = viewer.add_image(dataset.sel(channel = ch).values,
+                                                 colormap=self.channel_color[ch],
+                                                 name = str(ch),
+                                                 blending = 'additive')

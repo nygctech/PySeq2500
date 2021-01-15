@@ -79,6 +79,7 @@ class Autofocus():
         name_ = 'PartialScan::'
         hs = self.hs
         pos_dict = self.pos_dict
+        self.pos_dict['x_initial'] = pos_dict['x_center']
 
         hs.x.move(pos_dict['x_center'])
         x_initial = hs.x.position
@@ -560,7 +561,7 @@ def autofocus(hs, pos_dict):
         af.message('Analyzing out of focus image')
         # Sum channels with signal
         if 'partial' in hs.AF:
-            sum_im = IA.sum_images(af.rough_ims, thresh=1, logger=hs.logger)
+            sum_im = IA.sum_images(af.rough_ims, logger=hs.logger)
         else:
             sum_im = IA.sum_images(af.rough_ims, logger=hs.logger)
     else:

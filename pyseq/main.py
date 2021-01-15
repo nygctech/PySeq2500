@@ -78,6 +78,7 @@ class Flowcell():
        - temperature (float): Set temperature of flowcell in °C.
        - temp_interval (float): Interval in seconds to check flowcell temperature.
        - z_planes (int): Override number of z planes to image in recipe.
+       - prerecipe_path (path): Recipe to run before actually starting experiment
 
     """
 
@@ -111,6 +112,7 @@ class Flowcell():
         self.temperature = None                                                 # Set temperature of flowcell
         self.temp_interval = None                                               # Interval in minutes to check flowcell temperature
         self.z_planes = None                                                    # Override number of z planes to image in recipe.
+        self.prerecipe_path = None                                              # Recipe to run before actually starting experiment
 
         while position not in ['A', 'B']:
             print('Flowcell must be at position A or B')
@@ -179,6 +181,15 @@ class Flowcell():
 
         return self.cycle
 
+    def prerecipe(self):
+        """Initializes pre recipe before starting experiment."""
+        prerecipe_message = 'PySeq::'+self.position+'::'+'Starting pre recipe'
+        self.recipe = open(self.prerecipe_path)
+        self.thread = threading.Thread(target = hs.message,
+                                       args = (prerecipe_message,))
+        thread_id = self.thread.start()
+
+        return thread_id
 
     def endHOLD(self):
         """Ends hold for incubations in buffer, returns False."""
@@ -236,7 +247,9 @@ def setup_flowcells(first_line, IMAG_counter):
                 fc.z_planes = z_planes
             if IMAG_counter > 1:
                 fc.IMAG_counter = 0
+            fc.prerecipe_path = method.get('pre recipe', fallback = None)
             flowcells[AorB] = fc
+
 
         # Add section to flowcell
         if sect_name in flowcells[AorB].sections:
@@ -654,13 +667,20 @@ def confirm_settings(recipe_z_planes = []):
     # Cycle summary:
 
     variable_ports = hs.v24[AorB].variable_ports
+    start_cycle = 1
+    if method.get('pre recipe', fallback = None) is not None:
+        start_cycle = 0
     table = []
-    for cycle in range(1,total_cycles+1):
+    start_cycle = 0
+    for cycle in range(start_cycle,total_cycles+1):
         row = []
         row.append(cycle)
         if len(variable_ports) > 0:
             for vp in variable_ports:
-                row.append(port_dict[vp][cycle])
+                if cycle > 0:
+                    row.append(port_dict[vp][cycle])
+                else:
+                    row.append(None)
         if IMAG_counter > 0:
             colors = [*hs.optics.cycle_dict.keys()]
             for color in colors:
@@ -1057,7 +1077,11 @@ def check_filters(cycle_dict, ex_dict):
     # Add default/home to cycles with out filters specified
     method = config.get('experiment', 'method')
     method = config[method]
-    for c in range(1,int(config.get('experiment','cycles'))+1):
+    start_cycle = 1
+    if method.get('pre recipe', fallback = None):
+        start_cycle = 0
+    last_cycle = int(config.get('experiment','cycles'))+1
+    for c in range(start_cycle,last_cycle):
         if c not in cycle_dict[colors[0]]:
             cycle_dict[colors[0]][c] = method.get(
                                        'default em filter',
@@ -1467,6 +1491,7 @@ def IMAG(fc, n_Zplanes):
 
     """
 
+    hs.scan_flag = True
     AorB = fc.position
     cycle = str(fc.cycle)
     start = time.time()
@@ -1823,11 +1848,15 @@ if __name__ == 'pyseq.main':
         do_prime(flush_YorN)                                                    # Ask to prime lines
         if not userYN('Start experiment'):
             sys.exit()
-        for fc in flowcells.values():                                           #initialize flowcells
-            fc.restart_recipe()
+
+        # Do prerecipe or Initialize Flowcells
+        for fc in flowcells.values():
+            if fc.prerecipe_path:
+                fc.prerecipe()
+            else:
+                fc.restart_recipe()
 
         cycles_complete = False
-
         while not cycles_complete:
             stuck = 0
             complete = 0
