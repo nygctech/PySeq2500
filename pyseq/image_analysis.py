@@ -352,6 +352,117 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
 
     return ord_points
 
+def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
+    """Get potential points to focus on.
+
+       First 1000 of the brightest, unsaturated pixels are found.
+       Then the focus field of views with the top *min_n_markers* contrast are
+       ordered based on the distance from each other, with the points farthest
+       away from each other being first.
+
+       **Parameters:**
+       - im (array): Summed image across all channels with signal.
+       - scale (int): Factor at which the image is scaled down.
+       - min_n_markers (int): Minimun number of points desired, max is 1000.
+       - p_sat (float): Percentile to call pixels saturated.
+       - log (logger): Logger object to record process.
+
+
+       **Returns:**
+       - array: Row, Column list of ordered pixels to use as focus points.
+
+    """
+
+    name_ = 'GetFocusPointsPartial::'
+    #score pixels
+    px_rows, px_cols = im.shape
+    px_sat = np.percentile(im, p_sat)
+    px_score = np.reshape(stats.zscore(im, axis = None), (px_rows, px_cols))
+
+    # Find brightest unsaturated pixels
+    edge_width = int(2048/scale/2)
+    im_ = np.zeros_like(im)
+    px_score_thresh = 3
+    while np.sum(im_ != 0) < min_n_markers:
+        # Get brightest pixels
+        im_[px_score > px_score_thresh] = im[px_score > px_score_thresh]
+        # Remove "saturated" pixels
+        im_[im > px_sat] = 0
+        #Remove Edges
+        if edge_width < px_cols/2:
+          im_[:, px_cols-edge_width:px_cols] = 0
+          im_[:,0:edge_width] = 0
+        if edge_width < px_rows/2:
+          im_[0:edge_width,:] = 0
+          im_[px_rows-edge_width:px_rows, :] = 0
+
+        px_score_thresh -= 0.5
+
+
+    px_score_thresh += 0.5
+    message(log, name_, 'Used', px_score_thresh, 'pixel score threshold')
+    markers = np.argwhere(im_ != 0)
+
+    #Subset to unique y positions
+    markers = np.array([*set(markers[:,0])])
+
+    # Subset to 1000 points
+    n_markers = len(markers)
+    message(log, name_, 'Found', n_markers, 'markers')
+    if n_markers > 1000:
+      rand_markers = np.random.choice(range(n_markers), size = 1000)
+      markers = markers[rand_markers,:]
+      n_markers = 1000
+
+
+
+    # Compute contrast
+    c_score = np.zeros_like(markers)
+    for row in range(n_markers):
+      frame = im[markers[row],:]
+      c_score[row] = np.max(frame) - np.min(frame)
+
+    # Get the minimum number of markers needed with the highest contrast
+    if n_markers > min_n_markers:
+      p_top = (1 - min_n_markers/n_markers)*100
+    else:
+      p_top = 0
+    message(log, name_, 'Used', p_top, 'percentile cutoff')
+    c_cutoff = np.percentile(c_score, p_top)
+    c_markers = markers[c_score >= c_cutoff]
+
+    n_markers = len(c_markers)
+    dist = np.ones((n_markers,n_markers))*c_markers
+    dist = abs(dist-dist.T)
+    # Compute distance matrix
+    max_ind = np.unravel_index(np.argmax(dist, axis=None), dist.shape)          #returns tuple
+
+    # Order marker points based on distance from each other
+    # Markers farthest from each other are first
+    ord_points = np.zeros_like(c_markers)
+    if n_markers > 2:
+        ord_points[0] = c_markers[max_ind[0]]
+        ord_points[1] = c_markers[max_ind[1]]
+        _markers = np.copy(c_markers)
+        prev2 = max_ind[0]
+        prev1 = max_ind[1]
+        dist = np.delete(dist,[prev2,prev1], 1)
+        _markers = np.delete(_markers,[prev2,prev1])
+        for i in range(2,n_markers):
+          dist2 = np.array([dist[prev2,:],dist[prev1,:]])
+          ind = np.argmax(np.sum(dist2,axis=0))
+          ord_points[i] = _markers[ind]
+          dist = np.delete(dist,ind,1)
+          _markers = np.delete(_markers,ind)
+          prev2 = prev1
+          prev1 = ind
+    else:
+        ord_points = c_markers
+
+    ord_points = np.array([np.ones(n_markers)*1024,c_markers]).T
+
+    return ord_points
+
 def make_image(im_path, df_x, comp=None):
     """Make full scale, high quality, images.
 

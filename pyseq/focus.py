@@ -560,10 +560,7 @@ def autofocus(hs, pos_dict):
     if old_obj_pos is None:
         af.message('Analyzing out of focus image')
         # Sum channels with signal
-        if 'partial' in hs.AF:
-            sum_im = IA.sum_images(af.rough_ims, logger=hs.logger)
-        else:
-            sum_im = IA.sum_images(af.rough_ims, logger=hs.logger)
+        sum_im = IA.sum_images(af.rough_ims, logger=hs.logger)
     else:
         sum_im = None
 
@@ -573,7 +570,10 @@ def autofocus(hs, pos_dict):
         px_rows, px_cols = sum_im.shape
         n_markers = int((px_rows*px_cols*af.scale**2)**0.5*hs.resolution/1000)
         n_markers += 3
-        ord_points = IA.get_focus_points(sum_im, af.scale, n_markers*10,hs.logger)
+        if 'partial' in hs.AF:
+            ord_points = IA.get_focus_points_partial(sum_im, af.scale, n_markers*10,hs.logger)
+        else:
+            ord_points = IA.get_focus_points(sum_im, af.scale, n_markers*10,hs.logger)
         af.message('Found',len(ord_points),'focus positions')
 
         # Get stage positions on in-focus points
