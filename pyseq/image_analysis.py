@@ -459,7 +459,7 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
     else:
         ord_points = c_markers
 
-    ord_points = np.array([np.ones(n_markers)*1024,c_markers]).T
+    ord_points = np.array([c_markers,np.ones(n_markers)*1024]).T
 
     return ord_points
 
