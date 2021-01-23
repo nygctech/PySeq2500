@@ -554,6 +554,7 @@ def autofocus(hs, pos_dict):
     elif old_obj_pos is None:
         if hs.AF == 'partial once':
             af.partial_scan()
+            print('After partial scan', af.pos_dict['x_initial'])
         if hs.AF == 'full once':
             af.full_scan()
 
