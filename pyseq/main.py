@@ -78,7 +78,8 @@ class Flowcell():
        - temperature (float): Set temperature of flowcell in °C.
        - temp_interval (float): Interval in seconds to check flowcell temperature.
        - z_planes (int): Override number of z planes to image in recipe.
-       - prerecipe_path (path): Recipe to run before actually starting experiment
+       - pre_recipe_path (path): Recipe to run before actually starting experiment
+       - pre_recipe (file): File handle for the pre recipe.
 
     """
 
@@ -112,7 +113,7 @@ class Flowcell():
         self.temperature = None                                                 # Set temperature of flowcell
         self.temp_interval = None                                               # Interval in minutes to check flowcell temperature
         self.z_planes = None                                                    # Override number of z planes to image in recipe.
-        self.prerecipe_path = None                                              # Recipe to run before actually starting experiment
+        self.pre_recipe_path = None                                              # Recipe to run before actually starting experiment
 
         while position not in ['A', 'B']:
             print('Flowcell must be at position A or B')
@@ -181,7 +182,7 @@ class Flowcell():
 
         return self.cycle
 
-    def prerecipe(self):
+    def pre_recipe(self):
         """Initializes pre recipe before starting experiment."""
         prerecipe_message = 'PySeq::'+self.position+'::'+'Starting pre recipe'
         self.recipe = open(self.prerecipe_path)
@@ -596,6 +597,9 @@ def confirm_settings(recipe_z_planes = []):
     print('method:', experiment['method'])
     print('recipe:', method['recipe'])
     print('cycles:', experiment['cycles'])
+    pre_recipe = method.get('pre recipe', fallback = None)
+    if pre_recipe is not None:
+        print('pre recipe:', pre_recipe)
     print('save path:', experiment['save path'])
     print('enable z stage:', hs.z.active)
     print()
@@ -848,6 +852,7 @@ def check_instructions():
     method = config[method]
 
     first_port = method.get('first port', fallback = None)                      # Get first reagent to use in recipe
+    # Backdoor to input line number for first step in recipe
     try:
         first_port = int(first_port)
         first_line = first_port
@@ -871,74 +876,81 @@ def check_instructions():
     valid_wait.append('STOP')
     valid_wait.append('TEMP')
 
-    f = open(config['experiment']['recipe path'])
+    recipes = {}
+    recipes['Recipe'] = config['experiment']['recipe path']
+    pre_recipe = method.get('pre recipe',fallback= None)
+    if pre_recipe is not None:
+        recipes['Pre Recipe'] = pre_recipe
 
-    IMAG_counter = 0.0
-    wait_counter = 0
-    z_planes = []
-    line_num = 1
+    for recipe in sorted([*recipes.keys()]):
+        f = recipes[recipe]
+        try:
+            f = open(recipes[recipe])
+        except:
+            error(recipe,'::Unable to open', recipes[recipe])
+        #Remove blank lines
+        f_ = [line for line in f if line.strip()]
+        f.close()
 
-    #Remove blank lines
-    f_ = [line for line in f if line.strip()]
-    f.close()
+        IMAG_counter = 0.0
+        wait_counter = 0
+        z_planes = []
 
-    for line in f_:
-        instrument, command = parse_line(line)
+        for line_num, line in enumerate(f_):
+            instrument, command = parse_line(line)
 
-        if instrument == 'PORT':
-            # Make sure ports in instruction files exist in port dictionary in config file
-            if command not in ports:
-                error('Recipe::', command, 'on line', line_num,
-                      'is not listed as a reagent')
+            if instrument == 'PORT':
+                # Make sure ports in instruction files exist in port dictionary in config file
+                if command not in ports:
+                    error(recipe,'::', command, 'on line', line_num,
+                          'is not listed as a reagent')
 
-            #Find line to start at for first cycle
-            if first_line == 0 and first_port is not None:
-                if command.find(first_port) != -1:
-                    first_line = line_num
+                #Find line to start at for first cycle
+                if first_line == 0 and first_port is not None and recipe is 'Recipe':
+                    if command.find(first_port) != -1:
+                        first_line = line_num
 
-        # Make sure pump volume is a number
-        elif instrument == 'PUMP':
-            if command.isdigit() == False:
-                error('Recipe::Invalid volume on line', line_num)
+            # Make sure pump volume is a number
+            elif instrument == 'PUMP':
+                if command.isdigit() == False:
+                    error(recipe,'::Invalid volume on line', line_num)
 
-        # Make sure wait command is valid
-        elif instrument == 'WAIT':
-            wait_counter += 1
-            if command not in valid_wait:
-                error('Recipe::Invalid wait command on line', line_num)
+            # Make sure wait command is valid
+            elif instrument == 'WAIT':
+                wait_counter += 1
+                if command not in valid_wait:
+                    error(recipe,'::Invalid wait command on line', line_num)
 
-        # Make sure z planes is a number
-        elif instrument == 'IMAG':
-            IMAG_counter = int(IMAG_counter + 1)
-            # Flag to make check WAIT is used before IMAG for 2 flowcells
-            if wait_counter >= IMAG_counter:
-                IMAG_counter = float(IMAG_counter)
-            if command.isdigit() == False:
-                error('Recipe::Invalid number of z planes on line', line_num)
-            else:
-                z_planes.append(command)
-
-        # Make sure hold time (minutes) is a number
-        elif instrument == 'HOLD':
-            if command.isdigit() == False:
-                if command != 'STOP':
-                    error('Recipe::Invalid time on line', line_num)
+            # Make sure z planes is a number
+            elif instrument == 'IMAG':
+                IMAG_counter = int(IMAG_counter + 1)
+                # Flag to make check WAIT is used before IMAG for 2 flowcells
+                if wait_counter >= IMAG_counter:
+                    IMAG_counter = float(IMAG_counter)
+                if command.isdigit() == False:
+                    error(recipe,'::Invalid number of z planes on line', line_num)
                 else:
-                    print('WARNING::HiSeq will stop until user input at line',
-                           line_num)
-        elif instrument == 'TEMP':
-            if not command.isdigit():
-                error('Recipe::Invalid temperature on line', line_num)
-        # # Warn user that HiSeq will completely stop with this command
-        # elif instrument == 'STOP':
-        #     print('WARNING::HiSeq will stop until user input at line',
-        #            line_num)
-        # Make sure the instrument name is valid
-        else:
-            error('Recipe::Bad instrument name on line',line_num)
-            print(line)
+                    z_planes.append(command)
 
-        line_num += 1
+            # Make sure hold time (minutes) is a number
+            elif instrument == 'HOLD':
+                if command.isdigit() == False:
+                    if command != 'STOP':
+                        error(recipe,'::Invalid time on line', line_num)
+                    else:
+                        print(recipe,'::WARNING::HiSeq will stop until user input at line',
+                               line_num)
+            elif instrument == 'TEMP':
+                if not command.isdigit():
+                    error(recipe,'::Invalid temperature on line', line_num)
+            # # Warn user that HiSeq will completely stop with this command
+            # elif instrument == 'STOP':
+            #     print('WARNING::HiSeq will stop until user input at line',
+            #            line_num)
+            # Make sure the instrument name is valid
+            else:
+                error(recipe,'::Bad instrument name on line',line_num)
+                print(line)
 
     return first_line, IMAG_counter, z_planes
 
@@ -1858,7 +1870,7 @@ if __name__ == 'pyseq.main':
         # Do prerecipe or Initialize Flowcells
         for fc in flowcells.values():
             if fc.prerecipe_path:
-                fc.prerecipe()
+                fc.pre_recipe()
             else:
                 fc.restart_recipe()
 
