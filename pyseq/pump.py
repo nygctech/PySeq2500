@@ -189,7 +189,7 @@ class Pump():
 
         #Aspirate
         while position != self.check_position():
-            self.command('OV' + str(sps) + 'A' + str(position) + 'R')           # Pull syringe down to position
+            self.command('OV' + str(in_sps) + 'A' + str(position) + 'R')        # Pull syringe down to position
             self.check_pump()
 
         self.command('IR')                                                      # Switch valve to inlet
@@ -197,7 +197,7 @@ class Pump():
         #Dispense
         position = 0
         while position != self.check_position():
-            self.command('IV' + str(sps) + 'A0R')                               # Dispense, Push syringe to top at dispense speed
+            self.command('IV' + str(out_sps) + 'A0R')                           # Dispense, Push syringe to top at dispense speed
             self.check_pump()
 
         self.command('IR')
