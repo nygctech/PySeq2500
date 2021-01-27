@@ -1,12 +1,13 @@
 #!/usr/bin/python
 
 import numpy as np
+import dask
 import dask.array as da
 import xarray as xr
 import zarr
 import napari
 import pandas as pd
-from math import log2
+from math import log2, ceil, floor
 from os import listdir, stat, path, getcwd
 from scipy import stats
 from scipy.spatial.distance import cdist
@@ -14,6 +15,7 @@ from skimage.exposure import match_histograms
 from skimage.transform import downscale_local_mean
 from skimage.util import img_as_ubyte
 import imageio
+import glob
 
 def message(logger, *args):
     """Print output text to logger or console.
@@ -613,7 +615,7 @@ def tiff2zarr(image_path):
                             df_x = df_o.sort_values(by='x')
                             stack = []
                             for index, row in df_x.iterrows():
-                                im = imageio.imread(path.join(tiff_dir,index))
+                                im = da.delayed(imageio.imread(path.join(tiff_dir,index)))
                                 im = im[64:,]
                                 stack.append(da.array(im))
                             im = da.concatenate(stack, axis=-1)
@@ -658,8 +660,10 @@ def label_images(df, zarr_path):
                 df_r = df_c[df_c.r==r]
                 o_stack = []
                 for o in obj_steps:
-                    im_name = df_r[df_r.o==o].index[0]
-                    o_stack.append(da.from_zarr(path.join(zarr_path,im_name)))
+                    im_ = df_r[df_r.o==o]
+                    if len(im_) == 1:
+                        im_name = df_r[df_r.o==o].index[0]
+                        o_stack.append(da.from_zarr(path.join(zarr_path,im_name)))
                 r_stack.append(da.stack(o_stack,axis = 0))
             c_stack.append(da.stack(r_stack,axis = 0))
         s_stack.append(da.stack(c_stack,axis = 0))
@@ -678,10 +682,228 @@ class HiSeqImages():
     """
 
     def __init__(self, image_path):
-        """The constructor for the valve.
+        """The constructor for HiSeq Image Datasets.
 
            **Parameters:**
-            - image_path (path): Path to images with tiffs or zarrs
+            - image_path (path): Path to images with tiffs
+
+           **Returns:**
+            - HiSeqImages object: Object to manipulate and view HiSeq image data
+
+        """
+        self.sections = {}
+        self.channel_color = {558:'blue', 610:'green', 687:'magenta', 740:'red'}
+        self.channel_shift = {558:[93,None,0,None],
+                              610:[90,-3,0,None],
+                              687:[0,-93,0,None],
+                              740:[0,-93,0,None]}
+        self.first_group = 0
+
+        filenames = glob.glob(path.join(image_path,'*.tiff'))
+
+        # Open tiffs
+        if len(filenames) > 0:
+            section_sets = dict()
+            section_meta = dict()
+            for fn in filenames:
+                # Break up filename into components
+                comp_ = path.basename(fn)[:-5].split("_")
+                section = comp_[2]
+                # Add new section
+                if section_sets.setdefault(section, dict()) == {}:
+                    im = imageio.imread(fn)
+                    section_meta[section] = {'shape':im.shape,'dtype':im.dtype,'filenames':[]}
+
+                for i, comp in enumerate(comp_):
+                    # Add components
+                    section_sets[section].setdefault(i, set())
+                    section_sets[section][i].add(comp)
+                    section_meta[section]['filenames'].append(fn)
+
+            section_data = {}
+            for s in section_sets.keys():
+                # Lazy open images
+                filenames = section_meta[s]['filenames']
+                lazy_arrays = [dask.delayed(imageio.imread)(fn) for fn in filenames]
+                shape = section_meta[s]['shape']
+                dtype = section_meta[s]['dtype']
+                lazy_arrays = [da.from_delayed(x, shape=shape, dtype=dtype) for x in lazy_arrays]
+
+                # Organize images
+                #0 channel, 1 flowcell, 2 section, 3 cycle, 4 x position, 5 objective position
+                fn_comp_sets = list(map(sorted, section_sets[s].values()))
+                remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[5], [1],  fn_comp_sets[4]]
+                a = np.empty(tuple(map(len, remap_comps)), dtype=object)
+                for fn, x in zip(filenames, lazy_arrays):
+                    comp_ = path.basename(fn)[:-5].split("_")
+                    channel = fn_comp_sets[0].index(comp_[0])
+                    cycle = fn_comp_sets[3].index(comp_[3])
+                    obj_step = fn_comp_sets[5].index(comp_[5])
+                    x_step = fn_comp_sets[4].index(comp_[4])
+                    a[channel, cycle, obj_step, 0, x_step] = x
+
+                # Label array
+                dim_names = ['channel', 'cycle', 'obj_step', 'row', 'col']
+                channels = [int(ch[1:]) for ch in fn_comp_sets[0]]
+                cycles = [int(r[1:]) for r in fn_comp_sets[3]]
+                obj_steps = [int(o[1:]) for o in fn_comp_sets[5]]
+                coord_values = {'channel':channels, 'cycle':cycles, 'obj_step':obj_steps}
+                im = xr.DataArray(da.block(a.tolist()),
+                                  dims = dim_names,
+                                  coords = coord_values,
+                                  name = s[1:])
+
+                # Register channels
+                self.sections[s[1:]] = self.register_channels(im.squeeze())
+
+
+
+    def register_channels(self, im):
+        """Register image channels."""
+
+        shifted=[]
+        for ch in self.channel_shift.keys():
+            shift = self.channel_shift[ch]
+            shifted.append(im.sel(channel = ch,
+                                  row=slice(shift[0],shift[1]),
+                                  col=slice(shift[2],shift[3])
+                                  ))
+        shifted = xr.concat(shifted, dim = 'channel')
+
+        return shifted.sel(row=slice(61,None))                                  # Top 64 rows have white noise
+
+    def hs_napari(self, dataset):
+
+        with napari.gui_qt():
+            viewer = napari.Viewer()
+
+            self.update_viewer(viewer, dataset)
+
+            @viewer.bind_key('x')
+            def crop(viewer):
+                if 'Shapes' in viewer.layers:
+                    bound_box = np.array(viewer.layers['Shapes'].data).squeeze()
+                else:
+                    bound_box = np.array(False)
+
+                if bound_box.shape == (4,2):
+
+                    #crop full dataset
+                    self.sections[dataset.name], self.first_group = self.get_cropped_section(dataset.name, bound_box)
+                    #save current selection
+                    selection = {}
+                    for d in self.sections[dataset.name].dims:
+                        if d not in ['row', 'col']:
+                            if d in dataset.dims:
+                                selection[d] = dataset[d].values
+                            else:
+                                selection[d] = dataset.coords[d].values
+                    # update viewer
+                    cropped = self.sections[dataset.name].sel(selection)
+                    self.update_viewer(viewer, cropped)
+
+    def show(self, section = None, selection = {}):
+        """Display a section from the dataset.
+
+           **Parameters:**
+            - section (str): Section name to display
+            - selection (dict): Dimension and dimension coordinates to display
+
+        """
+
+        if section is None:
+            section = [*self.sections.keys()]
+            if len(section) > 1:
+                print('There are multiple sections, specify one:', *section)
+            else:
+                section = section[0]
+
+        if section in self.sections.keys():
+            dataset = self.sections[section]
+            dataset  = dataset.sel(selection)
+
+        self.hs_napari(dataset)
+
+    def get_cropped_section(self, name, bound_box):
+        """Return cropped full dataset with intact pixel groups.
+
+           **Parameters:**
+            - name (str): Section name to crop
+            - bound_box (list): Px row min, px row max, px col min, px col max
+
+           **Returns:**
+            - dataset: Row and column cropped full dataset
+            - int: Initial pixel group index of dataset
+
+        """
+
+        nrows = len(self.sections[name].row)
+        ncols = len(self.sections[name].col)
+
+        row_min = int(round(bound_box[0,0]))
+        if row_min < 0:
+            row_min = 0
+
+        row_max = int(round(bound_box[1,0]))
+        if row_max > nrows:
+            row_max = nrows
+
+        col_min = bound_box[0,1]
+        if col_min < 0:
+            col_min = 0
+        col_min = int(floor(col_min/256)*256)
+
+        col_max = bound_box[2,1]
+        if col_max > ncols:
+            col_max = ncols
+        col_max = int(ceil(col_max/256)*256)
+
+        group_index = int((col_min - floor(col_min/2048)*2048)/256)
+
+        cropped = self.sections[name].sel(row=slice(row_min, row_max),
+                                          col=slice(col_min, col_max))
+
+        return  cropped, group_index
+
+    def update_viewer(self, viewer, dataset):
+
+        # Delete old layers
+        for i in range(len(viewer.layers)):
+            viewer.layers.pop(0)
+
+
+
+        # Display only 1 layer if there is only 1 channel
+        channels = dataset.channel.values
+        if not channels.shape:
+            ch = int(channels)
+            print('Adding', ch, 'channel')
+            layer = viewer.add_image(dataset.values,
+                                     colormap=self.channel_color[ch],
+                                     name = str(ch),
+                                     blending = 'additive')
+        else:
+            for ch in channels:
+                print('Adding', ch, 'channel')
+                layer = viewer.add_image(dataset.sel(channel = ch).values,
+                                         colormap=self.channel_color[ch],
+                                         name = str(ch),
+                                         blending = 'additive')
+
+class HiSeqImagesOLD():
+    """HiSeqImages
+
+       **Attributes:**
+        - sections (dict): Dictionary of sections
+        - channel_color (dict): Dictionary colors to display each channel as
+
+    """
+
+    def __init__(self, image_path):
+        """The constructor for HiSeq Image Datasets.
+
+           **Parameters:**
+            - image_path (path): Path to images with tiffs
 
            **Returns:**
             - HiSeqImages object: Object to manipulate and view HiSeq image data
@@ -710,43 +932,3 @@ class HiSeqImages():
                 sections = [*set(df.s)]
                 for s in sections:
                     self.sections[s[1:]] = label_images(df[df.s == s], image_path)
-
-    def show(self, section = None, selection = {}):
-        """Display a section from the dataset.
-
-           **Parameters:**
-            - section (str): Section name to display
-            - selection (dict): Dimension and dimension coordinates to display
-
-        """
-
-        if section is None:
-            section = [*self.sections.keys()]
-            if len(section) > 1:
-                print('There are multiple sections, specify one:', *section)
-            else:
-                section = section[0]
-
-        if section in self.sections.keys():
-            dataset = self.sections[section]
-            dataset  = dataset.sel(selection)
-
-            with napari.gui_qt():
-                viewer = napari.Viewer()
-
-                # Display only 1 layer if there is only 1 channel
-                channels = dataset.channel.values
-                if not channels.shape:
-                    ch = str(channels)
-                    print('Adding', ch, 'channel')
-                    layer = viewer.add_image(dataset.values,
-                                             colormap=self.channel_color[int(ch)],
-                                             name = ch,
-                                             blending = 'additive')
-                else:
-                    for ch in channels:
-                        print('Adding', str(ch), 'channel')
-                        layer = viewer.add_image(dataset.sel(channel = ch).values,
-                                                 colormap=self.channel_color[ch],
-                                                 name = str(ch),
-                                                 blending = 'additive')
