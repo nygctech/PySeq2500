@@ -8,7 +8,7 @@ import zarr
 import napari
 import pandas as pd
 from math import log2, ceil, floor
-from os import listdir, stat, path, getcwd
+from os import listdir, stat, path, getcwd, mkdir
 from scipy import stats
 from scipy.spatial.distance import cdist
 from skimage.exposure import match_histograms
@@ -889,6 +889,22 @@ class HiSeqImages():
                                          colormap=self.channel_color[ch],
                                          name = str(ch),
                                          blending = 'additive')
+
+
+    def save_zip(self, save_path):
+
+
+        if not path.isdir(save_path):
+            mkdir(save_path)
+
+        for s in self.sections.keys():
+            store = zarr.ZipStore(path.join(save_path,s+'.zip'), mode='w')
+            dataset = self.sections[s]
+            for d in dataset.coords.keys():
+                if d not in dataset.dims:
+                    dataset = dataset.reset_coords(names=d, drop=True)
+            dataset.to_dataset().to_zarr(store=store)
+            store.close()
 
 class HiSeqImagesOLD():
     """HiSeqImages
