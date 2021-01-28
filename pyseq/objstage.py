@@ -189,7 +189,8 @@ class OBJstage():
 
         return self.check_position()
 
-    def update_focus_limits():
+    def update_focus_limits(self):
+        """Update objective start and stop positions for focusing."""
 
         range_step = int(self.focus_range/100*(self.focus_stop-self.focus_start)/2)
         self.focus_stop = self.focus_rough+range_step

@@ -334,6 +334,13 @@ class OBJstage():
 
         return self.position
 
+    def update_focus_limits(self):
+        """Update objective start and stop positions for focusing."""
+
+        range_step = int(self.focus_range/100*(self.focus_stop-self.focus_start)/2)
+        self.focus_stop = self.focus_rough+range_step
+        self.focus_start = self.focus_rough-range_step
+
 class FPGA():
     def __init__(self, ystage):
         self.y = ystage
