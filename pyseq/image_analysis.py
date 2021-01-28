@@ -892,7 +892,14 @@ class HiSeqImages():
 
 
     def save_zip(self, save_path):
+        """Save all sections in a zipped zarr store.
 
+           Note that coordinates for unused dimensions are not saved.
+
+           **Parameters:**
+            - save_path (path): directory to save store
+
+        """
 
         if not path.isdir(save_path):
             mkdir(save_path)
@@ -900,9 +907,9 @@ class HiSeqImages():
         for s in self.sections.keys():
             store = zarr.ZipStore(path.join(save_path,s+'.zip'), mode='w')
             dataset = self.sections[s]
-            for d in dataset.coords.keys():
-                if d not in dataset.dims:
-                    dataset = dataset.reset_coords(names=d, drop=True)
+            for c in dataset.coords.keys():
+                if c not in dataset.dims:
+                    dataset = dataset.reset_coords(names=c, drop=True)
             dataset.to_dataset().to_zarr(store=store)
             store.close()
 
