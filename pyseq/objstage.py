@@ -72,6 +72,7 @@ class OBJstage():
         self.suffix = '\n'
         self.position = None
         self.logger = logger
+        self.focus_range = 100
         self.focus_start =  2000                                                # focus start step
         self.focus_stop = 62000                                                 # focus stop step
         self.focus_rough = int((self.focus_stop - self.focus_start)/2 +
@@ -187,6 +188,12 @@ class OBJstage():
         self.command('ZYT 0 3')
 
         return self.check_position()
+
+    def update_focus_limits():
+
+        range_step = int(self.focus_range/100*(self.focus_stop-self.focus_start)/2)
+        self.focus_stop = self.focus_rough+range_step
+        self.focus_start = self.focus_rough-range_step
 
     def write_log(self, text):
         """Write messages to the log."""

@@ -544,6 +544,8 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     hs.z.active = method.getboolean('enable z stage', fallback = True)
     # Get focus Tolerance
     hs.focus_tol = float(method.get('focus tolerance', fallback = 0))
+    # Get focus range
+    hs.obj.focus_range = float(method.get('focus range', fallback = 100))
 
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
 
@@ -727,6 +729,7 @@ def confirm_settings(recipe_z_planes = []):
         print('green laser power:', laser_power[0], 'mW')
         print('red laser power:',laser_power[1], 'mW')
         print('autofocus:', hs.AF)
+        print('focus range', )
         if hs.focus_tol > 0:
             print('focus tolerance:', hs.focus_tol, 'um')
         else:
