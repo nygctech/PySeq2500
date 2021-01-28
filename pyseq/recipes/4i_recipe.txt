@@ -20,10 +20,12 @@ HOLD:	120		#Hold for 120 min
 PORT:	PBS		#Move valve to PBS wash (port 1)
 PUMP:	2000		#Pump 2000 uL
 PORT:	2ndab		#Move valve to secondary antibody (variable)
-PUMP:	500		#Pump 500 uL
+PUMP:	1000		#Pump 500 uL
 HOLD:	120		#Hold for 120 min
 PORT:	PBS		#Move valve to PBS wash (port 1)
 PUMP:	2000		#Pump 2000 uL
+PORT: water #Move valve to water wash (port 2)
+PUMP: 2000 # Pump 2000 uL
 WAIT:	water		#Wait till other flowcell is washing with water
 PORT:	imaging		#Move valve to imaging buffer (port 5)
 PUMP:	750		#Pump 750 uL
