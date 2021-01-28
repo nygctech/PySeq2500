@@ -47,7 +47,7 @@ class Autofocus():
         """Constructor for the Autofocus object."""
 
         self.hs = hs
-        self.pos_dict = pos_dict
+        self.pos_dict = pos_dict.copy()
         self.rough_ims = []
         self.scale = None
         self.files = []
