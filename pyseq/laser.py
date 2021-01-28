@@ -130,9 +130,15 @@ class Laser():
     def get_power(self):
         """Return the power level of the laser in mW (int)."""
 
-        self.power = int(self.command('POWER?').split('mW')[0])
+        power = None
+        while power is None:
+            try:
+                power = int(self.command('POWER?').split('mW')[0])
+            except:
+                pass
+        self.power = power
 
-        return self.power
+        return power
 
 
     def set_power(self, power):
