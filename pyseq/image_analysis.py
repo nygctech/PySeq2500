@@ -16,6 +16,14 @@ from skimage.transform import downscale_local_mean
 from skimage.util import img_as_ubyte
 import imageio
 import glob
+import configparser
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Try backported to PY<37 `importlib_resources`.
+    import importlib_resources as pkg_resources
+from . import resources
+from . import recipes
 
 def message(logger, *args):
     """Print output text to logger or console.
@@ -672,6 +680,39 @@ def label_images(df, zarr_path):
 
     return dataset.squeeze()
 
+
+def compute_background(im_path, save_path = None, machine=None):
+
+    ims = HiSeqImages(im_path)
+    name = [*ims.sections.keys()][0]
+    dataset = ims.sections[name]
+    sensor_size = 256 # pixels
+    background = {}
+
+    # Loop over channels then sensor group and find mode
+    for ch in dataset.channel.values:
+        for i in range(8):
+            sensor = dataset.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
+            background.setdefault(ch, dict())
+            background[ch][i] = stats.mode(sensor, axis=None)[0][0]
+        avg_background = int(round(np.mean([*background[ch].values()])))
+        print('Channel', ch,'::Average background', avg_background)
+        # Calculate background correction
+        for i in range(8):
+            background[ch][i] = avg_background-background[ch][i]
+
+    # Save background correction values in config file
+    config = configparser.ConfigParser()
+    config.read_dict(background)
+    if save_path is None:
+        save_path = im_path
+    if machine is None:
+        bg_path = path.join(save_path,'background.cfg')
+    else:
+        bg_path = path.join(save_path,machine+'.cfg')
+    with open(bg_path, 'w') as configfile: config.write(configfile)
+
+
 class HiSeqImages():
     """HiSeqImages
 
@@ -681,7 +722,7 @@ class HiSeqImages():
 
     """
 
-    def __init__(self, image_path):
+    def __init__(self, image_path, machine=None):
         """The constructor for HiSeq Image Datasets.
 
            **Parameters:**
@@ -691,72 +732,52 @@ class HiSeqImages():
             - HiSeqImages object: Object to manipulate and view HiSeq image data
 
         """
+
+        self.machine = machine
         self.sections = {}
         self.channel_color = {558:'blue', 610:'green', 687:'magenta', 740:'red'}
         self.channel_shift = {558:[93,None,0,None],
                               610:[90,-3,0,None],
                               687:[0,-93,0,None],
                               740:[0,-93,0,None]}
-        self.first_group = 0
+
 
         filenames = glob.glob(path.join(image_path,'*.tiff'))
-
-        # Open tiffs
         if len(filenames) > 0:
-            section_sets = dict()
-            section_meta = dict()
-            for fn in filenames:
-                # Break up filename into components
-                comp_ = path.basename(fn)[:-5].split("_")
-                section = comp_[2]
-                # Add new section
-                if section_sets.setdefault(section, dict()) == {}:
-                    im = imageio.imread(fn)
-                    section_meta[section] = {'shape':im.shape,'dtype':im.dtype,'filenames':[]}
+            section_names = self.open_tiffs(filenames)
 
-                for i, comp in enumerate(comp_):
-                    # Add components
-                    section_sets[section].setdefault(i, set())
-                    section_sets[section][i].add(comp)
-                    section_meta[section]['filenames'].append(fn)
-
-            section_data = {}
-            for s in section_sets.keys():
-                # Lazy open images
-                filenames = section_meta[s]['filenames']
-                lazy_arrays = [dask.delayed(imageio.imread)(fn) for fn in filenames]
-                shape = section_meta[s]['shape']
-                dtype = section_meta[s]['dtype']
-                lazy_arrays = [da.from_delayed(x, shape=shape, dtype=dtype) for x in lazy_arrays]
-
-                # Organize images
-                #0 channel, 1 flowcell, 2 section, 3 cycle, 4 x position, 5 objective position
-                fn_comp_sets = list(map(sorted, section_sets[s].values()))
-                remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[5], [1],  fn_comp_sets[4]]
-                a = np.empty(tuple(map(len, remap_comps)), dtype=object)
-                for fn, x in zip(filenames, lazy_arrays):
-                    comp_ = path.basename(fn)[:-5].split("_")
-                    channel = fn_comp_sets[0].index(comp_[0])
-                    cycle = fn_comp_sets[3].index(comp_[3])
-                    obj_step = fn_comp_sets[5].index(comp_[5])
-                    x_step = fn_comp_sets[4].index(comp_[4])
-                    a[channel, cycle, obj_step, 0, x_step] = x
-
-                # Label array
-                dim_names = ['channel', 'cycle', 'obj_step', 'row', 'col']
-                channels = [int(ch[1:]) for ch in fn_comp_sets[0]]
-                cycles = [int(r[1:]) for r in fn_comp_sets[3]]
-                obj_steps = [int(o[1:]) for o in fn_comp_sets[5]]
-                coord_values = {'channel':channels, 'cycle':cycles, 'obj_step':obj_steps}
-                im = xr.DataArray(da.block(a.tolist()),
-                                  dims = dim_names,
-                                  coords = coord_values,
-                                  name = s[1:])
-
-                # Register channels
-                self.sections[s[1:]] = self.register_channels(im.squeeze())
+        print('Opened',*section_names)
 
 
+    def correct_background(self):
+
+        # Open background config
+        config = configparser.ConfigParser()
+        if self.machine is None:
+            config_path = pkg_resources.path(recipes, 'background.cfg')
+        else:
+            config_path = pkg_resources.path(recipes, machine+'.cfg')
+        with config_path as config_path_:
+            config.read(config_path_)
+
+        # Apply background correction
+        for s in self.sections.keys():
+            dataset = self.sections[s]
+            ch_list = []
+            ncols = len(dataset.col)
+            for ch in dataset.channel.values:
+                bg_ = np.zeros(ncols)
+                i = 0
+                for c in range(int(ncols/256)):
+                    if c == 0:
+                        i = dataset.attrs['first group']
+                    if i == 8:
+                        i = 0
+                    bg = config.getint(str(ch),str(i))
+                    bg_[c*256:(c+1)*256] = bg
+                    i += 1
+                ch_list.append(dataset.sel(channel=ch)+bg_)
+            self.sections[s] = xr.concat(ch_list,dim='channel')
 
     def register_channels(self, im):
         """Register image channels."""
@@ -770,7 +791,7 @@ class HiSeqImages():
                                   ))
         shifted = xr.concat(shifted, dim = 'channel')
 
-        return shifted.sel(row=slice(61,None))                                  # Top 64 rows have white noise
+        return shifted.sel(row=slice(64,None))                                  # Top 64 rows have white noise
 
     def hs_napari(self, dataset):
 
@@ -912,6 +933,79 @@ class HiSeqImages():
                     dataset = dataset.reset_coords(names=c, drop=True)
             dataset.to_dataset().to_zarr(store=store)
             store.close()
+
+
+    def open_tiffs(self, filenames):
+        """Create labeled dataset from tiffs.
+
+           **Parameters:**
+           - filename(list): List of full file path names to images
+
+           **Returns:**
+           - array: Labeled dataset
+
+        """
+
+        # Open tiffs
+        section_sets = dict()
+        section_meta = dict()
+        for fn in filenames:
+            # Break up filename into components
+            comp_ = path.basename(fn)[:-5].split("_")
+            if len(comp_) == 6:
+                section = comp_[2]
+                # Add new section
+                if section_sets.setdefault(section, dict()) == {}:
+                    im = imageio.imread(fn)
+                    section_meta[section] = {'shape':im.shape,'dtype':im.dtype,'filenames':[]}
+
+                for i, comp in enumerate(comp_):
+                    # Add components
+                    section_sets[section].setdefault(i, set())
+                    section_sets[section][i].add(comp)
+                    section_meta[section]['filenames'].append(fn)
+
+        section_data = {}
+        im = None
+        for s in section_sets.keys():
+            # Lazy open images
+            filenames = section_meta[s]['filenames']
+            lazy_arrays = [dask.delayed(imageio.imread)(fn) for fn in filenames]
+            shape = section_meta[s]['shape']
+            dtype = section_meta[s]['dtype']
+            lazy_arrays = [da.from_delayed(x, shape=shape, dtype=dtype) for x in lazy_arrays]
+
+            # Organize images
+            #0 channel, 1 flowcell, 2 section, 3 cycle, 4 x position, 5 objective position
+            fn_comp_sets = list(map(sorted, section_sets[s].values()))
+            remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[5], [1],  fn_comp_sets[4]]
+            a = np.empty(tuple(map(len, remap_comps)), dtype=object)
+            for fn, x in zip(filenames, lazy_arrays):
+                comp_ = path.basename(fn)[:-5].split("_")
+                channel = fn_comp_sets[0].index(comp_[0])
+                cycle = fn_comp_sets[3].index(comp_[3])
+                obj_step = fn_comp_sets[5].index(comp_[5])
+                x_step = fn_comp_sets[4].index(comp_[4])
+                a[channel, cycle, obj_step, 0, x_step] = x
+
+            # Label array
+            dim_names = ['channel', 'cycle', 'obj_step', 'row', 'col']
+            channels = [int(ch[1:]) for ch in fn_comp_sets[0]]
+            cycles = [int(r[1:]) for r in fn_comp_sets[3]]
+            obj_steps = [int(o[1:]) for o in fn_comp_sets[5]]
+            coord_values = {'channel':channels, 'cycle':cycles, 'obj_step':obj_steps}
+            im = xr.DataArray(da.block(a.tolist()),
+                              dims = dim_names,
+                              coords = coord_values,
+                              name = s[1:])
+            section_data[s] = im
+
+            name = s[1:]
+            self.sections[name] = self.register_channels(im.squeeze())
+            self.sections[name].attrs['first group'] = 0
+            self.sections[name].attrs['ntiles'] = len(fn_comp_sets[4])
+
+        return [*self.sections.keys()]
 
 class HiSeqImagesOLD():
     """HiSeqImages
