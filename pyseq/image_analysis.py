@@ -724,6 +724,7 @@ def get_HiSeqImages(image_path=None):
         return ims
 
 
+
 class HiSeqImages():
     """HiSeqImages
 
@@ -733,7 +734,8 @@ class HiSeqImages():
 
     """
 
-    def __init__(self, image_path=None, im=None, obj_stack=False):
+    def __init__(self, image_path=None, common_name='',  im=None,
+                       obj_stack=False, RoughScan = False):
         """The constructor for HiSeq Image Datasets.
 
            **Parameters:**
@@ -751,29 +753,42 @@ class HiSeqImages():
                               687:[0,-93,0,None],
                               740:[0,-93,0,None]}
 
+        if len(common_name) > 0:
+            common_name = '*'+common_name
+
+        section_names = []
         if im is None:
             if image_path is None:
                 image_path = getcwd()
 
             # Open zarr
             if image_path[-4:] != 'zarr':
-                zarr_path = path.join(image_path,'*.zarr')
+                zarr_path = path.join(image_path, common_name+'*.zarr')
             filenames =  glob.glob(zarr_path)
+
             if len(filenames) > 0:
                 section_names = self.open_zarr(filenames)
 
             if obj_stack:
                 # Open obj stack (jpegs)
-                filenames = glob.glob(path.join(image_path,'*.jpeg'))
+                filenames = glob.glob(path.join(image_path, common_name+'*.jpeg'))
+
                 n_frames = self.open_objstack(filenames)
-                section_names = [str(n_frames)+ ' frame objective stack']
+                #section_names = [str(n_frames)+ ' frame objective stack']
+            elif RoughScan:
+                # RoughScans
+                filenames = glob.glob(path.join(image_path,'*RoughScan*.tiff'))
+                if len(filenames) > 0:
+                    n_tiles = self.open_RoughScan(filenames)
+                #section_names = [str(n_tiles)+ ' tile Rough Scan']
             else:
                 # Open tiffs
-                filenames = glob.glob(path.join(image_path,'*.tiff'))
+                filenames = glob.glob(path.join(image_path, common_name+'*.tiff'))
                 if len(filenames) > 0:
                     section_names = self.open_tiffs(filenames)
 
-            print('Opened', *section_names)
+            if len(section_names) > 0:
+                print('Opened', *section_names)
 
         else:
             self.im = im
@@ -969,6 +984,51 @@ class HiSeqImages():
 
         return im_names
 
+
+    def open_RoughScan(self,filenames):
+        # Open RoughScan tiffs
+        comp_sets = dict()
+        for fn in filenames:
+            # Break up filename into components
+            comp_ = path.basename(fn)[:-5].split("_")
+            for i, comp in enumerate(comp_):
+                comp_sets.setdefault(i,set())
+                comp_sets[i].add(comp)
+
+        shape = imageio.imread(filenames[0]).shape
+        lazy_arrays = [dask.delayed(imageio.imread)(fn) for fn in filenames]
+        lazy_arrays = [da.from_delayed(x, shape=shape, dtype='int16') for x in lazy_arrays]
+        #images = [imageio.imread(fn) for fn in filenames]
+
+        # Organize images
+        #0 channel, 1 RoughScan, 2 x_step, 3 obj_step
+        fn_comp_sets = list(comp_sets.values())
+        for i in [0,2]:
+            fn_comp_sets[i] = [int(x[1:]) for x in fn_comp_sets[i]]
+        fn_comp_sets = list(map(sorted, fn_comp_sets))
+        remap_comps = [fn_comp_sets[0], [1], fn_comp_sets[2]]
+        a = np.empty(tuple(map(len, remap_comps)), dtype=object)
+        for fn, x in zip(filenames, lazy_arrays):
+            comp_ = path.basename(fn)[:-5].split("_")
+            channel = fn_comp_sets[0].index(int(comp_[0][1:]))
+            x_step = fn_comp_sets[2].index(int(comp_[2][1:]))
+            a[channel, 0, x_step] = x
+
+
+        # Label array
+        dim_names = ['channel', 'row', 'col']
+        channels = [int(ch) for ch in fn_comp_sets[0]]
+        coord_values = {'channel':channels}
+        im = xr.DataArray(da.block(a.tolist()),
+                               dims = dim_names,
+                               coords = coord_values,
+                               name = 'RoughScan')
+
+        im = im.assign_attrs(first_group = 0)
+        self.im = im
+
+        return len(fn_comp_sets[2])
+
     def open_objstack(self,filenames):
         # Open jpegs
         comp_sets = dict()
@@ -982,27 +1042,25 @@ class HiSeqImages():
 
         lazy_arrays = [dask.delayed(imageio.imread)(fn) for fn in filenames]
         lazy_arrays = [da.from_delayed(x, shape=(16,2048), dtype='int8') for x in lazy_arrays]
-        #images = [imageio.imread(fn) for fn in filenames]
 
         # Organize images
         #0 channel, 1 frame
-        fn_comp_sets = list(map(sorted, comp_sets.values()))
-        fn_comp_sets[1] = list(map(int, fn_comp_sets[1]))
-        fn_comp_sets[1] = list(sorted(fn_comp_sets[1]))
+        fn_comp_sets = list(comp_sets.values())
+        for i in [0,1]:
+            fn_comp_sets[i] = [int(x) for x in fn_comp_sets[i]]
+            fn_comp_sets[i] = sorted(fn_comp_sets[i])
         remap_comps = [fn_comp_sets[0], fn_comp_sets[1], [1], [1]]
         a = np.empty(tuple(map(len, remap_comps)), dtype=object)
         for fn, x in zip(filenames, lazy_arrays):
             comp_ = path.basename(fn)[:-5].split("_")
-            channel = fn_comp_sets[0].index(comp_[0])
+            channel = fn_comp_sets[0].index(int(comp_[0]))
             frame = fn_comp_sets[1].index(int(comp_[1]))
             a[channel, frame, 0, 0] = x
 
 
         # Label array
         dim_names = ['channel', 'frame', 'row', 'col']
-        channels = [int(ch) for ch in fn_comp_sets[0]]
-        frames = [int(f) for f in fn_comp_sets[1]]
-        coord_values = {'channel':channels, 'frame':frames}
+        coord_values = {'channel':fn_comp_sets[0], 'frame':fn_comp_sets[1]}
         im = xr.DataArray(da.block(a.tolist()),
                                dims = dim_names,
                                coords = coord_values,
@@ -1011,7 +1069,7 @@ class HiSeqImages():
         im = im.assign_attrs(first_group = 0)
         self.im = im
 
-        return len(frames)
+        return len(fn_comp_sets[1])
 
 
     def open_tiffs(self, filenames):
@@ -1055,23 +1113,23 @@ class HiSeqImages():
 
             # Organize images
             #0 channel, 1 flowcell, 2 section, 3 cycle, 4 x position, 5 objective position
-            fn_comp_sets = list(map(sorted, section_sets[s].values()))
+            fn_comp_sets = list(section_sets[s].values())
+            for i in [0,3,4,5]:
+                fn_comp_sets[i] = [int(x[1:]) for x in fn_comp_sets[i]]
+                fn_comp_sets[i] = sorted(fn_comp_sets[i])
             remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[5], [1],  fn_comp_sets[4]]
             a = np.empty(tuple(map(len, remap_comps)), dtype=object)
             for fn, x in zip(filenames, lazy_arrays):
                 comp_ = path.basename(fn)[:-5].split("_")
-                channel = fn_comp_sets[0].index(comp_[0])
-                cycle = fn_comp_sets[3].index(comp_[3])
-                obj_step = fn_comp_sets[5].index(comp_[5])
-                x_step = fn_comp_sets[4].index(comp_[4])
+                channel = fn_comp_sets[0].index(int(comp_[0][1:]))
+                cycle = fn_comp_sets[3].index(int(comp_[3][1:]))
+                obj_step = fn_comp_sets[5].index(int(comp_[5][1:]))
+                x_step = fn_comp_sets[4].index(int(comp_[4][1:]))
                 a[channel, cycle, obj_step, 0, x_step] = x
 
             # Label array
             dim_names = ['channel', 'cycle', 'obj_step', 'row', 'col']
-            channels = [int(ch[1:]) for ch in fn_comp_sets[0]]
-            cycles = [int(r[1:]) for r in fn_comp_sets[3]]
-            obj_steps = [int(o[1:]) for o in fn_comp_sets[5]]
-            coord_values = {'channel':channels, 'cycle':cycles, 'obj_step':obj_steps}
+            coord_values = {'channel':fn_comp_sets[0], 'cycle':fn_comp_sets[3], 'obj_step':fn_comp_sets[5]}
             im = xr.DataArray(da.block(a.tolist()),
                                    dims = dim_names,
                                    coords = coord_values,
