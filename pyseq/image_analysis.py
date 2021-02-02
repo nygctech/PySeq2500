@@ -712,6 +712,17 @@ def compute_background(im_path, save_path = None, machine=None):
         bg_path = path.join(save_path,machine+'.cfg')
     with open(bg_path, 'w') as configfile: config.write(configfile)
 
+def get_HiSeqImages(image_path=None):
+
+
+    ims = HiSeqImages(image_path)
+    n_images = len(ims.im)
+    if n_images > 1:
+        return [HiSeqImages(im=i) for i in ims.im]
+    elif n_images == 1:
+        ims.im = ims.im[0]
+        return ims
+
 
 class HiSeqImages():
     """HiSeqImages
@@ -722,7 +733,7 @@ class HiSeqImages():
 
     """
 
-    def __init__(self, image_path, machine=None):
+    def __init__(self, image_path=None, im=None, obj_stack=False):
         """The constructor for HiSeq Image Datasets.
 
            **Parameters:**
@@ -733,20 +744,39 @@ class HiSeqImages():
 
         """
 
-        self.machine = machine
-        self.sections = {}
+        self.im = []
         self.channel_color = {558:'blue', 610:'green', 687:'magenta', 740:'red'}
         self.channel_shift = {558:[93,None,0,None],
                               610:[90,-3,0,None],
                               687:[0,-93,0,None],
                               740:[0,-93,0,None]}
 
+        if im is None:
+            if image_path is None:
+                image_path = getcwd()
 
-        filenames = glob.glob(path.join(image_path,'*.tiff'))
-        if len(filenames) > 0:
-            section_names = self.open_tiffs(filenames)
+            # Open zarr
+            if image_path[-4:] != 'zarr':
+                zarr_path = path.join(image_path,'*.zarr')
+            filenames =  glob.glob(zarr_path)
+            if len(filenames) > 0:
+                section_names = self.open_zarr(filenames)
 
-        print('Opened',*section_names)
+            if obj_stack:
+                # Open obj stack (jpegs)
+                filenames = glob.glob(path.join(image_path,'*.jpeg'))
+                n_frames = self.open_objstack(filenames)
+                section_names = [str(n_frames)+ ' frame objective stack']
+            else:
+                # Open tiffs
+                filenames = glob.glob(path.join(image_path,'*.tiff'))
+                if len(filenames) > 0:
+                    section_names = self.open_tiffs(filenames)
+
+            print('Opened', *section_names)
+
+        else:
+            self.im = im
 
 
     def correct_background(self):
@@ -761,23 +791,21 @@ class HiSeqImages():
             config.read(config_path_)
 
         # Apply background correction
-        for s in self.sections.keys():
-            dataset = self.sections[s]
-            ch_list = []
-            ncols = len(dataset.col)
-            for ch in dataset.channel.values:
-                bg_ = np.zeros(ncols)
-                i = 0
-                for c in range(int(ncols/256)):
-                    if c == 0:
-                        i = dataset.attrs['first group']
-                    if i == 8:
-                        i = 0
-                    bg = config.getint(str(ch),str(i))
-                    bg_[c*256:(c+1)*256] = bg
-                    i += 1
-                ch_list.append(dataset.sel(channel=ch)+bg_)
-            self.sections[s] = xr.concat(ch_list,dim='channel')
+        ch_list = []
+        ncols = len(self.im.col)
+        for ch in self.im.channel.values:
+            bg_ = np.zeros(ncols)
+            i = 0
+            for c in range(int(ncols/256)):
+                if c == 0:
+                    i = self.im.first_group
+                if i == 8:
+                    i = 0
+                bg = config.getint(str(ch),str(i))
+                bg_[c*256:(c+1)*256] = bg
+                i += 1
+            ch_list.append(self.im.sel(channel=ch)+bg_)
+        self.im = xr.concat(ch_list,dim='channel')
 
     def register_channels(self, im):
         """Register image channels."""
@@ -788,10 +816,12 @@ class HiSeqImages():
             shifted.append(im.sel(channel = ch,
                                   row=slice(shift[0],shift[1]),
                                   col=slice(shift[2],shift[3])
-                                  ))
-        shifted = xr.concat(shifted, dim = 'channel')
+                                   ))
+        im = xr.concat(shifted, dim = 'channel')
+        im = im.sel(row=slice(64,None))                                         # Top 64 rows have white noise
 
-        return shifted.sel(row=slice(64,None))                                  # Top 64 rows have white noise
+        return im
+
 
     def hs_napari(self, dataset):
 
@@ -810,46 +840,35 @@ class HiSeqImages():
                 if bound_box.shape == (4,2):
 
                     #crop full dataset
-                    self.sections[dataset.name], self.first_group = self.get_cropped_section(dataset.name, bound_box)
+                    self.crop_section(bound_box)
                     #save current selection
                     selection = {}
-                    for d in self.sections[dataset.name].dims:
+                    for d in self.im.dims:
                         if d not in ['row', 'col']:
                             if d in dataset.dims:
-                                selection[d] = dataset[d].values
+                                selection[d] = dataset.values
                             else:
                                 selection[d] = dataset.coords[d].values
                     # update viewer
-                    cropped = self.sections[dataset.name].sel(selection)
+                    cropped = self.im.sel(selection)
                     self.update_viewer(viewer, cropped)
 
-    def show(self, section = None, selection = {}):
+    def show(self, selection = {}):
         """Display a section from the dataset.
 
            **Parameters:**
-            - section (str): Section name to display
             - selection (dict): Dimension and dimension coordinates to display
 
         """
 
-        if section is None:
-            section = [*self.sections.keys()]
-            if len(section) > 1:
-                print('There are multiple sections, specify one:', *section)
-            else:
-                section = section[0]
-
-        if section in self.sections.keys():
-            dataset = self.sections[section]
-            dataset  = dataset.sel(selection)
+        dataset  = self.im.sel(selection)
 
         self.hs_napari(dataset)
 
-    def get_cropped_section(self, name, bound_box):
+    def crop_section(self, bound_box):
         """Return cropped full dataset with intact pixel groups.
 
            **Parameters:**
-            - name (str): Section name to crop
             - bound_box (list): Px row min, px row max, px col min, px col max
 
            **Returns:**
@@ -858,8 +877,8 @@ class HiSeqImages():
 
         """
 
-        nrows = len(self.sections[name].row)
-        ncols = len(self.sections[name].col)
+        nrows = len(self.im.row)
+        ncols = len(self.im.col)
 
         row_min = int(round(bound_box[0,0]))
         if row_min < 0:
@@ -879,20 +898,17 @@ class HiSeqImages():
             col_max = ncols
         col_max = int(ceil(col_max/256)*256)
 
-        group_index = int((col_min - floor(col_min/2048)*2048)/256)
+        group_index = floor((col_min + self.im.first_group*256)%2048/2048*8)
 
-        cropped = self.sections[name].sel(row=slice(row_min, row_max),
-                                          col=slice(col_min, col_max))
-
-        return  cropped, group_index
+        self.im = self.im.sel(row=slice(row_min, row_max),
+                              col=slice(col_min, col_max))
+        self.im = self.im.assign_attrs(first_group = group_index)
 
     def update_viewer(self, viewer, dataset):
 
         # Delete old layers
         for i in range(len(viewer.layers)):
             viewer.layers.pop(0)
-
-
 
         # Display only 1 layer if there is only 1 channel
         channels = dataset.channel.values
@@ -912,7 +928,7 @@ class HiSeqImages():
                                          blending = 'additive')
 
 
-    def save_zip(self, save_path):
+    def save_zarr(self, save_path):
         """Save all sections in a zipped zarr store.
 
            Note that coordinates for unused dimensions are not saved.
@@ -925,14 +941,77 @@ class HiSeqImages():
         if not path.isdir(save_path):
             mkdir(save_path)
 
-        for s in self.sections.keys():
-            store = zarr.ZipStore(path.join(save_path,s+'.zip'), mode='w')
-            dataset = self.sections[s]
-            for c in dataset.coords.keys():
-                if c not in dataset.dims:
-                    dataset = dataset.reset_coords(names=c, drop=True)
-            dataset.to_dataset().to_zarr(store=store)
-            store.close()
+        save_name = path.join(save_path,self.im.name+'.zarr')
+        # Remove coordinate for unused dimensions
+        for c in self.im.coords.keys():
+            if c not in self.im.dims:
+                im = self.im.reset_coords(names=c, drop=True)
+        im.to_dataset().to_zarr(save_name)
+
+    def open_zarr(self, filenames):
+        """Create labeled dataset from zarrs.
+
+           **Parameters:**
+           - filename(list): List of full file path names to images
+
+           **Returns:**
+           - array: Labeled dataset
+
+        """
+
+        im_names = []
+        for fn in filenames:
+            im_name = path.basename(fn)[:-5]
+            im = xr.open_zarr(fn).to_array()
+            im = im.squeeze().drop_vars('variable').rename(im_name)
+            self.im.append(im)
+            im_names.append(im_name)
+
+        return im_names
+
+    def open_objstack(self,filenames):
+        # Open jpegs
+        comp_sets = dict()
+        for fn in filenames:
+            # Break up filename into components
+            comp_ = path.basename(fn)[:-5].split("_")
+            for i, comp in enumerate(comp_):
+                comp_sets.setdefault(i,set())
+                comp_sets[i].add(comp)
+
+
+        lazy_arrays = [dask.delayed(imageio.imread)(fn) for fn in filenames]
+        lazy_arrays = [da.from_delayed(x, shape=(16,2048), dtype='int8') for x in lazy_arrays]
+        #images = [imageio.imread(fn) for fn in filenames]
+
+        # Organize images
+        #0 channel, 1 frame
+        fn_comp_sets = list(map(sorted, comp_sets.values()))
+        fn_comp_sets[1] = list(map(int, fn_comp_sets[1]))
+        fn_comp_sets[1] = list(sorted(fn_comp_sets[1]))
+        remap_comps = [fn_comp_sets[0], fn_comp_sets[1], [1], [1]]
+        a = np.empty(tuple(map(len, remap_comps)), dtype=object)
+        for fn, x in zip(filenames, lazy_arrays):
+            comp_ = path.basename(fn)[:-5].split("_")
+            channel = fn_comp_sets[0].index(comp_[0])
+            frame = fn_comp_sets[1].index(int(comp_[1]))
+            a[channel, frame, 0, 0] = x
+
+
+        # Label array
+        dim_names = ['channel', 'frame', 'row', 'col']
+        channels = [int(ch) for ch in fn_comp_sets[0]]
+        frames = [int(f) for f in fn_comp_sets[1]]
+        coord_values = {'channel':channels, 'frame':frames}
+        im = xr.DataArray(da.block(a.tolist()),
+                               dims = dim_names,
+                               coords = coord_values,
+                               name = 'Objective Stack')
+
+        im = im.assign_attrs(first_group = 0)
+        self.im = im
+
+        return len(frames)
 
 
     def open_tiffs(self, filenames):
@@ -965,8 +1044,7 @@ class HiSeqImages():
                     section_sets[section][i].add(comp)
                     section_meta[section]['filenames'].append(fn)
 
-        section_data = {}
-        im = None
+        im_names = []
         for s in section_sets.keys():
             # Lazy open images
             filenames = section_meta[s]['filenames']
@@ -995,17 +1073,17 @@ class HiSeqImages():
             obj_steps = [int(o[1:]) for o in fn_comp_sets[5]]
             coord_values = {'channel':channels, 'cycle':cycles, 'obj_step':obj_steps}
             im = xr.DataArray(da.block(a.tolist()),
-                              dims = dim_names,
-                              coords = coord_values,
-                              name = s[1:])
-            section_data[s] = im
+                                   dims = dim_names,
+                                   coords = coord_values,
+                                   name = s[1:])
 
-            name = s[1:]
-            self.sections[name] = self.register_channels(im.squeeze())
-            self.sections[name].attrs['first group'] = 0
-            self.sections[name].attrs['ntiles'] = len(fn_comp_sets[4])
 
-        return [*self.sections.keys()]
+            im = self.register_channels(im.squeeze())
+            im = im.assign_attrs(first_group = 0)
+            self.im.append(im)
+            im_names.append(s[1:])
+
+        return im_names
 
 class HiSeqImagesOLD():
     """HiSeqImages
