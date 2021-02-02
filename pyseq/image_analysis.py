@@ -4,6 +4,7 @@ import numpy as np
 import dask
 import dask.array as da
 import xarray as xr
+xr.set_options(keep_attrs=True)
 import zarr
 import napari
 import pandas as pd
@@ -243,6 +244,56 @@ def sum_images(images, logger = None):
 
     return sum_im
 
+def sum_images2(images, logger = None):
+    """Sum pixel values over channel images.
+
+       The image with the largest signal to noise ratio is used as the
+       reference. Images without significant positive kurtosis, ie pixels that
+       deviate from mean value (assumed as background), are discarded. The
+       remaining image histograms are matched to the reference. Finally, the
+       images are summed together. The summed image is returned or if there is
+       no signal in all channels, False is returned.
+
+       Parameters:
+       - images (dataarray): Xarray dataarray of images
+       - logger (logger): Logger object to record process.
+
+       Return:
+       - array: Numpy array of summed image or False if no signal
+
+    """
+
+    name_ = 'SumImages:'
+    sum_im = None
+    thresh = [1, 9, 27, 81]
+
+
+    # Calculate modified kurtosis
+    channels = images.channel.values
+    k_dict = {}
+    for ch in channels:
+        k = kurt(images.sel(channel=ch))
+        message(logger, name_, 'Channel',ch, 'k = ', k)
+        k_dict[ch] = k
+
+    # Pick kurtosis threshold
+    max_k = max(list(k_dict.values()))
+    thresh_ind = np.where(max_k>np.array(thresh))[0]
+    if len(thresh_ind) > 0:
+        thresh = thresh[max(thresh_ind)]
+        message(logger, name_, 'kurtosis threshold (k) = ', thresh)
+    else:
+        thresh = None
+
+    # keep channels with high kurtosis
+    keep_ch = [ch for ch in channels if k_dict[ch] > thresh]
+    im = self.images.sel(channel = keep_ch)
+
+    # Sum remaining channels
+    im = im.sum(dim='channel')
+
+    return im
+
 def kurt(im):
     """Return kurtosis = mean((image-mode)/2)^4). """
 
@@ -250,6 +301,16 @@ def kurt(im):
     mode = stats.mode(im, axis = None)[0][0]
     z_score = (im-mode)/2
     k = np.mean(z_score**4)
+
+    return k
+
+def kurt2(im):
+    """Return kurtosis = mean((image-mode)/2)^4). """
+
+    mode = stats.mode(im, axis = None)[0][0]
+    z_score = (im-mode)/2
+    z_score = z_score**4
+    k = float(z_score.mean().values)
 
     return k
 
@@ -798,7 +859,7 @@ class HiSeqImages():
 
         # Open background config
         config = configparser.ConfigParser()
-        if self.machine is None:
+        if self.im.machine is None:
             config_path = pkg_resources.path(recipes, 'background.cfg')
         else:
             config_path = pkg_resources.path(recipes, machine+'.cfg')
@@ -821,6 +882,7 @@ class HiSeqImages():
                 i += 1
             ch_list.append(self.im.sel(channel=ch)+bg_)
         self.im = xr.concat(ch_list,dim='channel')
+
 
     def register_channels(self, im):
         """Register image channels."""
@@ -1024,8 +1086,8 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'RoughScan')
 
-        im = im.assign_attrs(first_group = 0)
-        self.im = im
+        im = im.assign_attrs(first_group = 0, machine=None)
+        self.im = im.sel(row=slice(64,None))
 
         return len(fn_comp_sets[2])
 
@@ -1066,7 +1128,7 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'Objective Stack')
 
-        im = im.assign_attrs(first_group = 0)
+        im = im.assign_attrs(first_group = 0, machine = None)
         self.im = im
 
         return len(fn_comp_sets[1])
@@ -1137,7 +1199,7 @@ class HiSeqImages():
 
 
             im = self.register_channels(im.squeeze())
-            im = im.assign_attrs(first_group = 0)
+            im = im.assign_attrs(first_group = 0, machine = None)
             self.im.append(im)
             im_names.append(s[1:])
 
