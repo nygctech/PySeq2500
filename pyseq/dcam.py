@@ -507,13 +507,16 @@ class HamamatsuCamera():
             frame = hc_data.getData()
             frame = np.reshape(frame, [self.frame_y, self.frame_x])
             frame = frame[14:30,:]
-            frame = (np.clip(frame,100,365)-100).astype('uint8')
+            #frame = (np.clip(frame,100,365)-100).astype('uint8')
             #frame = frame.astype('uint8')
 
             # Split frame into 2 channels
             half_col = int(self.frame_x/2)
             left_frame = frame[:,0:half_col]
             right_frame = frame[:,half_col:self.frame_x]
+
+            left_frame = np.interp(left_frame, (100, left_frame.max()), (0,255)).astype('uint8')
+            right_frame = np.interp(right_frame, (100, right_frame.max()), (0,255)).astype('uint8')
 
             # Save frames as jpeg
             left_name = str(self.left_emission)+'_'+str(n)+'.jpeg'
