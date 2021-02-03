@@ -18,6 +18,7 @@ from skimage.util import img_as_ubyte
 import imageio
 import glob
 import configparser
+
 try:
     import importlib.resources as pkg_resources
 except ImportError:
@@ -193,6 +194,7 @@ def normalize(im, scale_factor):
 
     return plane
 
+
 def sum_images(images, logger = None):
     """Sum pixel values over channel images.
 
@@ -255,11 +257,11 @@ def sum_images2(images, logger = None):
        no signal in all channels, False is returned.
 
        Parameters:
-       - images (dataarray): Xarray dataarray of images
+       - images (data array): Xarray data array of images
        - logger (logger): Logger object to record process.
 
        Return:
-       - array: Numpy array of summed image or False if no signal
+       - array: Xarray data array of summed image or None if no signal
 
     """
 
@@ -272,7 +274,7 @@ def sum_images2(images, logger = None):
     channels = images.channel.values
     k_dict = {}
     for ch in channels:
-        k = kurt(images.sel(channel=ch))
+        k = kurt2(images.sel(channel=ch))
         message(logger, name_, 'Channel',ch, 'k = ', k)
         k_dict[ch] = k
 
@@ -282,15 +284,15 @@ def sum_images2(images, logger = None):
     if len(thresh_ind) > 0:
         thresh = thresh[max(thresh_ind)]
         message(logger, name_, 'kurtosis threshold (k) = ', thresh)
+
+        # keep channels with high kurtosis
+        keep_ch = [ch for ch in channels if k_dict[ch] > thresh]
+        im = images.sel(channel = keep_ch)
+
+        # Sum remaining channels
+        im = im.sum(dim='channel')
     else:
-        thresh = None
-
-    # keep channels with high kurtosis
-    keep_ch = [ch for ch in channels if k_dict[ch] > thresh]
-    im = self.images.sel(channel = keep_ch)
-
-    # Sum remaining channels
-    im = im.sum(dim='channel')
+        im = None
 
     return im
 
@@ -914,7 +916,7 @@ class HiSeqImages():
                 else:
                     bound_box = np.array(False)
 
-                if bound_box.shape == (4,2):
+                if bound_box.shape[0] == 4:
 
                     #crop full dataset
                     self.crop_section(bound_box)
@@ -923,7 +925,7 @@ class HiSeqImages():
                     for d in self.im.dims:
                         if d not in ['row', 'col']:
                             if d in dataset.dims:
-                                selection[d] = dataset.values
+                                selection[d] = dataset[d]
                             else:
                                 selection[d] = dataset.coords[d].values
                     # update viewer
@@ -942,6 +944,19 @@ class HiSeqImages():
 
         self.hs_napari(dataset)
 
+    def downscale(self, scale=None):
+        if scale is None:
+            size_Mb = self.im.size*16/8/(1e6)
+            scale = int(2**round(log2(size_Mb)-10))
+
+        if scale > 256:
+            scale = 256
+
+        if scale > 0:
+            self.im = self.im.coarsen(row=scale, col=scale, boundary='trim').mean()
+            self.im.attrs['scale']=scale
+
+
     def crop_section(self, bound_box):
         """Return cropped full dataset with intact pixel groups.
 
@@ -954,8 +969,15 @@ class HiSeqImages():
 
         """
 
+        if bound_box.shape[1] >= 2:
+            bound_box = bound_box[:,-2:]
+
         nrows = len(self.im.row)
         ncols = len(self.im.col)
+        #pixel group scale
+        pgs = int(256/self.im.attrs['scale'])
+        #tile scale
+        ts = int(pgs*8)
 
         row_min = int(round(bound_box[0,0]))
         if row_min < 0:
@@ -968,18 +990,18 @@ class HiSeqImages():
         col_min = bound_box[0,1]
         if col_min < 0:
             col_min = 0
-        col_min = int(floor(col_min/256)*256)
+        col_min = int(floor(col_min/pgs)*pgs)
 
         col_max = bound_box[2,1]
         if col_max > ncols:
             col_max = ncols
-        col_max = int(ceil(col_max/256)*256)
+        col_max = int(ceil(col_max/pgs)*pgs)
 
-        group_index = floor((col_min + self.im.first_group*256)%2048/2048*8)
+        group_index = floor((col_min + self.im.first_group*pgs)%ts/ts*8)
 
         self.im = self.im.sel(row=slice(row_min, row_max),
                               col=slice(col_min, col_max))
-        self.im = self.im.assign_attrs(first_group = group_index)
+        self.im.attrs['first_group'] = group_index
 
     def update_viewer(self, viewer, dataset):
 
@@ -1086,7 +1108,7 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'RoughScan')
 
-        im = im.assign_attrs(first_group = 0, machine=None)
+        im = im.assign_attrs(first_group = 0, machine=None, scale=1)
         self.im = im.sel(row=slice(64,None))
 
         return len(fn_comp_sets[2])
@@ -1128,7 +1150,7 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'Objective Stack')
 
-        im = im.assign_attrs(first_group = 0, machine = None)
+        im = im.assign_attrs(first_group = 0, machine = None, scale=1)
         self.im = im
 
         return len(fn_comp_sets[1])
@@ -1199,7 +1221,7 @@ class HiSeqImages():
 
 
             im = self.register_channels(im.squeeze())
-            im = im.assign_attrs(first_group = 0, machine = None)
+            im = im.assign_attrs(first_group = 0, machine = None, scale=1)
             self.im.append(im)
             im_names.append(s[1:])
 
