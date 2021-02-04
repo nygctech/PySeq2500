@@ -1,6 +1,7 @@
 #!/usr/bin/python
 from os.path import join
 import importlib.resources as pkg_resources
+from math import floor, ceil
 
 
 # HiSeq Simulater
@@ -274,10 +275,13 @@ class OBJstage():
         self.min_v = 0                                                          #mm/s
         self.v = None                                                           #mm/s
         self.position = None
+        self.focus_spacing = 0.5                                                # distance in microns between frames in obj stack
+        self.focus_velocity = 0.1                                               #mm/s
+        self.focus_frames = 450                                                 # number of total camera frames for obj stack
+        self.focus_range = 90                                                   #%
         self.focus_start =  2000                                                # focus start step
         self.focus_stop = 62000                                                 # focus stop step
-        self.focus_rough = int((self.focus_stop - self.focus_start)/2 +
-                                self.focus_start)
+        self.focus_rough = int((self.max_z - self.min_z)/2 + self.min_z)
 
     def move(self, position):
         """Move the objective to an absolute step position.
@@ -334,12 +338,40 @@ class OBJstage():
 
         return self.position
 
-    def update_focus_limits(self):
-        """Update objective start and stop positions for focusing."""
+    def update_focus_limits(self, cam_interval, range=90, spacing=0.5):
+        """Update objective velocity and start/stop positions for focusing.
 
-        range_step = int(self.focus_range/100*(self.focus_stop-self.focus_start)/2)
-        self.focus_stop = self.focus_rough+range_step
-        self.focus_start = self.focus_rough-range_step
+           **Parameters:**
+            - cam_interval (float): Camera frame interval in seconds per frame
+            - range(float): Percent of total objective range to use for focusing
+            - spacing (float): Distance between objective stack frames in microns.
+
+           **Returns:**
+            - bool: True if all values are acceptable.
+        """
+
+        acceptable = 1
+        # Calculate velocity needed to space out frames
+        velocity = spacing *(1/cam_interval)/1000                               #mm/s
+        if self.v_min < velocity <= self.v_max:
+            self.focus_spacing = spacing
+            self.focus_velocity = velocity
+            spf = spacing*self.spum                                             # steps per frame
+        else:
+            acceptable *= 0
+
+
+        # Update focus range, ie start and stop step positions
+        if 1 <= range <= 100:
+            self.focus_range = range
+            range_step = int(range/100*(self.max_z-self.min_z)/2)
+            self.focus_stop = self.focus_rough+range_step
+            self.focus_start = self.focus_rough-range_step
+            self.focus_frames = ceil((self.focus_stop-self.focus_start)/spf)
+        else:
+            acceptable *= 0
+
+        return bool(acceptable)
 
 class FPGA():
     def __init__(self, ystage):

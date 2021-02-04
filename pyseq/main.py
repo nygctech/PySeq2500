@@ -440,6 +440,70 @@ def get_obj_pos(section, cycle):
 
 
 
+def manual_focus():
+    for fc in flowcells:
+        for section in fc.sections:
+            # Move to center of section
+            pos = fc.stage[section]
+            hs.y.move(pos['y_center'])
+            hs.x.move(pos['x_center'])
+            hs.z.move(pos['z_pos'])
+            hs.obj.move(hs.obj.focus_rough)
+
+            # Move to focus filters
+            for i, color in enumerate(hs.optics.colors):
+                hs.optics.move_ex(color,hs.optics.focus_filters[i])
+
+            # Take objective stack
+            fs = hs.obj_stack()
+
+            # Get auto focus objective step
+            af = focus.AutoFocus(hs, pos)
+            f_fs = af.format_focus(fs)
+            auto_obj_pos = af.fit_mixed_gaussian(f_fs)
+
+            # Convert objective step back to frame number
+            spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()              # steps/frame
+            auto_frame = round((auto_obj_pos-hs.obj.focus_start)/spf)
+            hs.message('Stack most sharp at frame', int(auto_frame))
+
+            # Show objective stack images to user
+            obj_stack = ia.HiSeqImages(hs.image_path, obj_stack=True)
+            n_frames = f_fs.shape[0]
+            obj_stack.show(selection={'frame':slice(0,n_frames)})
+
+            # Ask user what they think is the correct focus frame
+            frame = None
+            while frame is not None:
+                try:
+                    hs.message('Choose in focus frame or input -1 to default to autofocus')
+                    frame = input('In focus frame number: ')
+                    frame = int(frame)
+                    if 0 < frame < n_frames:
+                        if not userYN('Confirm in focus frame number is ', frame):
+                            frame = None
+                    else:
+                        frame  = None
+
+                    if frame is None:
+                        if userYN('Default to partial once autofocus'):
+                            if userYN('Confirm default to partial once autofocus'):
+                                frame = -1
+                except:
+                    frame = None
+
+            if frame > 0:
+                #Convert frame to objective step
+                obj_step = round(spf*frame + hs.obj.focus_start)
+                hs.obj.move(obj_step)
+
+                # Save objective step
+                for c in range(fc.total_cycles+1):
+                    write_obj_pos(section, c)
+
+    # Switch back to partial once autofocus after manual focus
+    hs.AF = 'partial once'
+
 def configure_instrument(virtual, IMAG_counter, port_dict):
     """Configure and check HiSeq settings."""
 
@@ -462,6 +526,7 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     else:
         import pyseq
         hs = pyseq.HiSeq(logger)
+        hs.initializeCams()
 
     # Check side ports
     try:
@@ -538,15 +603,17 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
 
     # Check Autofocus Settings
     hs.AF = method.get('autofocus', fallback = 'partial once')
-    if hs.AF not in ['partial', 'partial once', 'full', 'full once', None]:
+    if hs.AF not in ['partial', 'partial once', 'full', 'full once', 'manual', None]:
         error('ConfigFile:: Auto focus method not valid.')
     #Enable/Disable z stage
     hs.z.active = method.getboolean('enable z stage', fallback = True)
     # Get focus Tolerance
     hs.focus_tol = float(method.get('focus tolerance', fallback = 0))
     # Get focus range
-    hs.obj.focus_range = float(method.get('focus range', fallback = 100))
-    hs.obj.update_focus_limits()
+    range = float(method.get('focus range', fallback = 90))
+    spacing = float(method.get('focus spacing', fallback = 0.5))
+    frame_interval = hs.cam1.getFrameInterval()
+    hs.obj.update_focus_limits(frame_interval, range=range, spacing=spacing)
 
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
 
@@ -730,20 +797,22 @@ def confirm_settings(recipe_z_planes = []):
         print('green laser power:', laser_power[0], 'mW')
         print('red laser power:',laser_power[1], 'mW')
         print('autofocus:', hs.AF)
-        print('focus range', hs.obj.focus_range, '%')
-        if hs.focus_tol > 0:
-            print('focus tolerance:', hs.focus_tol, 'um')
-        else:
-            print('focus tolerance:', None, end = ' ')
-            print('WARNING::Out of focus image risk increased')
-        for i, filter in enumerate(hs.optics.focus_filters):
-            if filter == 'home':
-                focus_laser_power = 0
-            elif filter == 'open':
-                focus_laser_power = laser_power[i]
-            else:
-                focus_laser_power = laser_power[i]*10**(-float(filter))
-            print(colors[i+1], 'focus laser power ~', focus_laser_power, 'mW')
+        if hs.AF is not None:
+            print('focus spacing', hs.obj.focus_spacing,'um')
+            print('focus range', hs.obj.focus_range, '%')
+            if hs.focus_tol > 0 and hs.AF != 'manual':
+                print('focus tolerance:', hs.focus_tol, 'um')
+            elif hs.AF != 'manual':
+                print('focus tolerance: None')
+                print('WARNING::Out of focus image risk increased')
+            for i, filter in enumerate(hs.optics.focus_filters):
+                if filter == 'home':
+                    focus_laser_power = 0
+                elif filter == 'open':
+                    focus_laser_power = laser_power[i]
+                else:
+                    focus_laser_power = laser_power[i]*10**(-float(filter))
+                print(colors[i+1], 'focus laser power ~', focus_laser_power, 'mW')
         print('z position when imaging:', hs.z.image_step)
         print('pixel overlap:', hs.overlap)
         z_planes = int(method.get('z planes', fallback = 0))
@@ -816,7 +885,6 @@ def initialize_hs(virtual, IMAG_counter):
         x_homed = hs.initializeInstruments()
         if not x_homed:
             error('HiSeq:: X-Stage did not home correctly')
-        hs.initializeCams(logger)
 
         # HiSeq Settings
         inlet_ports = int(method.get('inlet ports', fallback = 2))
@@ -1517,6 +1585,9 @@ def IMAG(fc, n_Zplanes):
     AorB = fc.position
     cycle = str(fc.cycle)
     start = time.time()
+
+    if hs.AF == 'manual':
+        manual_focus()
 
     #Image sections on flowcell
     for section in fc.sections:

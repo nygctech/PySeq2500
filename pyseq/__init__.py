@@ -448,7 +448,7 @@ class HiSeq():
         return image_complete == 2
 
 
-    def obj_stack(self, n_frames = 232, velocity = 0.1):
+    def obj_stack(self, n_frames = None, velocity = None):
         """Take an objective stack of images.
 
            The start and stop position of the objective is set by
@@ -471,6 +471,10 @@ class HiSeq():
         z = self.z
         cam1 = self.cam1
         cam2 = self.cam2
+        if n_frames is None:
+            n_frames = self.obj.focus_frames
+        if velocity is None:
+            velocity = self.obj.focus_velocity
 
 
         if cam1.sensor_mode != 'AREA':
