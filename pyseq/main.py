@@ -391,7 +391,7 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
         import pyseq
         hs = pyseq.HiSeq(logger)
 
-    hs.initializeCams()
+    hs.initializeCams(logger)
     # Check side ports
     try:
         side_ports = method.get('side ports', fallback = '9,21,22,23,24')

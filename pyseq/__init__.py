@@ -528,9 +528,11 @@ class HiSeq():
 
         # Wait for objective
         start_time = time.time()
+        stack_time = (hs.obj.focus_stop - hs.obj.focus_start)/hs.obj.spum/1000/velocity
+
         while obj.check_position() != obj.focus_stop:
            now = time.time()
-           if now - start_time > 10:
+           if now - start_time > stac_time*10:
                self.message(msg,'Objective took too long to move.')
                break
 
