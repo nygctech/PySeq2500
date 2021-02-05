@@ -475,21 +475,13 @@ class Autofocus():
 
         frame_interval = hs.cam1.getFrameInterval()
         spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
-        print('FormatFocus::', 'obj velocity', hs.obj.v)
-        print('FormatFocus::', 'spum', hs.obj.spum)
-        print('FormatFocus::', 'frame interval', frame_interval)
-        print('FormatFocus::', 'steps per frame', spf)
 
         # Remove frames after objective stops moving
         n_frames = len(focus_data)
-        print('FormatFocus::', 'number of raw frames', n_frames)
         _frames = range(n_frames)
         objsteps = hs.obj.focus_start + np.array(_frames)*spf
-        print('FormatFocus::', 'obj step array', objsteps)
         objsteps = objsteps[objsteps < hs.obj.focus_stop]
-        print('FormatFocus::', 'filtered obj step array', objsteps)
-
-
+        
         # Number of formatted frames
         n_f_frames = len(objsteps)
         objsteps = np.reshape(objsteps, (n_f_frames, 1))
