@@ -835,15 +835,14 @@ class HiSeqImages():
             if obj_stack:
                 # Open obj stack (jpegs)
                 filenames = glob.glob(path.join(image_path, common_name+'*.jpeg'))
-
                 n_frames = self.open_objstack(filenames)
-                #section_names = [str(n_frames)+ ' frame objective stack']
+
             elif RoughScan:
                 # RoughScans
                 filenames = glob.glob(path.join(image_path,'*RoughScan*.tiff'))
                 if len(filenames) > 0:
                     n_tiles = self.open_RoughScan(filenames)
-                #section_names = [str(n_tiles)+ ' tile Rough Scan']
+
             else:
                 # Open tiffs
                 filenames = glob.glob(path.join(image_path, common_name+'*.tiff'))

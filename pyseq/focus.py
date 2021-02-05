@@ -13,6 +13,155 @@ import imageio
 import time
 import configparser
 
+
+def manual_focus(hs, flowcells):
+    for AorB in flowcells:
+        msg_prefix = 'Manual focus::'+AorB+'::'
+        fc = flowcells[AorB]
+        for section in fc.sections:
+            hs.message(msg_prefix+section)
+            # Move to center of section
+            pos = fc.stage[section]
+            hs.y.move(pos['y_center'])
+            hs.x.move(pos['x_center'])
+            hs.z.move(pos['z_pos'])
+            hs.obj.move(hs.obj.focus_rough)
+
+            # Move to focus filters
+            for i, color in enumerate(hs.optics.colors):
+                hs.optics.move_ex(color,hs.optics.focus_filters[i])
+
+            # Take objective stack
+            fs = hs.obj_stack()
+
+            # Get auto focus objective step
+            af = Autofocus(hs, pos)
+            f_fs = af.format_focus(fs)
+            auto_obj_pos = af.fit_mixed_gaussian(f_fs)
+
+            # Convert objective step back to frame number
+            spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()              # steps/frame
+            auto_frame = round((auto_obj_pos-hs.obj.focus_start)/spf)
+            af.message('Stack most sharp at frame', int(auto_frame))
+
+            # Show objective stack images to user
+            if hs.virtual:
+                obj_stack = IA.HiSeqImages(hs.focus_path, obj_stack=True)
+            else:
+                obj_stack = IA.HiSeqImages(hs.image_path, obj_stack=True)
+            n_frames = f_fs.shape[0]
+            print(obj_stack.im.sel(frame=slice(0,n_frames)))
+            #obj_stack.show(selection={'frame':slice(0,n_frames)})
+
+            # Ask user what they think is the correct focus frame
+            frame = None
+            while frame is None:
+                try:
+                    hs.message('Choose in focus frame or input -1 to default to autofocus')
+                    frame = input('In focus frame number: ')
+                    frame = int(frame)
+                    print(n_frames)
+                    if 0 < frame < n_frames:
+                        if not userYN('Confirm in focus frame number is ', frame):
+                            frame = None
+                    else:
+                        frame = None
+
+                    if frame is None:
+                        if userYN('Default to partial once autofocus'):
+                            if userYN('Confirm default to partial once autofocus'):
+                                frame = -1
+                except:
+                    frame = None
+
+            if frame > 0:
+                #Convert frame to objective step
+                obj_step = round(spf*frame + hs.obj.focus_start)
+                hs.obj.move(obj_step)
+
+                # Save objective step
+                for c in range(fc.total_cycles+1):
+                    write_obj_pos(hs, section, fc.cycle)
+
+def write_obj_pos(hs, section, cycle):
+    """Write the objective position used at *cycle* number for *section*.
+
+       The objective position is written to a config file. Each section in
+       config file corresponds to a section name on a flowcell. Each item in a
+       section is a cycle number with the objective position used to image at
+       that cycle.
+
+       **Parameters:**
+       - hs (HiSeq): HiSeq Object
+       - section (string): Name of the section.
+       - cycle (int): Cycle number.
+
+       **Returns:**
+       - file: Handle of the config file.
+
+     """
+
+    section = str(section)
+    cycle = str(cycle)
+    focus_config = configparser.ConfigParser()
+    config_path = path.join(hs.log_path, 'focus_config.cfg')
+
+    if path.exists(config_path):
+        focus_config.read(config_path)
+
+    if section not in focus_config.sections():
+        focus_config.add_section(section)
+
+    focus_config.set(section, cycle, str(hs.obj.position))
+
+    with open(config_path, 'w') as configfile:
+        focus_config.write(configfile)
+
+    return configfile
+
+def get_obj_pos(hs, section, cycle):
+    """Read the objective position at *cycle* number for *section*.
+
+       Used to specify/change the objective position used for imaging or
+       re-autofocus on the section next imaging round. Specifying the objective
+       position at a cycle prior to imaging will skip the autofocus routine and
+       start imaging the section at the specified objective position. If using
+       the 'partial once' or 'full once' autofocus routine and the objective
+       position is specifed as None at a cycle prior to imaging, the previously
+       used objective position will be discarded and a new objective position
+       will be found with the autofocus routine.
+
+       **Parameters:**
+       - hs (HiSeq): HiSeq object
+       - section (string): Name of the section.
+       - cycle (int): Cycle number.
+
+       **Returns:**
+       - int: Objective position to use (or None if not specified)
+
+     """
+
+    section = str(section)
+    cycle = str(cycle)
+    focus_config = configparser.ConfigParser()
+    obj_pos = None
+    config_path = path.join(hs.log_path, 'focus_config.cfg')
+
+    if path.exists(config_path):
+        focus_config.read(config_path)
+        if focus_config.has_option(section, cycle):
+            try:
+                obj_pos = int(focus_config.get(section, cycle))
+                if hs.obj.min_z <= obj_pos <= hs.obj.max_z:
+                    pass
+                else:
+                    obj_pos = None
+            except:
+                obj_pos = None
+
+    return obj_pos
+
+
 class Autofocus():
     """Autofocus.
 
@@ -322,12 +471,19 @@ class Autofocus():
 
         frame_interval = hs.cam1.getFrameInterval()
         spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
+        print('FormatFocus::', 'obj velocity', hs.obj.v)
+        print('FormatFocus::', 'spum', hs.obj.spum)
+        print('FormatFocus::', 'frame interval', frame_interval)
+        print('FormatFocus::', 'steps per frame', spf)
 
         # Remove frames after objective stops moving
         n_frames = len(focus_data)
+        print('FormatFocus::', 'number of raw frames', n_frames)
         _frames = range(n_frames)
         objsteps = hs.obj.focus_start + np.array(_frames)*spf
+        print('FormatFocus::', 'obj step array', objsteps)
         objsteps = objsteps[objsteps < hs.obj.focus_stop]
+        print('FormatFocus::', 'filtered obj step array', objsteps)
 
 
         # Number of formatted frames
@@ -759,7 +915,25 @@ def autofocus(hs, pos_dict):
 #
 #     return rough_ims, scale_factor, files
 
+def userYN(*args):
+    """Ask a user a Yes/No question and return True if Yes, False if No."""
 
+    question = ''
+    for a in args:
+        question += str(a) + ' '
+
+    response = True
+    while response:
+        answer = input(question + '? Y/N = ')
+        answer = answer.upper().strip()
+        if answer == 'Y':
+            response = False
+            answer = True
+        elif answer == 'N':
+            response = False
+            answer = False
+
+    return answer
 
 
 

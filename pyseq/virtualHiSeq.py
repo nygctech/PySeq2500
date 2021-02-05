@@ -352,8 +352,8 @@ class OBJstage():
 
         acceptable = 1
         # Calculate velocity needed to space out frames
-        velocity = spacing *(1/cam_interval)/1000                               #mm/s
-        if self.v_min < velocity <= self.v_max:
+        velocity = spacing/cam_interval/1000                                   #mm/s
+        if self.min_v < velocity <= self.max_v:
             self.focus_spacing = spacing
             self.focus_velocity = velocity
             spf = spacing*self.spum                                             # steps per frame
@@ -370,7 +370,7 @@ class OBJstage():
             self.focus_frames = ceil((self.focus_stop-self.focus_start)/spf)
         else:
             acceptable *= 0
-
+        print(velocity, spf, self.focus_frames)
         return bool(acceptable)
 
 class FPGA():
@@ -971,6 +971,7 @@ class HiSeq():
         self.channels = None
         self.virtual = True
         self.focus_data = join(dirname(__file__), 'focus_data')
+        self.focus_path = join(dirname(__file__), 'focus_data','obj_stack')
         self.AF = 'partial'
         self.focus_tol = 0
         self.scan_flag = False
@@ -1054,7 +1055,16 @@ class HiSeq():
         else:
             return False
 
-    def obj_stack(self, n_frames = 232, velocity = 0.1):
+    def obj_stack(self, n_frames = None, velocity = None):
+
+        if velocity is None:
+            velocity= self.obj.focus_velocity
+        if n_frames is None:
+            n_frames = self.obj.focus_frames
+        self.obj.v = velocity
+        self.cam1.allocFrame(n_frames)
+        self.cam2.allocFrame(n_frames)
+
         focus_data = np.loadtxt(join(self.focus_data,'obj_stack_data.txt'))
 
         return focus_data

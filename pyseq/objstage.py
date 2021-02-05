@@ -211,8 +211,8 @@ class OBJstage():
 
         acceptable = 1
         # Calculate velocity needed to space out frames
-        velocity = spacing *(1/cam_interval)/1000                               #mm/s
-        if self.v_min < velocity <= self.v_max:
+        velocity = spacing/cam_interval/1000                               #mm/s
+        if self.min_v < velocity <= self.max_v:
             self.focus_spacing = spacing
             self.focus_velocity = velocity
             spf = spacing*self.spum                                             # steps per frame

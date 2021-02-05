@@ -367,142 +367,6 @@ def setup_logger():
 
     return logger
 
-def write_obj_pos(section, cycle):
-    """Write the objective position used at *cycle* number for *section*.
-
-       The objective position is written to a config file. Each section in
-       config file corresponds to a section name on a flowcell. Each item in a
-       section is a cycle number with the objective position used to image at
-       that cycle.
-
-       **Parameters:**
-       - section (string): Name of the section.
-       - cycle (int): Cycle number.
-
-       **Returns:**
-       - file: Handle of the config file.
-
-     """
-
-    section = str(section)
-    cycle = str(cycle)
-    focus_config = configparser.ConfigParser()
-    if os.path.exists(join(hs.log_path, 'focus_config.cfg')):
-        focus_config.read(join(hs.log_path, 'focus_config.cfg'))
-
-    if section not in focus_config.sections():
-        focus_config.add_section(section)
-
-    focus_config.set(section, cycle, str(hs.obj.position))
-
-    with open(join(hs.log_path, 'focus_config.cfg'), 'w') as configfile:
-        focus_config.write(configfile)
-
-    return configfile
-
-def get_obj_pos(section, cycle):
-    """Read the objective position at *cycle* number for *section*.
-
-       Used to specify/change the objective position used for imaging or
-       re-autofocus on the section next imaging round. Specifying the objective
-       position at a cycle prior to imaging will skip the autofocus routine and
-       start imaging the section at the specified objective position. If using
-       the 'partial once' or 'full once' autofocus routine and the objective
-       position is specifed as None at a cycle prior to imaging, the previously
-       used objective position will be discarded and a new objective position
-       will be found with the autofocus routine.
-
-       **Parameters:**
-       - section (string): Name of the section.
-       - cycle (int): Cycle number.
-
-       **Returns:**
-       - int: Objective position to use (or None if not specified)
-
-     """
-    section = str(section)
-    cycle = str(cycle)
-    focus_config = configparser.ConfigParser()
-    obj_pos = None
-    if os.path.exists(join(hs.log_path, 'focus_config.cfg')):
-        focus_config.read(join(hs.log_path, 'focus_config.cfg'))
-        if focus_config.has_option(section, cycle):
-            try:
-                obj_pos = int(focus_config.get(section, cycle))
-                if hs.obj.min_z <= obj_pos <= hs.obj.max_z:
-                    pass
-                else:
-                    obj_pos = None
-            except:
-                obj_pos = None
-
-    return obj_pos
-
-
-
-def manual_focus():
-    for fc in flowcells:
-        for section in fc.sections:
-            # Move to center of section
-            pos = fc.stage[section]
-            hs.y.move(pos['y_center'])
-            hs.x.move(pos['x_center'])
-            hs.z.move(pos['z_pos'])
-            hs.obj.move(hs.obj.focus_rough)
-
-            # Move to focus filters
-            for i, color in enumerate(hs.optics.colors):
-                hs.optics.move_ex(color,hs.optics.focus_filters[i])
-
-            # Take objective stack
-            fs = hs.obj_stack()
-
-            # Get auto focus objective step
-            af = focus.AutoFocus(hs, pos)
-            f_fs = af.format_focus(fs)
-            auto_obj_pos = af.fit_mixed_gaussian(f_fs)
-
-            # Convert objective step back to frame number
-            spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()              # steps/frame
-            auto_frame = round((auto_obj_pos-hs.obj.focus_start)/spf)
-            hs.message('Stack most sharp at frame', int(auto_frame))
-
-            # Show objective stack images to user
-            obj_stack = ia.HiSeqImages(hs.image_path, obj_stack=True)
-            n_frames = f_fs.shape[0]
-            obj_stack.show(selection={'frame':slice(0,n_frames)})
-
-            # Ask user what they think is the correct focus frame
-            frame = None
-            while frame is not None:
-                try:
-                    hs.message('Choose in focus frame or input -1 to default to autofocus')
-                    frame = input('In focus frame number: ')
-                    frame = int(frame)
-                    if 0 < frame < n_frames:
-                        if not userYN('Confirm in focus frame number is ', frame):
-                            frame = None
-                    else:
-                        frame  = None
-
-                    if frame is None:
-                        if userYN('Default to partial once autofocus'):
-                            if userYN('Confirm default to partial once autofocus'):
-                                frame = -1
-                except:
-                    frame = None
-
-            if frame > 0:
-                #Convert frame to objective step
-                obj_step = round(spf*frame + hs.obj.focus_start)
-                hs.obj.move(obj_step)
-
-                # Save objective step
-                for c in range(fc.total_cycles+1):
-                    write_obj_pos(section, c)
-
-    # Switch back to partial once autofocus after manual focus
-    hs.AF = 'partial once'
 
 def configure_instrument(virtual, IMAG_counter, port_dict):
     """Configure and check HiSeq settings."""
@@ -526,8 +390,8 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     else:
         import pyseq
         hs = pyseq.HiSeq(logger)
-        hs.initializeCams()
 
+    hs.initializeCams()
     # Check side ports
     try:
         side_ports = method.get('side ports', fallback = '9,21,22,23,24')
@@ -1586,8 +1450,10 @@ def IMAG(fc, n_Zplanes):
     cycle = str(fc.cycle)
     start = time.time()
 
+    # Manual focus ALL sections across flowcells
     if hs.AF == 'manual':
-        manual_focus()
+        focus.manual_focus(hs, flowcells)
+        hs.AF = 'partial once'
 
     #Image sections on flowcell
     for section in fc.sections:
@@ -1600,7 +1466,7 @@ def IMAG(fc, n_Zplanes):
         # Autofocus
         msg = 'PySeq::' + AorB + '::cycle' + cycle+ '::' + str(section) + '::'
         if hs.AF:
-            obj_pos = get_obj_pos(section, cycle)
+            obj_pos = focus.get_obj_pos(hs, section, cycle)
             if obj_pos is None:
                 # Move to focus filters
                 for i, color in enumerate(hs.optics.colors):
@@ -1615,7 +1481,7 @@ def IMAG(fc, n_Zplanes):
             else:
                 hs.obj.move(obj_pos)
                 pos['obj_pos'] = hs.obj.position
-            write_obj_pos(section, cycle)
+            focus.write_obj_pos(hs, section, cycle)
 
         #Override recipe number of z planes
         if fc.z_planes is not None: n_Zplanes = fc.z_planes
