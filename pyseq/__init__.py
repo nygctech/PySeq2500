@@ -472,9 +472,11 @@ class HiSeq():
         cam1 = self.cam1
         cam2 = self.cam2
         if n_frames is None:
-            n_frames = self.obj.focus_frames
+            n_frames = obj.focus_frames
+            print('n frames', n_frames)
         if velocity is None:
-            velocity = self.obj.focus_velocity
+            velocity = obj.focus_velocity
+            print('velocity', velocity)
 
 
         if cam1.sensor_mode != 'AREA':
@@ -508,6 +510,7 @@ class HiSeq():
         # Position objective stage
         obj.set_velocity(5) # mm/s
         obj.move(obj.focus_start)
+        print('objective position', obj.check_position())
 
         # Set up objective to trigger as soon as it moves
         obj.set_velocity(velocity) #mm/s
@@ -526,6 +529,7 @@ class HiSeq():
         cam2.startAcquisition()
 
         # Move objective
+        print('Moving objective now')
         obj.serial_port.flush()
         response = obj.serial_port.readline()
         print(response)
@@ -534,7 +538,6 @@ class HiSeq():
         start_time = time.time()
         stack_time = (obj.focus_stop - obj.focus_start)/obj.spum/1000/velocity
         print('stack time', stack_time)
-        print('objective position', obj.check_position())
 
         while obj.check_position() != obj.focus_stop:
            now = time.time()
