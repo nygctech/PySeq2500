@@ -37,12 +37,15 @@ def manual_focus(hs, flowcells):
             # Get auto focus objective step
             af = Autofocus(hs, pos)
             f_fs = af.format_focus(fs)
-            auto_obj_pos = af.fit_mixed_gaussian(f_fs)
+            if f_fs:
+                auto_obj_pos = af.fit_mixed_gaussian(f_fs)
 
-            # Convert objective step back to frame number
-            spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()              # steps/frame
-            auto_frame = round((auto_obj_pos-hs.obj.focus_start)/spf)
-            af.message('Stack most sharp at frame', int(auto_frame))
+                # Convert objective step back to frame number
+                spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()              # steps/frame
+                auto_frame = int(round((auto_obj_pos-hs.obj.focus_start)/spf))
+            else:
+                autoframe = 'unknown'
+            af.message('Stack most sharp at frame', auto_frame)
 
             # Show objective stack images to user
             if hs.virtual:
@@ -51,7 +54,7 @@ def manual_focus(hs, flowcells):
                 obj_stack = IA.HiSeqImages(hs.image_path, obj_stack=True)
             n_frames = f_fs.shape[0]
             print(obj_stack.im.sel(frame=slice(0,n_frames)))
-            #obj_stack.show(selection={'frame':slice(0,n_frames)})
+            obj_stack.show(selection={'frame':slice(0,n_frames)})
 
             # Ask user what they think is the correct focus frame
             frame = None

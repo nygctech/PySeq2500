@@ -391,7 +391,6 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
         import pyseq
         hs = pyseq.HiSeq(logger)
 
-    hs.initializeCams(logger)
     # Check side ports
     try:
         side_ports = method.get('side ports', fallback = '9,21,22,23,24')
@@ -476,7 +475,7 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     # Get focus range
     range = float(method.get('focus range', fallback = 90))
     spacing = float(method.get('focus spacing', fallback = 0.5))
-    frame_interval = hs.cam1.getFrameInterval()
+    frame_interval = 0.040202                                                   # estimate, get actual value later
     hs.obj.update_focus_limits(frame_interval, range=range, spacing=spacing)
 
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
@@ -746,6 +745,7 @@ def initialize_hs(virtual, IMAG_counter):
         if not userYN('Initialize HiSeq'):
             sys.exit()
 
+        hs.initializeCams(logger)
         x_homed = hs.initializeInstruments()
         if not x_homed:
             error('HiSeq:: X-Stage did not home correctly')

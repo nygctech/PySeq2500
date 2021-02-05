@@ -471,12 +471,6 @@ class HiSeq():
         z = self.z
         cam1 = self.cam1
         cam2 = self.cam2
-        if n_frames is None:
-            n_frames = obj.focus_frames
-            print('n frames', n_frames)
-        if velocity is None:
-            velocity = obj.focus_velocity
-            print('velocity', velocity)
 
 
         if cam1.sensor_mode != 'AREA':
@@ -500,6 +494,17 @@ class HiSeq():
 
         cam1.captureSetup()
         cam2.captureSetup()
+        
+        # Update limits that were previously based on estimates
+        obj.update_focus_limits(cam1.getFrameInterval(),
+                                range = obj.focus_range,
+                                spacing = obj.focus_spacing)
+        if n_frames is None:
+            n_frames = obj.focus_frames
+            print('n frames', n_frames)
+        if velocity is None:
+            velocity = obj.focus_velocity
+            print('velocity', velocity)
 
         response = cam1.allocFrame(n_frames)
         print('cam1 allocation response', response)
