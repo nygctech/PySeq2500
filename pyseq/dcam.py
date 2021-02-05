@@ -516,10 +516,10 @@ class HamamatsuCamera():
             right_frame = frame[:,half_col:self.frame_x]
 
             # Save frames as tiffs
-            left_name = str(self.left_emission)+'_'+str(n)+'.tiff'
-            imageio.imwrite(join(image_path,'tiff',left_name), left_frame)
-            right_name = str(self.right_emission)+'_'+str(n)+'.tiff'
-            imageio.imwrite(join(image_path,'tiff',right_name), right_frame)
+            # left_name = str(self.left_emission)+'_'+str(n)+'.tiff'
+            # imageio.imwrite(join(image_path,'tiff',left_name), left_frame)
+            # right_name = str(self.right_emission)+'_'+str(n)+'.tiff'
+            # imageio.imwrite(join(image_path,'tiff',right_name), right_frame)
 
             left_frame = np.interp(left_frame, (100, 355), (0,255)).astype('uint8')
             right_frame = np.interp(right_frame, (100, 355), (0,255)).astype('uint8')
