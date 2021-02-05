@@ -496,7 +496,7 @@ class HiSeq():
         cam2.captureSetup()
 
         # Update limits that were previously based on estimates
-        obj.update_focus_limits(camera_interval = cam1.getFrameInterval(),
+        obj.update_focus_limits(cam_interval = cam1.getFrameInterval(),
                                 range = obj.focus_range,
                                 spacing = obj.focus_spacing)
         if n_frames is None:
