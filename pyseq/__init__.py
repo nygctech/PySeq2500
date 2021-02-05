@@ -542,7 +542,7 @@ class HiSeq():
         while obj.check_position() != obj.focus_stop:
            now = time.time()
            print('objective position', obj.check_position())
-           if now - start_time > stack_time*100:
+           if now - start_time > stack_time*10:
                self.message(msg,'Objective took too long to move.')
                break
 
@@ -550,7 +550,7 @@ class HiSeq():
         start_time = time.time()
         while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
            now = time.time()
-           if now - start_time > 10:
+           if now - start_time > stack_time*20:
                self.message(msg, 'Imaging took too long.')
                break
 
