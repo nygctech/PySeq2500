@@ -37,7 +37,7 @@ def manual_focus(hs, flowcells):
             # Get auto focus objective step
             af = Autofocus(hs, pos)
             f_fs = af.format_focus(fs)
-            if f_fs:
+            if f_fs is not False:
                 auto_obj_pos = af.fit_mixed_gaussian(f_fs)
 
                 # Convert objective step back to frame number
