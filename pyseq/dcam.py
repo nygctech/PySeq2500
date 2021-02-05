@@ -515,8 +515,14 @@ class HamamatsuCamera():
             left_frame = frame[:,0:half_col]
             right_frame = frame[:,half_col:self.frame_x]
 
-            left_frame = np.interp(left_frame, (100, left_frame.max()), (0,255)).astype('uint8')
-            right_frame = np.interp(right_frame, (100, right_frame.max()), (0,255)).astype('uint8')
+            # Save frames as tiffs
+            left_name = str(self.left_emission)+'_'+str(n)+'.tiff'
+            imageio.imwrite(join(image_path,'tiff',left_name), left_frame)
+            right_name = str(self.right_emission)+'_'+str(n)+'.tiff'
+            imageio.imwrite(join(image_path,'tiff',right_name), right_frame)
+
+            left_frame = np.interp(left_frame, (100, left_frame.max()), (0,255)).astype('int8')
+            right_frame = np.interp(right_frame, (100, right_frame.max()), (0,255)).astype('int8')
 
             # Save frames as jpeg
             left_name = str(self.left_emission)+'_'+str(n)+'.jpeg'
