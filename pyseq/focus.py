@@ -80,6 +80,7 @@ def manual_focus(hs, flowcells):
             if frame > 0:
                 #Convert frame to objective step
                 obj_step = round(spf*frame + hs.obj.focus_start)
+                hs.obj.set_velocity(5)
                 hs.obj.move(obj_step)
 
                 # Save objective step

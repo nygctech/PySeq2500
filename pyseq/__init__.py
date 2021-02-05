@@ -501,21 +501,16 @@ class HiSeq():
                                 spacing = obj.focus_spacing)
         if n_frames is None:
             n_frames = obj.focus_frames
-            print('n frames', n_frames)
         if velocity is None:
             velocity = obj.focus_velocity
-            print('velocity', velocity)
 
         response = cam1.allocFrame(n_frames)
-        print('cam1 allocation response', response)
         response = cam2.allocFrame(n_frames)
-        print('cam2 allocation response', response)
 
 
         # Position objective stage
         obj.set_velocity(5) # mm/s
         obj.move(obj.focus_start)
-        print('objective position', obj.check_position())
 
         # Set up objective to trigger as soon as it moves
         obj.set_velocity(velocity) #mm/s
@@ -527,22 +522,18 @@ class HiSeq():
         # Prepare move objective to move
         text = 'ZMV ' + str(obj.focus_stop) + obj.suffix
         obj.serial_port.write(text)
-        print(obj.focus_start, obj.focus_stop)
 
         # Start Cameras
         cam1.startAcquisition()
         cam2.startAcquisition()
 
         # Move objective
-        print('Moving objective now')
         obj.serial_port.flush()
         response = obj.serial_port.readline()
-        print(response)
 
         # Wait for objective
         start_time = time.time()
         stack_time = (obj.focus_stop - obj.focus_start)/obj.spum/1000/velocity
-        print('stack time', stack_time)
 
         while obj.check_position() != obj.focus_stop:
            now = time.time()
