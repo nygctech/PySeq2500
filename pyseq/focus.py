@@ -32,7 +32,7 @@ def manual_focus(hs, flowcells):
                 hs.optics.move_ex(color,hs.optics.focus_filters[i])
 
             print(hs.optics.ex, hs.optics.em_in)
-            print(hs.lasers['green'].power, hs.lasers['red'].power)
+            print(hs.lasers['green'].get_power(), hs.lasers['red'].get_power())
             # Take objective stack
             fs = hs.obj_stack()
 
