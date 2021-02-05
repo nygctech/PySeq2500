@@ -44,7 +44,7 @@ def manual_focus(hs, flowcells):
                 spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()              # steps/frame
                 auto_frame = int(round((auto_obj_pos-hs.obj.focus_start)/spf))
             else:
-                autoframe = 'unknown'
+                auto_frame = 'unknown'
             af.message('Stack most sharp at frame', auto_frame)
 
             # Show objective stack images to user
