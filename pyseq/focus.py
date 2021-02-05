@@ -31,6 +31,8 @@ def manual_focus(hs, flowcells):
             for i, color in enumerate(hs.optics.colors):
                 hs.optics.move_ex(color,hs.optics.focus_filters[i])
 
+            print(hs.optics.ex, hs.optics.em_in)
+            print(hs.lasers['green'].power, hs.lasers['red'].power)
             # Take objective stack
             fs = hs.obj_stack()
 
@@ -481,7 +483,7 @@ class Autofocus():
         _frames = range(n_frames)
         objsteps = hs.obj.focus_start + np.array(_frames)*spf
         objsteps = objsteps[objsteps < hs.obj.focus_stop]
-        
+
         # Number of formatted frames
         n_f_frames = len(objsteps)
         objsteps = np.reshape(objsteps, (n_f_frames, 1))

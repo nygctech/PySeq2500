@@ -236,6 +236,7 @@ class OBJstage():
             self.focus_stop = self.focus_rough+range_step
             self.focus_start = self.focus_rough-range_step
             self.focus_frames = ceil((self.focus_stop-self.focus_start)/spf)
+            self.focus_frames += 100
             acceptable = True
         else:
             acceptable = False
