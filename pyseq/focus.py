@@ -52,9 +52,9 @@ def manual_focus(hs, flowcells):
                 obj_stack = IA.HiSeqImages(hs.focus_path, obj_stack=True)
             else:
                 obj_stack = IA.HiSeqImages(hs.image_path, obj_stack=True)
-            n_frames = f_fs.shape[0]
-            print(obj_stack.im.sel(frame=slice(0,n_frames)))
-            obj_stack.show(selection={'frame':slice(0,n_frames)})
+
+            print(obj_stack.im)
+            obj_stack.show()
 
             # Ask user what they think is the correct focus frame
             frame = None
@@ -63,8 +63,8 @@ def manual_focus(hs, flowcells):
                     hs.message('Choose in focus frame or input -1 to default to autofocus')
                     frame = input('In focus frame number: ')
                     frame = float(frame)
-                    print(n_frames)
-                    if 0 < frame < n_frames:
+                    print(fs.shape[0])
+                    if 0 <= frame < fs.shape[0]:
                         if not userYN('Confirm in focus frame number is ', frame):
                             frame = None
                     else:
