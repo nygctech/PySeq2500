@@ -72,7 +72,7 @@ class OBJstage():
         self.max_z = 65535
         self.spum = 262                                                         #steps per um
         self.max_v = 5                                                          #mm/s
-        self.min_v = 0                                                          #mm/s
+        self.min_v = 0.1                                                          #mm/s
         self.v = None                                                           #mm/s
         self.suffix = '\n'
         self.position = None
@@ -84,6 +84,7 @@ class OBJstage():
         self.focus_start =  2000                                                # focus start step
         self.focus_stop = 62000                                                 # focus stop step
         self.focus_rough = int((self.max_z - self.min_z)/2 + self.min_z)
+        self.timeout = 10
 
     def initialize(self):
         """Initialize the objective stage."""
@@ -135,7 +136,7 @@ class OBJstage():
                 while self.check_position() != position:
                     reponse = self.command('ZMV ' + str(position))              # Move Objective
                     print(response)
-                    if time.time() - start > 60:
+                    if (time.time() - start) > self.timeout:
                         break
             except:
                 self.write_log('ERROR::Could not move objective')
@@ -200,7 +201,7 @@ class OBJstage():
 
         return self.check_position()
 
-    def update_focus_limits(self, cam_interval, range=90, spacing=0.5):
+    def update_focus_limits(self, cam_interval=0.040202, range=90, spacing=5.0):
         """Update objective velocity and start/stop positions for focusing.
 
            **Parameters:**
@@ -212,16 +213,21 @@ class OBJstage():
             - bool: True if all values are acceptable.
         """
 
-        acceptable = 1
+
         # Calculate velocity needed to space out frames
         velocity = spacing/cam_interval/1000                               #mm/s
-        if self.min_v < velocity <= self.max_v:
-            self.focus_spacing = spacing
-            self.focus_velocity = velocity
-            spf = spacing*self.spum                                             # steps per frame
-        else:
-            acceptable *= 0
+        if self.min_v > velocity:
+            spacing = self.min_v*1000*cam_interval
+            velocity = self.min_v
+            print('Spacing too small, changing to ', spacing)
+        elif self.max_v < velocity:
+            spacing = self.max_v*1000*cam_interval
+            velocity = self.max_v
+            print('Spacing too large, changing to ', spacing)
 
+        self.focus_spacing = spacing
+        self.focus_velocity = velocity
+        spf = spacing*self.spum                                                 # steps per frame
 
         # Update focus range, ie start and stop step positions
         if 1 <= range <= 100:
@@ -230,10 +236,11 @@ class OBJstage():
             self.focus_stop = self.focus_rough+range_step
             self.focus_start = self.focus_rough-range_step
             self.focus_frames = ceil((self.focus_stop-self.focus_start)/spf)
+            acceptable = True
         else:
-            acceptable *= 0
+            acceptable = False
 
-        return bool(acceptable)
+        return acceptable
 
 
     def write_log(self, text):

@@ -475,8 +475,7 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     # Get focus range
     range = float(method.get('focus range', fallback = 90))
     spacing = float(method.get('focus spacing', fallback = 0.5))
-    frame_interval = 0.040202                                                   # estimate, get actual value later
-    hs.obj.update_focus_limits(frame_interval, range=range, spacing=spacing)
+    hs.obj.update_focus_limits(range=range, spacing=spacing)                    # estimate, get actual value in hs.obj_stack()
 
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
 
