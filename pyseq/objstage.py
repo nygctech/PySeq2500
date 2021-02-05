@@ -177,7 +177,7 @@ class OBJstage():
             - v (float): The velocity for the objective to move at in mm/s.
         """
 
-        if v > self.min_v and v <= self.max_v:
+        if self.min_v <= v <= self.max_v:
             self.v = v
             # convert mm/s to steps/s
             v = int(v * 1288471)                                                #steps/mm
