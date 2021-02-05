@@ -62,7 +62,7 @@ def manual_focus(hs, flowcells):
                 try:
                     hs.message('Choose in focus frame or input -1 to default to autofocus')
                     frame = input('In focus frame number: ')
-                    frame = int(frame)
+                    frame = float(frame)
                     print(n_frames)
                     if 0 < frame < n_frames:
                         if not userYN('Confirm in focus frame number is ', frame):
