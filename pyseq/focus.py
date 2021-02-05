@@ -31,8 +31,6 @@ def manual_focus(hs, flowcells):
             for i, color in enumerate(hs.optics.colors):
                 hs.optics.move_ex(color,hs.optics.focus_filters[i])
 
-            print(hs.optics.ex, hs.optics.em_in)
-            print(hs.lasers['green'].get_power(), hs.lasers['red'].get_power())
             # Take objective stack
             fs = hs.obj_stack()
 
@@ -55,7 +53,6 @@ def manual_focus(hs, flowcells):
             else:
                 obj_stack = IA.HiSeqImages(hs.image_path, obj_stack=True)
 
-            print(obj_stack.im)
             obj_stack.show()
 
             # Ask user what they think is the correct focus frame
@@ -65,7 +62,7 @@ def manual_focus(hs, flowcells):
                     hs.message('Choose in focus frame or input -1 to default to autofocus')
                     frame = input('In focus frame number: ')
                     frame = float(frame)
-                    print(fs.shape[0])
+
                     if 0 <= frame < fs.shape[0]:
                         if not userYN('Confirm in focus frame number is ', frame):
                             frame = None
