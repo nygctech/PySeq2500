@@ -499,8 +499,10 @@ class HiSeq():
         cam1.captureSetup()
         cam2.captureSetup()
 
-        cam1.allocFrame(n_frames)
-        cam2.allocFrame(n_frames)
+        response = cam1.allocFrame(n_frames)
+        print('cam1 allocation response', response)
+        response = cam2.allocFrame(n_frames)
+        print('cam2 allocation response', response)
 
 
         # Position objective stage
@@ -528,11 +530,12 @@ class HiSeq():
 
         # Wait for objective
         start_time = time.time()
-        stack_time = (hs.obj.focus_stop - hs.obj.focus_start)/hs.obj.spum/1000/velocity
+        stack_time = (obj.focus_stop - obj.focus_start)/obj.spum/1000/velocity
+        print('stack time', stack_time)
 
         while obj.check_position() != obj.focus_stop:
            now = time.time()
-           if now - start_time > stac_time*10:
+           if now - start_time > stack_time*10:
                self.message(msg,'Objective took too long to move.')
                break
 
