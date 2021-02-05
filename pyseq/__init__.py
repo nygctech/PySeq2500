@@ -511,6 +511,7 @@ class HiSeq():
         # Position objective stage
         obj.set_velocity(5) # mm/s
         obj.move(obj.focus_start)
+        print(obj.check_position())
 
         # Set up objective to trigger as soon as it moves
         obj.set_velocity(velocity) #mm/s
@@ -541,7 +542,7 @@ class HiSeq():
            if now - start_time > stack_time*10:
                self.message(msg,'Objective took too long to move.')
                break
-
+        print(obj.check_position())
         # Wait for imaging
         start_time = time.time()
         while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
