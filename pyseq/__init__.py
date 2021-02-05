@@ -519,6 +519,7 @@ class HiSeq():
         # Prepare move objective to move
         text = 'ZMV ' + str(obj.focus_stop) + obj.suffix
         obj.serial_port.write(text)
+        print(obj.focus_start, obj.focus_stop)
 
         # Start Cameras
         cam1.startAcquisition()
@@ -527,15 +528,18 @@ class HiSeq():
         # Move objective
         obj.serial_port.flush()
         response = obj.serial_port.readline()
+        print(response)
 
         # Wait for objective
         start_time = time.time()
         stack_time = (obj.focus_stop - obj.focus_start)/obj.spum/1000/velocity
         print('stack time', stack_time)
+        print('objective position', obj.check_position())
 
         while obj.check_position() != obj.focus_stop:
            now = time.time()
-           if now - start_time > stack_time*10:
+           print('objective position', obj.check_position())
+           if now - start_time > stack_time*100:
                self.message(msg,'Objective took too long to move.')
                break
 
