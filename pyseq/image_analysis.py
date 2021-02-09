@@ -825,12 +825,8 @@ class HiSeqImages():
                 image_path = getcwd()
 
             # Open zarr
-            if image_path[-4:] != 'zarr':
-                zarr_path = path.join(image_path, common_name+'*.zarr')
-            filenames =  glob.glob(zarr_path)
-
-            if len(filenames) > 0:
-                section_names = self.open_zarr(filenames)
+            if image_path[-4:] == 'zarr':
+                section_names = self.open_zarr([image_path])
 
             if obj_stack:
                 # Open obj stack (jpegs)
@@ -848,6 +844,11 @@ class HiSeqImages():
                 filenames = glob.glob(path.join(image_path, common_name+'*.tiff'))
                 if len(filenames) > 0:
                     section_names = self.open_tiffs(filenames)
+
+                # Open zarrs
+                filenames = glob.glob(path.join(image_path, common_name+'*.zarr'))
+                if len(filenames) > 0:
+                    section_names = self.open_zarr(filenames)
 
             if len(section_names) > 0:
                 print('Opened', *section_names)
