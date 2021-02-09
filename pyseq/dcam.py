@@ -474,14 +474,15 @@ class HamamatsuCamera():
             - image_path (path): Directory to save images.
 
            **Returns:**
-            - array: File size of each frame for each channel.
+            - array: Object array with objective stack images
 
         '''
 
+        ims = np.empty(shape=(self.getFrameCount(), 2), dtype='object')
 
-        jpeg_size = np.zeros(shape = [self.getFrameCount(), 2])
-        z = 0
-        for n in self.newFrames():
+        #jpeg_size = np.zeros(shape = [self.getFrameCount(), 2])
+        #z = 0
+        for z, n in enumerate(self.newFrames()):
 
             # Lock the frame in the camera buffer & get address.
             data_address = ctypes.c_void_p(0)
@@ -512,8 +513,11 @@ class HamamatsuCamera():
 
             # Split frame into 2 channels
             half_col = int(self.frame_x/2)
-            left_frame = frame[:,0:half_col]
-            right_frame = frame[:,half_col:self.frame_x]
+            ims[z,0] = frame[:,0:half_col]
+            ims[z,1] = frame[:,half_col:self.frame_x]
+
+            #left_frame = frame[:,0:half_col]
+            #right_frame = frame[:,half_col:self.frame_x]
 
             # Save frames as tiffs
             # left_name = str(self.left_emission)+'_'+str(n)+'.tiff'
@@ -521,21 +525,22 @@ class HamamatsuCamera():
             # right_name = str(self.right_emission)+'_'+str(n)+'.tiff'
             # imageio.imwrite(join(image_path,'tiff',right_name), right_frame)
 
-            left_frame = np.interp(left_frame, (100, 611), (0,255)).astype('uint8')
-            right_frame = np.interp(right_frame, (100, 611), (0,255)).astype('uint8')
+            # left_frame = np.interp(left_frame, (100, 611), (0,255)).astype('uint8')
+            # right_frame = np.interp(right_frame, (100, 611), (0,255)).astype('uint8')
+            #
+            # # Save frames as jpeg
+            # left_name = str(self.left_emission)+'_'+str(n)+'.jpeg'
+            # imageio.imwrite(join(image_path,left_name), left_frame)
+            # right_name = str(self.right_emission)+'_'+str(n)+'.jpeg'
+            # imageio.imwrite(join(image_path,right_name), right_frame)
+            #
+            # # Get file size
+            # jpeg_size[z,0] = getsize(join(image_path,left_name))
+            # jpeg_size[z,1] = getsize(join(image_path,right_name))
+            # z+=1
 
-            # Save frames as jpeg
-            left_name = str(self.left_emission)+'_'+str(n)+'.jpeg'
-            imageio.imwrite(join(image_path,left_name), left_frame)
-            right_name = str(self.right_emission)+'_'+str(n)+'.jpeg'
-            imageio.imwrite(join(image_path,right_name), right_frame)
-
-            # Get file size
-            jpeg_size[z,0] = getsize(join(image_path,left_name))
-            jpeg_size[z,1] = getsize(join(image_path,right_name))
-            z+=1
-
-        return jpeg_size
+        #return jpeg_size
+        return ims
 
 
     ## getModelInfo
