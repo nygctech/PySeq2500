@@ -33,6 +33,8 @@ def manual_focus(hs, flowcells):
 
             # Take objective stack
             fs = hs.obj_stack()
+            # Calculate steps per frame
+            spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()              # steps/frame
 
             # Get auto focus objective step
             af = Autofocus(hs, pos)
@@ -41,7 +43,6 @@ def manual_focus(hs, flowcells):
                 auto_obj_pos = af.fit_mixed_gaussian(f_fs)
 
                 # Convert objective step back to frame number
-                spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()              # steps/frame
                 auto_frame = int(round((auto_obj_pos-hs.obj.focus_start)/spf))
             else:
                 auto_frame = 'unknown'
