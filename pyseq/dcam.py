@@ -467,8 +467,8 @@ class HamamatsuCamera():
 
 
 
-    def saveFocus(self, image_path):
-        '''Save focus stack frames as jpeg and return file size.
+    def getFocusStack(self):
+        '''Return stack of images across all channels.
 
            **Parameters:**
             - image_path (path): Directory to save images.

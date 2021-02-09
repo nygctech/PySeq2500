@@ -1,0 +1,11 @@
+{
+    "_ARRAY_DIMENSIONS": [
+        "channel",
+        "frame",
+        "row",
+        "col"
+    ],
+    "first_group": 0,
+    "machine": "",
+    "scale": 1
+}

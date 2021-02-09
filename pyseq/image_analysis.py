@@ -744,7 +744,7 @@ def label_images(df, zarr_path):
     return dataset.squeeze()
 
 
-def compute_background(im_path, save_path = None, machine=None):
+def compute_background(im_path, save_path = None, machine=''):
 
     ims = HiSeqImages(im_path)
     name = [*ims.sections.keys()][0]
@@ -769,7 +769,7 @@ def compute_background(im_path, save_path = None, machine=None):
     config.read_dict(background)
     if save_path is None:
         save_path = im_path
-    if machine is None:
+    if not machine:
         bg_path = path.join(save_path,'background.cfg')
     else:
         bg_path = path.join(save_path,machine+'.cfg')
@@ -798,7 +798,7 @@ class HiSeqImages():
     """
 
     def __init__(self, image_path=None, common_name='',  im=None,
-                       obj_stack=False, RoughScan = False):
+                       obj_stack=None, RoughScan = False):
         """The constructor for HiSeq Image Datasets.
 
            **Parameters:**
@@ -828,10 +828,10 @@ class HiSeqImages():
             if image_path[-4:] == 'zarr':
                 section_names = self.open_zarr([image_path])
 
-            if obj_stack:
+            if obj_stack is not None:
                 # Open obj stack (jpegs)
-                filenames = glob.glob(path.join(image_path, common_name+'*.jpeg'))
-                n_frames = self.open_objstack(filenames)
+                #filenames = glob.glob(path.join(image_path, common_name+'*.jpeg'))
+                n_frames = self.open_objstack(obj_stack)
 
             elif RoughScan:
                 # RoughScans
@@ -861,7 +861,7 @@ class HiSeqImages():
 
         # Open background config
         config = configparser.ConfigParser()
-        if self.im.machine is None:
+        if not self.im.machine:
             config_path = pkg_resources.path(recipes, 'background.cfg')
         else:
             config_path = pkg_resources.path(recipes, machine+'.cfg')
@@ -1044,8 +1044,15 @@ class HiSeqImages():
         # Remove coordinate for unused dimensions
         for c in self.im.coords.keys():
             if c not in self.im.dims:
-                im = self.im.reset_coords(names=c, drop=True)
-        im.to_dataset().to_zarr(save_name)
+                self.im = self.im.reset_coords(names=c, drop=True)
+
+        self.im.to_dataset().to_zarr(save_name)
+
+        # save attributes
+        f = open(self.im.name+'.attrs',"w")
+        for key, val in self.im.attrs.items():
+            f.write(str(key)+' '+str(val)+'\n')
+        f.close()
 
     def open_zarr(self, filenames):
         """Create labeled dataset from zarrs.
@@ -1063,8 +1070,26 @@ class HiSeqImages():
             im_name = path.basename(fn)[:-5]
             im = xr.open_zarr(fn).to_array()
             im = im.squeeze().drop_vars('variable').rename(im_name)
-            self.im.append(im)
             im_names.append(im_name)
+
+            # add attributes
+            attr_path = fn[:-5]+'.attrs'
+
+            if path.exists(attr_path):
+                attrs = {}
+                with open(attr_path) as f:
+                    for line in f:
+                        items = line.split()
+                        if len(items) == 2:
+                            try:
+                                value = int(items[1])
+                            except:
+                                value = items[1]
+                        else:
+                            value = ''
+                        im.attrs[items[0]] = value
+
+            self.im.append(im)
 
         return im_names
 
@@ -1108,52 +1133,57 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'RoughScan')
 
-        im = im.assign_attrs(first_group = 0, machine=None, scale=1)
+        im = im.assign_attrs(first_group = 0, machine='', scale=1)
         self.im = im.sel(row=slice(64,None))
 
         return len(fn_comp_sets[2])
 
-    def open_objstack(self,filenames):
+    def open_objstack(self, obj_stack):
+
+
         # Open jpegs
-        comp_sets = dict()
-        for fn in filenames:
-            # Break up filename into components
-            comp_ = path.basename(fn)[:-5].split("_")
-            for i, comp in enumerate(comp_):
-                comp_sets.setdefault(i,set())
-                comp_sets[i].add(comp)
-
-
-        lazy_arrays = [dask.delayed(imageio.imread)(fn) for fn in filenames]
-        lazy_arrays = [da.from_delayed(x, shape=(16,2048), dtype='int8') for x in lazy_arrays]
-
-        # Organize images
-        #0 channel, 1 frame
-        fn_comp_sets = list(comp_sets.values())
-        for i in [0,1]:
-            fn_comp_sets[i] = [int(x) for x in fn_comp_sets[i]]
-            fn_comp_sets[i] = sorted(fn_comp_sets[i])
-        remap_comps = [fn_comp_sets[0], fn_comp_sets[1], [1], [1]]
-        a = np.empty(tuple(map(len, remap_comps)), dtype=object)
-        for fn, x in zip(filenames, lazy_arrays):
-            comp_ = path.basename(fn)[:-5].split("_")
-            channel = fn_comp_sets[0].index(int(comp_[0]))
-            frame = fn_comp_sets[1].index(int(comp_[1]))
-            a[channel, frame, 0, 0] = x
+        # comp_sets = dict()
+        # for fn in filenames:
+        #     # Break up filename into components
+        #     comp_ = path.basename(fn)[:-5].split("_")
+        #     for i, comp in enumerate(comp_):
+        #         comp_sets.setdefault(i,set())
+        #         comp_sets[i].add(comp)
+        #
+        #
+        # lazy_arrays = [dask.delayed(imageio.imread)(fn) for fn in filenames]
+        # lazy_arrays = [da.from_delayed(x, shape=(16,2048), dtype='int8') for x in lazy_arrays]
+        #
+        # # Organize images
+        # #0 channel, 1 frame
+        # fn_comp_sets = list(comp_sets.values())
+        # for i in [0,1]:
+        #     fn_comp_sets[i] = [int(x) for x in fn_comp_sets[i]]
+        #     fn_comp_sets[i] = sorted(fn_comp_sets[i])
+        # remap_comps = [fn_comp_sets[0], fn_comp_sets[1], [1], [1]]
+        # a = np.empty(tuple(map(len, remap_comps)), dtype=object)
+        # for fn, x in zip(filenames, lazy_arrays):
+        #     comp_ = path.basename(fn)[:-5].split("_")
+        #     channel = fn_comp_sets[0].index(int(comp_[0]))
+        #     frame = fn_comp_sets[1].index(int(comp_[1]))
+        #     a[channel, frame, 0, 0] = x
 
 
         # Label array
-        dim_names = ['channel', 'frame', 'row', 'col']
-        coord_values = {'channel':fn_comp_sets[0], 'frame':fn_comp_sets[1]}
-        im = xr.DataArray(da.block(a.tolist()),
+        # dim_names = ['channel', 'frame', 'row', 'col']
+        dim_names = ['frame', 'channel', 'row', 'col']
+        channels = [687, 558, 610, 740]
+        frames = range(obj_stack.shape[0])
+        coord_values = {'channel':channels, 'frame':frames}
+        im = xr.DataArray(obj_stack.tolist(),
                                dims = dim_names,
                                coords = coord_values,
                                name = 'Objective Stack')
 
-        im = im.assign_attrs(first_group = 0, machine = None, scale=1)
+        im = im.assign_attrs(first_group = 0, machine = '', scale=1)
         self.im = im
 
-        return len(fn_comp_sets[1])
+        return obj_stack.shape[0]
 
 
     def open_tiffs(self, filenames):
@@ -1221,7 +1251,7 @@ class HiSeqImages():
 
 
             im = self.register_channels(im.squeeze())
-            im = im.assign_attrs(first_group = 0, machine = None, scale=1)
+            im = im.assign_attrs(first_group = 0, machine = '', scale=1)
             self.im.append(im)
             im_names.append(s[1:])
 

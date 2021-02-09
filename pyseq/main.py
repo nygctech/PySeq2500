@@ -1452,6 +1452,11 @@ def IMAG(fc, n_Zplanes):
     # Manual focus ALL sections across flowcells
     if hs.AF == 'manual':
         focus.manual_focus(hs, flowcells)
+        # try:
+        #     focus.manual_focus(hs, flowcells)
+        # except:
+        #     #print('Focus Error')
+
         hs.AF = 'partial once'
 
     #Image sections on flowcell

@@ -10,6 +10,7 @@ from scipy.optimize import least_squares
 from skimage.util import img_as_ubyte
 from skimage.transform import downscale_local_mean
 import imageio
+from io import BytesIO
 import time
 import configparser
 
@@ -32,13 +33,18 @@ def manual_focus(hs, flowcells):
                 hs.optics.move_ex(color,hs.optics.focus_filters[i])
 
             # Take objective stack
-            fs = hs.obj_stack()
+            focus_stack = hs.obj_stack()
+            if not hs.virtual:
+                focus_stack = IA.HiSeqImages(obj_stack=focus_stack)
+            #Correct background
+            focus_stack.correct_background()
+
             # Calculate steps per frame
             spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()              # steps/frame
 
             # Get auto focus objective step
             af = Autofocus(hs, pos)
-            f_fs = af.format_focus(fs)
+            f_fs = af.format_focus(focus_stack.im)
             if f_fs is not False:
                 auto_obj_pos = af.fit_mixed_gaussian(f_fs)
 
@@ -49,12 +55,12 @@ def manual_focus(hs, flowcells):
             af.message('Stack most sharp at frame', auto_frame)
 
             # Show objective stack images to user
-            if hs.virtual:
-                obj_stack = IA.HiSeqImages(hs.focus_path, obj_stack=True)
-            else:
-                obj_stack = IA.HiSeqImages(hs.image_path, obj_stack=True)
+            # if hs.virtual:
+            #     obj_stack = focus_stack
+            # else:
+            #     obj_stack = IA.HiSeqImages(obj_stack=focus_stack)
 
-            obj_stack.show()
+            focus_stack.show()
 
             # Ask user what they think is the correct focus frame
             frame = None
@@ -349,9 +355,12 @@ class Autofocus():
             [x_pos, y_pos] = p2s(px_pt[0], px_pt[1], pos_dict, scale)
             hs.y.move(y_pos)
             hs.x.move(x_pos)
-            fs = hs.obj_stack()
+            focus_stack = hs.obj_stack()
+            if not hs.virtual:
+                focus_stack = IA.HiSeqImages(obj_stack=focus_stack)
+            focus_stack.correct_background()
 
-            f_fs = self.format_focus(fs)
+            f_fs = self.format_focus(focus_stack.im)
             if f_fs is not False:
                obj_pos = self.fit_mixed_gaussian(f_fs)
                if obj_pos:
@@ -450,7 +459,7 @@ class Autofocus():
             for f in self.files:
                 remove(path.join(self.hs.image_path, f))
 
-    def format_focus(self, focus_data):
+    def format_focus(self, focus_stack):
         """Return processed focus frame file sizes.
 
            Objective positions are calculated for corresponding frames. The
@@ -477,7 +486,7 @@ class Autofocus():
         spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
 
         # Remove frames after objective stops moving
-        n_frames = len(focus_data)
+        n_frames, n_channels, n_rows, n_cols = focus_stack.shape
         _frames = range(n_frames)
         objsteps = hs.obj.focus_start + np.array(_frames)*spf
         objsteps = objsteps[objsteps < hs.obj.focus_stop]
@@ -486,17 +495,20 @@ class Autofocus():
         n_f_frames = len(objsteps)
         objsteps = np.reshape(objsteps, (n_f_frames, 1))
 
+        # Calculate jpeg file size
+        jpeg_size = get_jpeg_size(focus_stack.sel(frame = slice(0,n_f_frames)))
+
         #formatted focus data
         f_fd = np.zeros(shape = (n_f_frames,1))
 
-        nrows, ncols = focus_data.shape
-        for i in range(ncols):
+        n_rows, n_cols = jpeg_size.shape
+        for i in range(n_cols):
             # test if there is a tail in data and add if True
             #kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
-            kurt_z, pvalue = stats.kurtosistest(focus_data[:,i])
-            if kurt_z > 1.96:
+            kurt_z, pvalue = stats.kurtosistest(jpeg_size[:,i])
+            if kurt_z > 1.96 and pvalue < 1e-6:
                 self.message(False, name_,'Signal in', hs.channels[i], 'channel')
-                f_fd = f_fd + np.reshape(focus_data[0:n_f_frames,i], (n_f_frames,1))
+                f_fd = f_fd + np.reshape(jpeg_size, (n_f_frames,1))
 
         # Normalize
         if np.sum(f_fd) == 0:
@@ -964,7 +976,31 @@ def res_gaussian(args, xfun, yfun):
 
     return yfun-g_sum
 
+def get_jpeg_size(obj_stack):
+    """ Return filesizes of frames as jpegs."""
 
+    n_frames = len(obj_stack.frame)
+    n_channels = len(obj_stack.channel)
+    ch_bg = np.zeros(shape=(n_channels))
+    jpeg_size = np.zeros(shape=(n_frames, n_channels))
+
+    # Get max pixel values in channel stack
+    ch_max_px = obj_stack.max(dim=['frame', 'row', 'col'])
+    # Get background pixel value (mode) in channel stack
+    for i, ch in enumerate(obj_stack.channel.values):
+        ch_bg[i] = stats.mode(obj_stack.sel(channel = ch), axis=None)[0][0]
+
+    for ci, ch in enumerate(obj_stack.channel.values):
+        size_ = np.empty(shape=(n_frames,))
+        ch_stack = obj_stack.sel(channel = ch)
+        ch_stack = np.interp(ch_stack, (ch_bg[ci],ch_max_px.sel(channel=ch)), (0,255)).astype('uint8')
+        for i in obj_stack.frame.values:
+            im = ch_stack[i,:,:]
+            with BytesIO() as f:
+                imageio.imwrite(f, im, format='jpeg')
+                jpeg_size[i,ci] = f.__sizeof__()
+
+    return jpeg_size
 
 
 def autolevel(hs, n_ip, centroid):

@@ -2,6 +2,7 @@
 from os.path import join
 import importlib.resources as pkg_resources
 from math import floor, ceil
+from . import image_analysis as IA
 
 
 # HiSeq Simulater
@@ -338,7 +339,7 @@ class OBJstage():
 
         return self.position
 
-    def update_focus_limits(self, cam_interval, range=90, spacing=0.5):
+    def update_focus_limits(self, cam_interval=0.040202, range=90, spacing=0.5):
         """Update objective velocity and start/stop positions for focusing.
 
            **Parameters:**
@@ -971,7 +972,7 @@ class HiSeq():
         self.channels = None
         self.virtual = True
         self.focus_data = join(dirname(__file__), 'focus_data')
-        self.focus_path = join(dirname(__file__), 'focus_data','obj_stack')
+        self.focus_path = join(dirname(__file__), 'focus_data','Objective Stack.zarr')
         self.AF = 'partial'
         self.focus_tol = 0
         self.scan_flag = False
@@ -1065,9 +1066,11 @@ class HiSeq():
         self.cam1.allocFrame(n_frames)
         self.cam2.allocFrame(n_frames)
 
-        focus_data = np.loadtxt(join(self.focus_data,'obj_stack_data.txt'))
+        focus_stack = IA.get_HiSeqImages(image_path = self.focus_path)
 
-        return focus_data
+        #focus_data = np.loadtxt(join(self.focus_data,'obj_stack_data.txt'))
+
+        return focus_stack
 
 
 

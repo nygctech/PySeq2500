@@ -563,7 +563,7 @@ class HiSeq():
             self.message(False,msg,'Cam1::',cam1.getFrameCount(),'of',n_frames)
             image_complete = False
         else:
-            cam1_filesize = cam1.saveFocus(self.image_path)
+            cam1_stack = cam1.getFocusStack()
             image_complete = True
         # Check if all frames were taken from camera 2 then save images
         if cam2.getFrameCount() != n_frames:
@@ -571,18 +571,18 @@ class HiSeq():
             self.message(False,msg,'Cam2::',cam2.getFrameCount(),'of',n_frames)
             image_complete = False
         else:
-            cam2_filesize = cam2.saveFocus(self.image_path)
+            cam2_stack = cam2.getFocusStack()
             image_complete = True
 
         cam1.freeFrames()
         cam2.freeFrames()
 
-        if image_complete:
-            f_filesize = np.concatenate((cam1_filesize,cam2_filesize), axis = 1)
-        else:
-            f_filesize = 0
+        # if image_complete:
+        #     f_filesize = np.concatenate((cam1_filesize,cam2_filesize), axis = 1)
+        # else:
+        #     f_filesize = 0
 
-        return f_filesize
+        return np.hstack((cam1_stack, cam2_stack))
 
 
 
