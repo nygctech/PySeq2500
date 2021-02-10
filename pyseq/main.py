@@ -532,6 +532,9 @@ def confirm_settings(recipe_z_planes = []):
     pre_recipe = method.get('pre recipe', fallback = None)
     if pre_recipe is not None:
         print('pre recipe:', pre_recipe)
+    first_port = method.get('first port', fallback = None)
+    if first_port is not  None:
+        print('first_port:', first_port) 
     print('save path:', experiment['save path'])
     print('enable z stage:', hs.z.active)
     print()
@@ -1761,7 +1764,6 @@ def get_config(args):
     # Don't override user defined valve
     user_config = configparser.ConfigParser()
     user_config.read(args['config'])
-    user
     if USERVALVE:
         config.read_dict({'reagents':dict(user_config['reagents'])})
     if user_config.has_section(method):
