@@ -55,7 +55,7 @@ def manual_focus(hs, flowcells):
                 auto_frame = 'unknown'
             af.message('Stack most sharp at frame', auto_frame)
 
-            if os_name != 'posix'
+            if os_name != 'posix':
                 focus_stack.show()
 
             # Ask user what they think is the correct focus frame
@@ -482,7 +482,7 @@ class Autofocus():
         spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
 
         # Remove frames after objective stops moving
-        n_channels, n_frames, n_rows, n_cols = focus_stack.shape
+        n_frames = len(focus_stack.frame)
         _frames = range(n_frames)
         objsteps = hs.obj.focus_start + np.array(_frames)*spf
         objsteps = objsteps[objsteps < hs.obj.focus_stop]
