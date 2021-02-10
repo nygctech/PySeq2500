@@ -41,16 +41,17 @@ def manual_focus(hs, flowcells):
             focus_stack.correct_background()
 
             # Calculate steps per frame
-            spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()              # steps/frame
+            spf = hs.obj.v*1000*hs.obj.spum*hs.cam1.getFrameInterval()          # steps/frame
 
             # Get auto focus objective step
             af = Autofocus(hs, pos)
             f_fs = af.format_focus(focus_stack.im)
+            auto_frame = 'unknown'
             if f_fs is not False:
                 auto_obj_pos = af.fit_mixed_gaussian(f_fs)
-
-                # Convert objective step back to frame number
-                auto_frame = int(round((auto_obj_pos-hs.obj.focus_start)/spf))
+                if auto_obj_pos is not False:
+                    # Convert objective step back to frame number
+                    auto_frame = int(round((auto_obj_pos-hs.obj.focus_start)/spf))
             else:
                 auto_frame = 'unknown'
             af.message('Stack most sharp at frame', auto_frame)
@@ -480,6 +481,7 @@ class Autofocus():
 
         frame_interval = hs.cam1.getFrameInterval()
         spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
+        print(hs.obj.v, hs.obj.spum, frame_interval)
 
         # Remove frames after objective stops moving
         n_frames = len(focus_stack.frame)
@@ -490,6 +492,7 @@ class Autofocus():
         # Number of formatted frames
         n_f_frames = len(objsteps)
         objsteps = np.reshape(objsteps, (n_f_frames,))
+        print(hs.obj.focus_start, hs.obj.focus_stop, spf)
 
         # Calculate jpeg file size
         jpeg_size = get_jpeg_size(focus_stack)
@@ -511,8 +514,12 @@ class Autofocus():
             return False
         else:
             f_fd = f_fd/ np.sum(f_fd)
+            filename = 'x'+str(hs.x.position)
+            filename+= 'y'+str(hs.y.position)+'.txt'
+            focus_data = np.vstack((objsteps,f_fd)).T
+            np.savetxt(path.join(hs.log_path,filename), focus_data)
 
-            return np.vstack((objsteps,f_fd)).T
+            return focus_data
 
     def fit_mixed_gaussian(self, data):
         """Fit focus data & return optimal objective focus step.
@@ -584,6 +591,7 @@ class Autofocus():
                                   int(hs.nyquist_obj/2))
                 _focus = gaussian(_objsteps, results.x)
                 optobjstep = int(_objsteps[np.argmax(_focus)])
+                print('fit', optobjstep)
                 if optobjstep in (hs.obj.focus_start, hs.obj.focus_stop):
                     self.message(False, name_, 'Peak at endpoint: ', optobjstep)
                     optobjstep = False

@@ -273,7 +273,7 @@ class OBJstage():
         self.max_z = 65535
         self.spum = 262                                                         #steps per um
         self.max_v = 5                                                          #mm/s
-        self.min_v = 0                                                          #mm/s
+        self.min_v = 0.1                                                        #mm/s
         self.v = None                                                           #mm/s
         self.position = None
         self.focus_spacing = 0.5                                                # distance in microns between frames in obj stack
@@ -317,7 +317,7 @@ class OBJstage():
 
         """
 
-        if v > self.min_v and v <= self.max_v:
+        if self.min_v <= v <= self.max_v:
             self.v = v
             # convert mm/s to steps/s
             v = int(v * 1288471)                                                #steps/mm
@@ -351,16 +351,20 @@ class OBJstage():
             - bool: True if all values are acceptable.
         """
 
-        acceptable = 1
         # Calculate velocity needed to space out frames
-        velocity = spacing/cam_interval/1000                                   #mm/s
-        if self.min_v < velocity <= self.max_v:
-            self.focus_spacing = spacing
-            self.focus_velocity = velocity
-            spf = spacing*self.spum                                             # steps per frame
-        else:
-            acceptable *= 0
+        velocity = spacing/cam_interval/1000                               #mm/s
+        if self.min_v > velocity:
+            spacing = self.min_v*1000*cam_interval
+            velocity = self.min_v
+            print('Spacing too small, changing to ', spacing)
+        elif self.max_v < velocity:
+            spacing = self.max_v*1000*cam_interval
+            velocity = self.max_v
+            print('Spacing too large, changing to ', spacing)
 
+        self.focus_spacing = spacing
+        self.focus_velocity = velocity
+        spf = spacing*self.spum                                                 # steps per frame
 
         # Update focus range, ie start and stop step positions
         if 1 <= range <= 100:
@@ -369,10 +373,12 @@ class OBJstage():
             self.focus_stop = self.focus_rough+range_step
             self.focus_start = self.focus_rough-range_step
             self.focus_frames = ceil((self.focus_stop-self.focus_start)/spf)
+            self.focus_frames += 100
+            acceptable = True
         else:
-            acceptable *= 0
-        print(velocity, spf, self.focus_frames)
-        return bool(acceptable)
+            acceptable = False
+
+        return acceptable
 
 class FPGA():
     def __init__(self, ystage):
