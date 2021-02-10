@@ -201,7 +201,7 @@ class OBJstage():
 
         return self.check_position()
 
-    def update_focus_limits(self, cam_interval=0.040202, range=90, spacing=5.0):
+    def update_focus_limits(self, cam_interval=0.040202, range=90, spacing=4.1):
         """Update objective velocity and start/stop positions for focusing.
 
            **Parameters:**

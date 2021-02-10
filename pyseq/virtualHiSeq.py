@@ -339,7 +339,7 @@ class OBJstage():
 
         return self.position
 
-    def update_focus_limits(self, cam_interval=0.040202, range=90, spacing=0.5):
+    def update_focus_limits(self, cam_interval=0.040202, range=90, spacing=4.1):
         """Update objective velocity and start/stop positions for focusing.
 
            **Parameters:**
@@ -875,7 +875,7 @@ class Camera():
         self.camera_id = camera_id
         self.left_emission = None
         self.right_emission = None
-        self.frame_interval = 0.005444266666666667
+        self.frame_interval = 0.040202
 
 
     def stopAcquisition(self):

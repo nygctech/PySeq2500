@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from numpy.linalg import svd
 from os import path, listdir, stat, remove
+from os import name as os_name
 from math import log2, ceil
 from . import image_analysis as IA
 from scipy import stats
@@ -54,13 +55,8 @@ def manual_focus(hs, flowcells):
                 auto_frame = 'unknown'
             af.message('Stack most sharp at frame', auto_frame)
 
-            # Show objective stack images to user
-            # if hs.virtual:
-            #     obj_stack = focus_stack
-            # else:
-            #     obj_stack = IA.HiSeqImages(obj_stack=focus_stack)
-
-            focus_stack.show()
+            if os_name != 'posix'
+                focus_stack.show()
 
             # Ask user what they think is the correct focus frame
             frame = None
@@ -70,7 +66,7 @@ def manual_focus(hs, flowcells):
                     frame = input('In focus frame number: ')
                     frame = float(frame)
 
-                    if 0 <= frame < fs.shape[0]:
+                    if 0 <= frame < len(focus_stack.im.frame):
                         if not userYN('Confirm in focus frame number is ', frame):
                             frame = None
                     else:
@@ -486,20 +482,20 @@ class Autofocus():
         spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
 
         # Remove frames after objective stops moving
-        n_frames, n_channels, n_rows, n_cols = focus_stack.shape
+        n_channels, n_frames, n_rows, n_cols = focus_stack.shape
         _frames = range(n_frames)
         objsteps = hs.obj.focus_start + np.array(_frames)*spf
         objsteps = objsteps[objsteps < hs.obj.focus_stop]
 
         # Number of formatted frames
         n_f_frames = len(objsteps)
-        objsteps = np.reshape(objsteps, (n_f_frames, 1))
+        objsteps = np.reshape(objsteps, (n_f_frames,))
 
         # Calculate jpeg file size
-        jpeg_size = get_jpeg_size(focus_stack.sel(frame = slice(0,n_f_frames)))
+        jpeg_size = get_jpeg_size(focus_stack)
 
         #formatted focus data
-        f_fd = np.zeros(shape = (n_f_frames,1))
+        f_fd = np.zeros(shape = (n_f_frames,))
 
         n_rows, n_cols = jpeg_size.shape
         for i in range(n_cols):
@@ -508,16 +504,15 @@ class Autofocus():
             kurt_z, pvalue = stats.kurtosistest(jpeg_size[:,i])
             if kurt_z > 1.96 and pvalue < 1e-6:
                 self.message(False, name_,'Signal in', hs.channels[i], 'channel')
-                f_fd = f_fd + np.reshape(jpeg_size, (n_f_frames,1))
+                f_fd = f_fd+jpeg_size[0:n_f_frames,i]
 
         # Normalize
         if np.sum(f_fd) == 0:
             return False
         else:
             f_fd = f_fd/ np.sum(f_fd)
-            f_fd = np.reshape(f_fd, (n_f_frames, 1))
 
-            return np.concatenate((objsteps,f_fd), axis=1)
+            return np.vstack((objsteps,f_fd)).T
 
     def fit_mixed_gaussian(self, data):
         """Fit focus data & return optimal objective focus step.
