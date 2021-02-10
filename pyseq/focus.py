@@ -83,14 +83,15 @@ def manual_focus(hs, flowcells):
             if frame > 0:
                 #Convert frame to objective step
                 obj_step = round(spf*frame + hs.obj.focus_start)
+                print(obj_step)
                 hs.obj.set_velocity(5)
                 hs.obj.move(obj_step)
 
                 # Save objective step
                 for c in range(fc.total_cycles+1):
-                    write_obj_pos(hs, section, fc.cycle)
+                    write_obj_pos(hs, section, fc.cycle, step=obj_step)
 
-def write_obj_pos(hs, section, cycle):
+def write_obj_pos(hs, section, cycle, step=None):
     """Write the objective position used at *cycle* number for *section*.
 
        The objective position is written to a config file. Each section in
@@ -102,6 +103,7 @@ def write_obj_pos(hs, section, cycle):
        - hs (HiSeq): HiSeq Object
        - section (string): Name of the section.
        - cycle (int): Cycle number.
+       - step (int): Focus objective position to save.
 
        **Returns:**
        - file: Handle of the config file.
@@ -112,6 +114,10 @@ def write_obj_pos(hs, section, cycle):
     cycle = str(cycle)
     focus_config = configparser.ConfigParser()
     config_path = path.join(hs.log_path, 'focus_config.cfg')
+    if step = None:
+        step = str(hs.obj.position)
+    else:
+        step = str(step)
 
     if path.exists(config_path):
         focus_config.read(config_path)
@@ -119,7 +125,7 @@ def write_obj_pos(hs, section, cycle):
     if section not in focus_config.sections():
         focus_config.add_section(section)
 
-    focus_config.set(section, cycle, str(hs.obj.position))
+    focus_config.set(section, cycle, step)
 
     with open(config_path, 'w') as configfile:
         focus_config.write(configfile)

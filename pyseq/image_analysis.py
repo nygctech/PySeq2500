@@ -775,10 +775,10 @@ def compute_background(im_path, save_path = None, machine=''):
         bg_path = path.join(save_path,machine+'.cfg')
     with open(bg_path, 'w') as configfile: config.write(configfile)
 
-def get_HiSeqImages(image_path=None):
+def get_HiSeqImages(image_path=None, common_name=''):
 
 
-    ims = HiSeqImages(image_path)
+    ims = HiSeqImages(image_path, common_name)
     n_images = len(ims.im)
     if n_images > 1:
         return [HiSeqImages(im=i) for i in ims.im]
@@ -842,6 +842,7 @@ class HiSeqImages():
             else:
                 # Open tiffs
                 filenames = glob.glob(path.join(image_path, common_name+'*.tiff'))
+                print(filenames)
                 if len(filenames) > 0:
                     section_names = self.open_tiffs(filenames)
 
