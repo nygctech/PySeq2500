@@ -84,7 +84,7 @@ class OBJstage():
         self.focus_start =  2000                                                # focus start step
         self.focus_stop = 62000                                                 # focus stop step
         self.focus_rough = int((self.max_z - self.min_z)/2 + self.min_z)
-        self.timeout = 10
+        self.timeout = 100
 
     def initialize(self):
         """Initialize the objective stage."""

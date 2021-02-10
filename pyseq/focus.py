@@ -114,7 +114,7 @@ def write_obj_pos(hs, section, cycle, step=None):
     cycle = str(cycle)
     focus_config = configparser.ConfigParser()
     config_path = path.join(hs.log_path, 'focus_config.cfg')
-    if step = None:
+    if step is None:
         step = str(hs.obj.position)
     else:
         step = str(step)

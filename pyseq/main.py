@@ -534,7 +534,7 @@ def confirm_settings(recipe_z_planes = []):
         print('pre recipe:', pre_recipe)
     first_port = method.get('first port', fallback = None)
     if first_port is not  None:
-        print('first_port:', first_port) 
+        print('first_port:', first_port)
     print('save path:', experiment['save path'])
     print('enable z stage:', hs.z.active)
     print()
@@ -1474,6 +1474,7 @@ def IMAG(fc, n_Zplanes):
         msg = 'PySeq::' + AorB + '::cycle' + cycle+ '::' + str(section) + '::'
         if hs.AF:
             obj_pos = focus.get_obj_pos(hs, section, cycle)
+            print(obj_pos)
             if obj_pos is None:
                 # Move to focus filters
                 for i, color in enumerate(hs.optics.colors):
