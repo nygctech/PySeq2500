@@ -131,13 +131,13 @@ class OBJstage():
 
         if self.min_z <= position <= self.max_z:
             try:
-            position = int(position)
-            start = time.time()
-            while self.check_position() != position:
-                response = self.command('ZMV ' + str(position))                 # Move Objective
-                if (time.time() - start) > self.timeout:
-                    self.check_position()
-                    break
+                position = int(position)
+                start = time.time()
+                while self.check_position() != position:
+                    response = self.command('ZMV ' + str(position))                 # Move Objective
+                    if (time.time() - start) > self.timeout:
+                        self.check_position()
+                        break
             except:
                 self.check_position()
                 self.write_log('ERROR::Could not move objective')

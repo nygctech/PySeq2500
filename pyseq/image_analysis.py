@@ -842,7 +842,6 @@ class HiSeqImages():
             else:
                 # Open tiffs
                 filenames = glob.glob(path.join(image_path, common_name+'*.tiff'))
-                print(filenames)
                 if len(filenames) > 0:
                     section_names = self.open_tiffs(filenames)
 
