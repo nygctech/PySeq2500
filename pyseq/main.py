@@ -1761,10 +1761,11 @@ def get_config(args):
     # Don't override user defined valve
     user_config = configparser.ConfigParser()
     user_config.read(args['config'])
+    user
     if USERVALVE:
-        config.read(user_config['reagents'])
+        config.read_dict({'reagents':dict(user_config['reagents'])})
     if user_config.has_section(method):
-        config.read(user_config[method])
+        config.read_dict({method:dict(user_config[method])})
 
     return config
 
