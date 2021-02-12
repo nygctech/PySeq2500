@@ -18,6 +18,8 @@ from skimage.util import img_as_ubyte
 import imageio
 import glob
 import configparser
+import time
+from qtpy.QtCore import QTimer
 
 try:
     import importlib.resources as pkg_resources
@@ -775,10 +777,10 @@ def compute_background(im_path, save_path = None, machine=''):
         bg_path = path.join(save_path,machine+'.cfg')
     with open(bg_path, 'w') as configfile: config.write(configfile)
 
-def get_HiSeqImages(image_path=None, common_name=''):
+def get_HiSeqImages(image_path=None, common_name='', logger = None):
 
 
-    ims = HiSeqImages(image_path, common_name)
+    ims = HiSeqImages(image_path, common_name, logger)
     n_images = len(ims.im)
     if n_images > 1:
         return [HiSeqImages(im=i) for i in ims.im]
@@ -792,13 +794,16 @@ class HiSeqImages():
     """HiSeqImages
 
        **Attributes:**
-        - sections (dict): Dictionary of sections
-        - channel_color (dict): Dictionary colors to display each channel as
+        - im (dict): List of DataArray from sections
+        - channel_color (dict): Dictionary of colors to display each channel as
+        - channel_shift (dict): Dictionary of how to register each channel
+        - stop (bool): Flag to close viewer
+        - app (QTWidget): Application instance
 
     """
 
     def __init__(self, image_path=None, common_name='',  im=None,
-                       obj_stack=None, RoughScan = False):
+                       obj_stack=None, RoughScan = False, logger = None):
         """The constructor for HiSeq Image Datasets.
 
            **Parameters:**
@@ -815,6 +820,9 @@ class HiSeqImages():
                               610:[90,-3,0,None],
                               687:[0,-93,0,None],
                               740:[0,-93,0,None]}
+        self.stop = False
+        self.app = None
+        self.logger = logger
 
         if len(common_name) > 0:
             common_name = '*'+common_name
@@ -851,7 +859,7 @@ class HiSeqImages():
                     section_names = self.open_zarr(filenames)
 
             if len(section_names) > 0:
-                print('Opened', *section_names)
+                message(self.logger, 'Opened', *section_names)
 
         else:
             self.im = im
@@ -901,13 +909,23 @@ class HiSeqImages():
 
         return im
 
+    def quit(self):
+        if self.stop:
+            self.app.quit()
 
     def hs_napari(self, dataset):
 
-        with napari.gui_qt():
+        with napari.gui_qt() as app:
             viewer = napari.Viewer()
+            self.app = app
 
             self.update_viewer(viewer, dataset)
+            start = time.time()
+
+            # timer for exiting napari
+            timer = QTimer()
+            timer.timeout.connect(self.quit)
+            timer.start(1000*1)
 
             @viewer.bind_key('x')
             def crop(viewer):
@@ -931,6 +949,8 @@ class HiSeqImages():
                     # update viewer
                     cropped = self.im.sel(selection)
                     self.update_viewer(viewer, cropped)
+
+        viewer.close()
 
     def show(self, selection = {}):
         """Display a section from the dataset.
@@ -1013,14 +1033,14 @@ class HiSeqImages():
         channels = dataset.channel.values
         if not channels.shape:
             ch = int(channels)
-            print('Adding', ch, 'channel')
+            message(self.logger, 'Adding', ch, 'channel')
             layer = viewer.add_image(dataset.values,
                                      colormap=self.channel_color[ch],
                                      name = str(ch),
                                      blending = 'additive')
         else:
             for ch in channels:
-                print('Adding', ch, 'channel')
+                message(self.logger, 'Adding', ch, 'channel')
                 layer = viewer.add_image(dataset.sel(channel = ch).values,
                                          colormap=self.channel_color[ch],
                                          name = str(ch),

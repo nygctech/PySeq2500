@@ -983,6 +983,7 @@ class HiSeq():
         self.focus_tol = 0
         self.scan_flag = False
         self.speed_up = 10
+        self.current_view = None
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
@@ -1072,7 +1073,8 @@ class HiSeq():
         self.cam1.allocFrame(n_frames)
         self.cam2.allocFrame(n_frames)
 
-        focus_stack = IA.get_HiSeqImages(image_path = self.focus_path)
+        focus_stack = IA.HiSeqImages(image_path = self.focus_path, logger=self.logger)
+        focus_stack.im = focus_stack.im[0]
 
         #focus_data = np.loadtxt(join(self.focus_data,'obj_stack_data.txt'))
 

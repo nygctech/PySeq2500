@@ -36,7 +36,7 @@ def manual_focus(hs, flowcells):
             # Take objective stack
             focus_stack = hs.obj_stack()
             if not hs.virtual:
-                focus_stack = IA.HiSeqImages(obj_stack=focus_stack)
+                focus_stack = IA.HiSeqImages(obj_stack=focus_stack, logger = hs.logger)
             #Correct background
             focus_stack.correct_background()
 
@@ -56,8 +56,10 @@ def manual_focus(hs, flowcells):
                 auto_frame = 'unknown'
             af.message('Stack most sharp at frame', auto_frame)
 
-            if os_name != 'posix':
-                focus_stack.show()
+            hs.current_view = focus_stack
+
+            # if os_name != 'posix':
+            #     focus_stack.show()
 
             # Ask user what they think is the correct focus frame
             frame = None
@@ -80,10 +82,14 @@ def manual_focus(hs, flowcells):
                 except:
                     frame = None
 
+            hs.message(False,'Frame',frame,'was chosen.')
+            focus_stack.stop = True
+            while hs.current_view is not None:
+                pass
+
             if frame > 0:
                 #Convert frame to objective step
                 obj_step = round(spf*frame + hs.obj.focus_start)
-                print(obj_step)
                 hs.obj.set_velocity(5)
                 hs.obj.move(obj_step)
 
@@ -487,7 +493,6 @@ class Autofocus():
 
         frame_interval = hs.cam1.getFrameInterval()
         spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
-        print(hs.obj.v, hs.obj.spum, frame_interval)
 
         # Remove frames after objective stops moving
         n_frames = len(focus_stack.frame)
@@ -498,7 +503,6 @@ class Autofocus():
         # Number of formatted frames
         n_f_frames = len(objsteps)
         objsteps = np.reshape(objsteps, (n_f_frames,))
-        print(hs.obj.focus_start, hs.obj.focus_stop, spf)
 
         # Calculate jpeg file size
         jpeg_size = get_jpeg_size(focus_stack)
@@ -597,7 +601,6 @@ class Autofocus():
                                   int(hs.nyquist_obj/2))
                 _focus = gaussian(_objsteps, results.x)
                 optobjstep = int(_objsteps[np.argmax(_focus)])
-                print('fit', optobjstep)
                 if optobjstep in (hs.obj.focus_start, hs.obj.focus_stop):
                     self.message(False, name_, 'Peak at endpoint: ', optobjstep)
                     optobjstep = False

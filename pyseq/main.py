@@ -1455,11 +1455,6 @@ def IMAG(fc, n_Zplanes):
     # Manual focus ALL sections across flowcells
     if hs.AF == 'manual':
         focus.manual_focus(hs, flowcells)
-        # try:
-        #     focus.manual_focus(hs, flowcells)
-        # except:
-        #     #print('Focus Error')
-
         hs.AF = 'partial once'
 
     #Image sections on flowcell
@@ -1474,7 +1469,6 @@ def IMAG(fc, n_Zplanes):
         msg = 'PySeq::' + AorB + '::cycle' + cycle+ '::' + str(section) + '::'
         if hs.AF:
             obj_pos = focus.get_obj_pos(hs, section, cycle)
-            print(obj_pos)
             if obj_pos is None:
                 # Move to focus filters
                 for i, color in enumerate(hs.optics.colors):
@@ -1845,6 +1839,10 @@ if __name__ == 'pyseq.main':
 
             if complete == len(flowcells):                                      # Exit while loop
                 cycles_complete = True
+
+            if hs.current_view is not None:                                     # Show latest images in napari, WILL BLOCK
+                hs.current_view.show()
+                hs.current_view = None
 
         do_shutdown()                                                           # Shutdown HiSeq
     else:
