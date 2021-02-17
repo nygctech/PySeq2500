@@ -822,6 +822,7 @@ class HiSeqImages():
                               740:[0,-93,0,None]}
         self.stop = False
         self.app = None
+        self.viewer = None
         self.logger = logger
 
         if len(common_name) > 0:
@@ -912,11 +913,14 @@ class HiSeqImages():
     def quit(self):
         if self.stop:
             self.app.quit()
+            self.viewer.close()
+            self.viewer = None
 
     def hs_napari(self, dataset):
 
         with napari.gui_qt() as app:
             viewer = napari.Viewer()
+            self.viewer = viewer
             self.app = app
 
             self.update_viewer(viewer, dataset)
@@ -950,7 +954,6 @@ class HiSeqImages():
                     cropped = self.im.sel(selection)
                     self.update_viewer(viewer, cropped)
 
-        viewer.close()
 
     def show(self, selection = {}):
         """Display a section from the dataset.
