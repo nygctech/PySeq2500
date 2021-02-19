@@ -198,7 +198,7 @@ def normalize(im, scale_factor):
     return plane
 
 
-def sum_images(images, logger = None):
+def sum_images_old(images, logger = None):
     """Sum pixel values over channel images.
 
        The image with the largest signal to noise ratio is used as the
@@ -249,7 +249,7 @@ def sum_images(images, logger = None):
 
     return sum_im
 
-def sum_images2(images, logger = None):
+def sum_images(images, logger = None):
     """Sum pixel values over channel images.
 
        The image with the largest signal to noise ratio is used as the
@@ -277,7 +277,7 @@ def sum_images2(images, logger = None):
     channels = images.channel.values
     k_dict = {}
     for ch in channels:
-        k = kurt2(images.sel(channel=ch))
+        k = kurt(images.sel(channel=ch))
         message(logger, name_, 'Channel',ch, 'k = ', k)
         k_dict[ch] = k
 
@@ -299,7 +299,7 @@ def sum_images2(images, logger = None):
 
     return im
 
-def kurt(im):
+def kurt_old(im):
     """Return kurtosis = mean((image-mode)/2)^4). """
 
     im = im.astype('int16')
@@ -309,7 +309,7 @@ def kurt(im):
 
     return k
 
-def kurt2(im):
+def kurt(im):
     """Return kurtosis = mean((image-mode)/2)^4). """
 
     mode = stats.mode(im, axis = None)[0][0]
@@ -342,6 +342,7 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
 
     name_ = 'GetFocusPoints::'
     #score pixels
+    im = im.values
     px_rows, px_cols = im.shape
     px_sat = np.percentile(im, p_sat)
     px_score = np.reshape(stats.zscore(im, axis = None), (px_rows, px_cols))
@@ -450,6 +451,7 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
     """
 
     name_ = 'GetFocusPointsPartial::'
+    im = im.values
     #score pixels
     px_rows, px_cols = im.shape
     px_sat = np.percentile(im, p_sat)
@@ -487,7 +489,7 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
     message(log, name_, 'Found', n_markers, 'markers')
     if n_markers > 1000:
       rand_markers = np.random.choice(range(n_markers), size = 1000)
-      markers = markers[rand_markers,:]
+      markers = markers[rand_markers]
       n_markers = 1000
 
 
@@ -495,7 +497,7 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
     # Compute contrast
     c_score = np.zeros_like(markers)
     for row in range(n_markers):
-      frame = im[markers[row],:]
+      frame = im[markers[row]]
       c_score[row] = np.max(frame) - np.min(frame)
 
     # Get the minimum number of markers needed with the highest contrast
@@ -825,6 +827,7 @@ class HiSeqImages():
         self.app = None
         self.viewer = None
         self.logger = logger
+        self.files = None
 
         if len(common_name) > 0:
             common_name = '*'+common_name
@@ -836,7 +839,8 @@ class HiSeqImages():
 
             # Open zarr
             if image_path[-4:] == 'zarr':
-                section_names = self.open_zarr([image_path])
+                self.filenames = [image_path]
+                section_names = self.open_zarr()
 
             if obj_stack is not None:
                 # Open obj stack (jpegs)
@@ -847,18 +851,21 @@ class HiSeqImages():
                 # RoughScans
                 filenames = glob.glob(path.join(image_path,'*RoughScan*.tiff'))
                 if len(filenames) > 0:
-                    n_tiles = self.open_RoughScan(filenames)
+                    self.filenames = filenames
+                    n_tiles = self.open_RoughScan()
 
             else:
                 # Open tiffs
                 filenames = glob.glob(path.join(image_path, common_name+'*.tiff'))
                 if len(filenames) > 0:
-                    section_names = self.open_tiffs(filenames)
+                    self.filenames = filenames
+                    section_names.append(*self.open_tiffs())
 
                 # Open zarrs
                 filenames = glob.glob(path.join(image_path, common_name+'*.zarr'))
                 if len(filenames) > 0:
-                    section_names = self.open_zarr(filenames)
+                    self.filenames = filenames
+                    section_names.append(*self.open_zarr())
 
             if len(section_names) > 0:
                 message(self.logger, 'Opened', *section_names)
@@ -1084,7 +1091,7 @@ class HiSeqImages():
             f.write(str(key)+' '+str(val)+'\n')
         f.close()
 
-    def open_zarr(self, filenames):
+    def open_zarr(self):
         """Create labeled dataset from zarrs.
 
            **Parameters:**
@@ -1096,7 +1103,7 @@ class HiSeqImages():
         """
 
         im_names = []
-        for fn in filenames:
+        for fn in self.filenames:
             im_name = path.basename(fn)[:-5]
             im = xr.open_zarr(fn).to_array()
             im = im.squeeze().drop_vars('variable').rename(im_name)
@@ -1124,8 +1131,10 @@ class HiSeqImages():
         return im_names
 
 
-    def open_RoughScan(self,filenames):
+    def open_RoughScan(self):
         # Open RoughScan tiffs
+        filenames = self.filenames
+
         comp_sets = dict()
         for fn in filenames:
             # Break up filename into components
@@ -1170,37 +1179,6 @@ class HiSeqImages():
 
     def open_objstack(self, obj_stack):
 
-
-        # Open jpegs
-        # comp_sets = dict()
-        # for fn in filenames:
-        #     # Break up filename into components
-        #     comp_ = path.basename(fn)[:-5].split("_")
-        #     for i, comp in enumerate(comp_):
-        #         comp_sets.setdefault(i,set())
-        #         comp_sets[i].add(comp)
-        #
-        #
-        # lazy_arrays = [dask.delayed(imageio.imread)(fn) for fn in filenames]
-        # lazy_arrays = [da.from_delayed(x, shape=(16,2048), dtype='int8') for x in lazy_arrays]
-        #
-        # # Organize images
-        # #0 channel, 1 frame
-        # fn_comp_sets = list(comp_sets.values())
-        # for i in [0,1]:
-        #     fn_comp_sets[i] = [int(x) for x in fn_comp_sets[i]]
-        #     fn_comp_sets[i] = sorted(fn_comp_sets[i])
-        # remap_comps = [fn_comp_sets[0], fn_comp_sets[1], [1], [1]]
-        # a = np.empty(tuple(map(len, remap_comps)), dtype=object)
-        # for fn, x in zip(filenames, lazy_arrays):
-        #     comp_ = path.basename(fn)[:-5].split("_")
-        #     channel = fn_comp_sets[0].index(int(comp_[0]))
-        #     frame = fn_comp_sets[1].index(int(comp_[1]))
-        #     a[channel, frame, 0, 0] = x
-
-
-        # Label array
-        # dim_names = ['channel', 'frame', 'row', 'col']
         dim_names = ['frame', 'channel', 'row', 'col']
         channels = [687, 558, 610, 740]
         frames = range(obj_stack.shape[0])
@@ -1216,7 +1194,7 @@ class HiSeqImages():
         return obj_stack.shape[0]
 
 
-    def open_tiffs(self, filenames):
+    def open_tiffs(self):
         """Create labeled dataset from tiffs.
 
            **Parameters:**
@@ -1228,6 +1206,7 @@ class HiSeqImages():
         """
 
         # Open tiffs
+        filenames = self.filenames
         section_sets = dict()
         section_meta = dict()
         for fn in filenames:

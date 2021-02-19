@@ -216,7 +216,7 @@ class Autofocus():
 
         self.hs = hs
         self.pos_dict = pos_dict.copy()
-        self.rough_ims = []
+        self.rough_ims = None
         self.scale = None
         self.files = []
         self.logger = hs.logger
@@ -252,10 +252,7 @@ class Autofocus():
         hs.x.move(pos_dict['x_center'])
         x_initial = hs.x.position
         y_initial = hs.y.position
-        # Move to rough focus position
-        #hs.obj.move(hs.obj.focus_rough)
-        #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
-        #hs.z.move(z_pos)
+
         # Take rough focus image
         self.message(name_+'Scanning section')
         if hs.virtual:
@@ -268,15 +265,11 @@ class Autofocus():
 
         # Scale & Normalize partial focus image
         self.message(name_+'Scaling & Normalizing images')
-        for ch in hs.channels:
-            df_x = IA.get_image_df(im_path, 'c'+str(ch)+'_'+image_name)
-            plane, scale = IA.stitch(im_path, df_x, scaled = True)
-            self.rough_ims.append(IA.normalize(plane, scale))
-            self.files += [*df_x.index]
-
-        self.scale = scale
-
-        return self.rough_ims, scale, self.files
+        im = IA.HiSeqImages(image_path = im_path, RoughScan=True)
+        im.correct_background()
+        im.downscale()
+        self.rough_ims = im
+        self.scale = im.im.attrs['scale']
 
     def full_scan(self, image_name = 'RoughScan'):
         """Scan entire out of focus section.
@@ -319,15 +312,14 @@ class Autofocus():
 
         # Stitch rough focus image
         self.message(name_+'Stitching & Normalizing images')
-        for ch in hs.channels:
-            df_x = IA.get_image_df(im_path, 'c'+str(ch)+'_'+image_name)
-            plane, scale = IA.stitch(im_path, df_x, scaled = True)
-            self.rough_ims.append(IA.normalize(plane, scale))
-            self.files += [*df_x.index]
-
-        self.scale = scale
-
-        return self.rough_ims, scale, self.files
+        im = IA.HiSeqImages(image_path = im_path, RoughScan=True)
+        im.correct_background()
+        print('before downscale shape', im.im.shape)
+        im.downscale()
+        self.rough_ims = im
+        self.scale = im.im.attrs['scale']
+        print('after downscale shape', im.im.shape)
+        print('scale', self.scale)
 
     def get_focus_data(self, px_points, n_markers):
         """Return stage position focal point at each pixel point.
@@ -367,6 +359,7 @@ class Autofocus():
             focus_stack = hs.obj_stack()
             if not hs.virtual:
                 focus_stack = IA.HiSeqImages(obj_stack=focus_stack)
+
             focus_stack.correct_background()
 
             f_fs = self.format_focus(focus_stack.im)
@@ -736,7 +729,7 @@ def autofocus(hs, pos_dict):
     if old_obj_pos is None:
         af.message('Analyzing out of focus image')
         # Sum channels with signal
-        sum_im = IA.sum_images(af.rough_ims, logger=hs.logger)
+        sum_im = IA.sum_images(af.rough_ims.im, logger=hs.logger)
     else:
         sum_im = None
 
