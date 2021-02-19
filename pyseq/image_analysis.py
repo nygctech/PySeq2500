@@ -3,6 +3,7 @@
 import numpy as np
 import dask
 import dask.array as da
+from dask.diagnostics import ProgressBar
 import xarray as xr
 xr.set_options(keep_attrs=True)
 import zarr
@@ -923,7 +924,7 @@ class HiSeqImages():
             self.viewer = viewer
             self.app = app
 
-            self.update_viewer(viewer, dataset)
+            self.update_viewer(dataset)
             start = time.time()
 
             # timer for exiting napari
@@ -952,10 +953,10 @@ class HiSeqImages():
                                 selection[d] = dataset.coords[d].values
                     # update viewer
                     cropped = self.im.sel(selection)
-                    self.update_viewer(viewer, cropped)
+                    self.update_viewer(cropped)
 
 
-    def show(self, selection = {}):
+    def show(self, selection = {}, show_progress = True):
         """Display a section from the dataset.
 
            **Parameters:**
@@ -965,7 +966,11 @@ class HiSeqImages():
 
         dataset  = self.im.sel(selection)
 
-        self.hs_napari(dataset)
+        if show_progress:
+            with ProgressBar() as pbar:
+                self.hs_napari(dataset)
+        else:
+            self.hs_napari(dataset)
 
     def downscale(self, scale=None):
         if scale is None:
@@ -1026,14 +1031,16 @@ class HiSeqImages():
                               col=slice(col_min, col_max))
         self.im.attrs['first_group'] = group_index
 
-    def update_viewer(self, viewer, dataset):
+    def update_viewer(self, dataset):
 
+        viewer = self.viewer
         # Delete old layers
         for i in range(len(viewer.layers)):
             viewer.layers.pop(0)
 
         # Display only 1 layer if there is only 1 channel
         channels = dataset.channel.values
+
         if not channels.shape:
             ch = int(channels)
             message(self.logger, 'Adding', ch, 'channel')
