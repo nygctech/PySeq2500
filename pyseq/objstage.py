@@ -79,7 +79,7 @@ class OBJstage():
         self.logger = logger
         self.focus_spacing = 0.5                                                # distance in microns between frames in obj stack
         self.focus_velocity = 0.1                                               #mm/s
-        self.focus_frames = 450                                                 # number of total camera frames for obj stack
+        self.focus_frames = 200                                                 # number of total camera frames for obj stack
         self.focus_range = 90                                                   #%
         self.focus_start =  2000                                                # focus start step
         self.focus_stop = 62000                                                 # focus stop step

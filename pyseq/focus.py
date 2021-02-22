@@ -353,6 +353,9 @@ class Autofocus():
         while n_obj < n_markers_:
         # Take obj_stack at focus points until n_markers have been found
             px_pt = px_points[i,:]
+            filename = str(pos_dict['x_center']) + str(pos_dict['y_center'])
+            filename += '_r'+str(px_pt[0]) + '_c' + str(px_pt[1])
+
             [x_pos, y_pos] = p2s(px_pt[0], px_pt[1], pos_dict, scale)
             hs.y.move(y_pos)
             hs.x.move(x_pos)
@@ -362,7 +365,7 @@ class Autofocus():
 
             focus_stack.correct_background()
 
-            f_fs = self.format_focus(focus_stack.im)
+            f_fs = self.format_focus(focus_stack.im, filename = filename)
             if f_fs is not False:
                obj_pos = self.fit_mixed_gaussian(f_fs)
                if obj_pos:
@@ -461,7 +464,7 @@ class Autofocus():
             for f in self.files:
                 remove(path.join(self.hs.image_path, f))
 
-    def format_focus(self, focus_stack):
+    def format_focus(self, focus_stack, filename=None):
         """Return processed focus frame file sizes.
 
            Objective positions are calculated for corresponding frames. The
@@ -517,8 +520,11 @@ class Autofocus():
             return False
         else:
             f_fd = f_fd/ np.sum(f_fd)
-            filename = 'x'+str(hs.x.position)
-            filename+= 'y'+str(hs.y.position)+'.txt'
+            if filename is None:
+                filename = 'x'+str(hs.x.position)
+                filename+= 'y'+str(hs.y.position)+'.txt'
+            else:
+                filename += '.txt'
             focus_data = np.vstack((objsteps,f_fd)).T
             np.savetxt(path.join(hs.log_path,filename), focus_data)
 
