@@ -268,7 +268,7 @@ class Autofocus():
         self.rough_ims = im
         self.scale = im.im.attrs['scale']
 
-        return len(im.files) > 0
+        return len(im.filenames) > 0
 
     def full_scan(self, image_name = 'RoughScan'):
         """Scan entire out of focus section.
@@ -315,7 +315,7 @@ class Autofocus():
         self.rough_ims = im
         self.scale = im.im.attrs['scale']
 
-        return len(im.files) > 0
+        return len(im.filenames) > 0
 
     def get_focus_data(self, px_points, n_markers):
         """Return stage position focal point at each pixel point.
