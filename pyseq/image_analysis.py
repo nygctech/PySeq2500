@@ -802,6 +802,10 @@ class HiSeqImages():
         - channel_shift (dict): Dictionary of how to register each channel
         - stop (bool): Flag to close viewer
         - app (QTWidget): Application instance
+        - viewer (napari): Napari viewer
+        - logger: Logger object to log communication with HiSeq and user.
+        - files: Files used to stitch image
+
 
     """
 
