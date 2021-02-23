@@ -804,7 +804,7 @@ class HiSeqImages():
         - app (QTWidget): Application instance
         - viewer (napari): Napari viewer
         - logger: Logger object to log communication with HiSeq and user.
-        - files: Files used to stitch image
+        - filenames: Files used to stitch image
 
 
     """
@@ -831,7 +831,7 @@ class HiSeqImages():
         self.app = None
         self.viewer = None
         self.logger = logger
-        self.files = None
+        self.filenames = None
 
         if len(common_name) > 0:
             common_name = '*'+common_name
