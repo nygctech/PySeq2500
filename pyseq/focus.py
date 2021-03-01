@@ -735,6 +735,8 @@ def autofocus(hs, pos_dict):
             sum_im = IA.sum_images(af.rough_ims.im, logger=hs.logger)
         except:
             sum_im = None
+    else:
+        sum_im = None
 
     # Find pixels to focus on
     if sum_im is not None:

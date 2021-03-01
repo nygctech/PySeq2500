@@ -1306,7 +1306,7 @@ def do_recipe(fc):
 
     # Skip to first line of recipe on initial cycle
     if fc.cycle == 1 and fc.first_line is not None:
-        for i in range(fc.first_line-1):
+        for i in range(fc.first_line):
             line = fc.recipe.readline()
         fc.first_line = None
 

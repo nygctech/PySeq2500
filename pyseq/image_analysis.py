@@ -863,13 +863,13 @@ class HiSeqImages():
                 filenames = glob.glob(path.join(image_path, common_name+'*.tiff'))
                 if len(filenames) > 0:
                     self.filenames = filenames
-                    section_names.append(*self.open_tiffs())
+                    section_names += self.open_tiffs()
 
                 # Open zarrs
                 filenames = glob.glob(path.join(image_path, common_name+'*.zarr'))
                 if len(filenames) > 0:
                     self.filenames = filenames
-                    section_names.append(*self.open_zarr())
+                    section_names += self.open_zarr()
 
             if len(section_names) > 0:
                 message(self.logger, 'Opened', *section_names)
@@ -1090,7 +1090,7 @@ class HiSeqImages():
         self.im.to_dataset().to_zarr(save_name)
 
         # save attributes
-        f = open(self.im.name+'.attrs',"w")
+        f = open(path.join(save_path, self.im.name+'.attrs'),"w")
         for key, val in self.im.attrs.items():
             f.write(str(key)+' '+str(val)+'\n')
         f.close()
@@ -1216,7 +1216,7 @@ class HiSeqImages():
         for fn in filenames:
             # Break up filename into components
             comp_ = path.basename(fn)[:-5].split("_")
-            if len(comp_) == 6:
+            if len(comp_) >= 6:
                 section = comp_[2]
                 # Add new section
                 if section_sets.setdefault(section, dict()) == {}:
@@ -1239,24 +1239,46 @@ class HiSeqImages():
             lazy_arrays = [da.from_delayed(x, shape=shape, dtype=dtype) for x in lazy_arrays]
 
             # Organize images
-            #0 channel, 1 flowcell, 2 section, 3 cycle, 4 x position, 5 objective position
             fn_comp_sets = list(section_sets[s].values())
-            for i in [0,3,4,5]:
+            if len(comp_) == 6:
+                comp_order = {'ch':0, 'AorB':1, 's':2, 'r':3, 'x':4, 'o':5}
+            elif len(comp_) == 7:
+                comp_order = {'ch':0, 'AorB':1, 's':2, 'r':3, 'i':4, 'x':5, 'o':6}
+            int_comps = ['ch', 'r', 'x', 'o']
+            for i in [comp_order[c] for c in comp_order.keys() if c in int_comps]:
                 fn_comp_sets[i] = [int(x[1:]) for x in fn_comp_sets[i]]
                 fn_comp_sets[i] = sorted(fn_comp_sets[i])
-            remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[5], [1],  fn_comp_sets[4]]
+            if 'i' in comp_order.keys():
+                i = comp_order['i']
+                fn_comp_sets[i] = [int(x) for x in fn_comp_sets[i]]
+                fn_comp_sets[i] = sorted(fn_comp_sets[i])
+                remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[4], fn_comp_sets[6], [1],  fn_comp_sets[5]]
+            else:
+                remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[5], [1],  fn_comp_sets[4]]
+
             a = np.empty(tuple(map(len, remap_comps)), dtype=object)
             for fn, x in zip(filenames, lazy_arrays):
                 comp_ = path.basename(fn)[:-5].split("_")
                 channel = fn_comp_sets[0].index(int(comp_[0][1:]))
                 cycle = fn_comp_sets[3].index(int(comp_[3][1:]))
-                obj_step = fn_comp_sets[5].index(int(comp_[5][1:]))
-                x_step = fn_comp_sets[4].index(int(comp_[4][1:]))
-                a[channel, cycle, obj_step, 0, x_step] = x
+                co = comp_order['o']
+                obj_step = fn_comp_sets[co].index(int(comp_[co][1:]))
+                co = comp_order['x']
+                x_step = fn_comp_sets[co].index(int(comp_[co][1:]))
+                if 'i' in comp_order.keys():
+                    co = comp_order['i']
+                    image_i = fn_comp_sets[co].index(int(comp_[co]))
+                    a[channel, cycle, image_i, obj_step, 0, x_step] = x
+                else:
+                    a[channel, cycle, obj_step, 0, x_step] = x
 
             # Label array
-            dim_names = ['channel', 'cycle', 'obj_step', 'row', 'col']
-            coord_values = {'channel':fn_comp_sets[0], 'cycle':fn_comp_sets[3], 'obj_step':fn_comp_sets[5]}
+            if 'i' in comp_order.keys():
+                dim_names = ['channel', 'cycle', 'image', 'obj_step', 'row', 'col']
+                coord_values = {'channel':fn_comp_sets[0], 'cycle':fn_comp_sets[3], 'image':fn_comp_sets[4], 'obj_step':fn_comp_sets[6]}
+            else:
+                dim_names = ['channel', 'cycle', 'obj_step', 'row', 'col']
+                coord_values = {'channel':fn_comp_sets[0], 'cycle':fn_comp_sets[3], 'obj_step':fn_comp_sets[5]}
             im = xr.DataArray(da.block(a.tolist()),
                                    dims = dim_names,
                                    coords = coord_values,
