@@ -457,8 +457,9 @@ class Autofocus():
         """Delete images used for focusing."""
 
         if not self.hs.virtual:
-            for f in self.rough_ims.filenames:
-                remove(f)
+            if self.rough_ims is not None:
+                for f in self.rough_ims.filenames:
+                    remove(f)
 
     def format_focus(self, focus_stack, filename=None):
         """Return processed focus frame file sizes.
