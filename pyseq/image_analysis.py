@@ -831,7 +831,7 @@ class HiSeqImages():
         self.app = None
         self.viewer = None
         self.logger = logger
-        self.filenames = None
+        self.filenames = []
 
         if len(common_name) > 0:
             common_name = '*'+common_name

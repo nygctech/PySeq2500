@@ -1670,7 +1670,10 @@ def free_fc():
 
     if len(flowcells) == 1:
         fc = flowcells[[*flowcells][0]]
-        fc.wait_thread.set()
+        try:
+            fc.wait_thread.set()
+        except:
+            pass
         fc.signal_event = None
     else:
         flowcells_ = [fc.position for fc in flowcells.values() if fc.total_cycles <= cycles]
