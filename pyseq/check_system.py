@@ -107,9 +107,10 @@ def test_y_stage():
                 attempts += 1
                 if attempts >= 10:
                     error('Unable to sync FPGA & Y Stage')
-            else:
-                status = True
-                message('Y Stage Nominal')
+
+        status = True
+        message('Y Stage Nominal')
+
     except:
         status = False
         #logger.log(21, 'Check COM port')
