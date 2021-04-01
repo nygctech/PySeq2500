@@ -5,6 +5,12 @@ import os
 from os.path import join
 
 
+def message(text):
+    logger.log(21, 'PySeq::'+text)
+
+def error(text):
+    warnings.warn('ERROR::'text, RuntimeWarning)
+
 def setup_logger(log_path):
     """Create a logger and return the handle."""
 
@@ -36,17 +42,17 @@ def setup_logger(log_path):
 # Test LEDS
 def test_led():
     try:
-        logger.log(21, 'Testing LEDs')
+        message('Testing LEDs')
         hs.f.initialize()
-        for i in [1,2]:
-          for color in hs.f.led_dict.keys():
-              hs.f.LED(i, color)
-          time.sleep(2)
-        logger.log(21, 'LEDs Nominal')
+        for color in hs.f.led_dict.keys():
+            for i in [1,2]:
+                hs.f.LED(i, color)
+            time.sleep(2)
+        message('LEDs Nominal')
         status = True
     except:
-        logger.log(21, 'Check COM port')
-        logger.log(21, 'LEDs Failed')
+        #logger.log(21, 'Check COM port')
+        message('LEDs Failed')
         status = False
 
     return status
@@ -55,43 +61,49 @@ def test_led():
 # Test X Stage
 def test_x_stage():
     try:
-        self.y.command('OFF')
-        logger.log(21, 'Testing X Stage')
-        hs.x.initialize()
-        hs.x.move(hs.x.min_x)
-        hs.x.move(hs.x.max_x)
-        hs.x.move(hs.x.home)
-        logger.log(21, 'X Stage Nominal')
-        status = True
+        hs.y.command('OFF')
+        message('Testing X Stage')
+        homed = hs.x.initialize()
+            if homed:
+                hs.x.move(hs.x.min_x)
+                hs.x.move(hs.x.max_x)
+                hs.x.move(hs.x.home)
+                logger.log(21, 'X Stage Nominal')
+                status = True
+            else:
+                error('X Stage Homing Failed')
     except:
         status = False
-        logger.log(21, 'Check COM port')
-        logger.log(21, 'X Stage Failed')
+        #logger.log(21, 'Check COM port')
+        message('X Stage Failed')
 
     return status
 
 # Test Y Stage
 def test_y_stage():
     try:
-        logger.log(21, 'Testing Y Stage')
+        message('Testing Y Stage')
         hs.y.initialize()
-        hs.y.move(hs.y.min_y)
-        hs.y.move(hs.y.max_y)
-        hs.y.move(hs.y.home)
+        if not hs.y.move(hs.y.min_y):
+            error('Y Stage failed to move out')
+        if not hs.y.move(hs.y.max_y):
+            error('Y Stage failed to move in')
+        if not hs.y.move(hs.y.home):
+            error('Y stage failed to move home')
         if instrument_status['FPGA'] and hs.x.check_position(hs.x.home):
             attempts = 0
             if abs(hs.f.read_position() - hs.y.read_position()) > 10:
                 hs.reset_stage()
                 attempts += 1
                 if attempts >= 10:
-                    warnings.warn('Unable to sync FPGA & Y Stage', RuntimeWarning)
+                    error('Unable to sync FPGA & Y Stage')
             else:
                 status = True
-                logger.log(21, 'Y Stage Nominal')
+                message('Y Stage Nominal')
     except:
         status = False
-        logger.log(21, 'Check COM port')
-        logger.log(21, 'Y Stage Failed')
+        #logger.log(21, 'Check COM port')
+        message('Y Stage Failed')
 
     return status
 
@@ -99,7 +111,7 @@ def test_y_stage():
 def test_z_stage():
     z_pass = [False, False, False]
     try:
-        logger.log(21, 'Testing Z Stage')
+        message('Testing Z Stage')
         hs.z.initialize()
         zpos = hs.z.focus_pos
         zpos_list = hs.z.move([zpos, zpos, zpos])
@@ -112,14 +124,14 @@ def test_z_stage():
                 z_pass[i] = True
         if all(z_pass):
             status = True
-            logger.log(21, 'Z Stage Nominal')
+            message('Z Stage Nominal')
         else:
             for i, z in enumerate(z_pass):
                 if not z:
-                    warnings.warn('Z Tilt Motor '+str(i)+' Failed.', RuntimeWarning)
+                    error('Z Tilt Motor '+str(i)+' Failed.')
     except:
         status = False
-        logger.log(21, 'Z Stage Failed')
+        message('Z Stage Failed')
 
     return status
 
@@ -127,25 +139,26 @@ def test_z_stage():
 # Test Objective Stage
 def test_objective_stage():
     try:
-        logger.log(21, 'Testing Objective Stage')
+        message('Testing Objective Stage')
         hs.obj.initialize()
-        hs.obj.move(hs.obj.min_z)
-        hs.obj.move(hs.obj.max_z)
+        hs.obj.move(hs.obj.focus_start)
+        hs.obj.move(hs.obj.focus_stop)
         hs.obj.set_velocity(hs.obj.min_v)
-        hs.obj.move(hs.obj.min_z)
-        hs.obj.move(hs.obj.max_z)
+        hs.obj.move(hs.obj.focus_start)
+        hs.obj.move(hs.obj.focus_stop)
         hs.obj.set_velocity(hs.obj.max_v)
-        logger.log(21, 'Objective Stage Nominal')
+        message('Objective Stage Nominal')
         status = True
     except:
         status = False
-        logger.log(21, 'Objective Stage Failed')
+        message('Objective Stage Failed')
 
     return status
 
 
 # Test Lasers
 def test_lasers():
+    message('Testing Lasers')
 
     laser_pass = [False, False]
     laser_color = ['green', 'red']
@@ -155,7 +168,7 @@ def test_lasers():
             hs.laser[color].initialize()
             laser_pass[i] = True
         except:
-            logger.log(21, 'Check COM Port')
+            error('Check COM port assignment for '+color+' laser')
 
     try:
         for i, color in enumerate(laser_color):
@@ -165,34 +178,37 @@ def test_lasers():
         for i, color in enumerate(laser_color):
             if laser_pass[i]:
                 if abs(hs.laser[color].get_power()/400-1) > 0.05:
-                    warnings.warn('Laser ('+color+') unable to reach 400 mW', RuntimeWarning)
+                    error('Laser ('+color+') unable to reach 400 mW')
                 else:
                     hs.laser[color].set_power(10)
         time.sleep(100)
         for i, color in enumerate(laser_color):
             if laser_pass[i]:
                 if abs(hs.laser[color].get_power()/10-1) > 0.05:
-                    warnings.warn('Laser ('+color+') unable to reach 10 mW', RuntimeWarning)
-        logger.log(21, 'Lasers Nominal')
+                    error('Laser ('+color+') unable to reach 10 mW')
+        status = True
+        message('Lasers Nominal')
     except:
         status = False
-        logger.log(21, 'Lasers Failed')
+        message('Lasers Failed')
 
     return status
 
 # Test Optics
 def test_optics():
+    message('Testing Optics')
     try:
         hs.optics.initialize()
         status = True
     except:
         status = False
-        logger.log(21, 'Lasers Failed')
+        message('Optics Failed')
 
     return status
 
 # Test Temperature Control
 def test_temperature_control():
+    message('Testing Stage Temperature Control')
     flowells = ['A', 'B']
     try:
         hs.T.initialize()
@@ -208,14 +224,15 @@ def test_temperature_control():
             hs.wait_fc_T(fc,4)
         for fc in flowcells:
             hs.fc_off(fc,4)
-        logger.log(21, 'Temperature Control Nominal')
+        message('Temperature Control Nominal')
         status = True
     except:
         status = False
-        logger.log(21, 'Temperature Control Failed')
+        message('Temperature Control Failed')
 
 # Test cameras
 def test_cameras():
+    message('Testing Cameras')
     try:
         hs.initializeCams(logger)
         hs.cam1.setAREA()
@@ -224,11 +241,12 @@ def test_cameras():
             image_complete = hs.take_picture(n_frames=32, image_name = 'dark')
             if image_complete == 2:
                 status = True
+                message('Cameras Nominal')
             else:
-                warnings.warn('Dark Images Failed', RuntimeWarning)
+                error('Dark Images Failed')
     except:
         status = False
-        logger.log(21, 'Cameras Failed')
+        message('Cameras Failed')
 
 
 
@@ -241,11 +259,11 @@ logger = setup_logger(log_path)
 
 try:
     import pyseq
-    hs = pyseq.HiSeq(logger)
+    hs = pyseq.HiSeq(logger, laser1COM = 99)
     hs.image_path = image_path
 except:
     hs = None
-    print('HiSeq Failed')
+    message('HiSeq Failed')
 
 if hs is not None:
     instrument_tests = {'FPGA': test_led(),
