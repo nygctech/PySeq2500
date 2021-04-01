@@ -313,9 +313,9 @@ if hs is not None:
     table = []
     for instrument in instrument_status.keys():
         if instrument_status[instrument]:
-            table.append(instrument, 'PASSED')
+            table.append([instrument, 'PASSED'])
         else:
-            table.append(instrument, 'FAILED')
+            table.append([instrument, 'FAILED'])
     try:
         import tabulate
         print(tabulate.tabulate(table, tablefmt = 'presto'))
