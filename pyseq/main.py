@@ -155,14 +155,14 @@ class Flowcell():
         if self.recipe is not None:
             self.recipe.close()
         self.recipe = open(self.recipe_path)
-        # Increase cycle counter
-        self.cycle += 1
         # Reset image counter (if mulitple images per cycle)
         if self.IMAG_counter is not None:
             self.IMAG_counter = 0
 
         msg = 'PySeq::'+self.position+'::'
-        if self.cycle > self.total_cycles:
+        if self.cycle == self.total_cycles:
+            # Increase cycle counter
+            self.cycle += 1
             # Flowcell completed all cycles
             hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
             hs.T.fc_off(fc.position)
@@ -171,12 +171,16 @@ class Flowcell():
             if self.temp_timer is not None:
                 self.temp_timer.cancel()
                 self.temp_timer = None
-
-        else:
+            self.thread = threading.Thread(target = time.sleep, args = (10,))
+        elif self.cycle < self.total_cycles:
+            # Increase cycle counter
+            self.cycle += 1
             # Start new cycle
             restart_message = msg+'Starting cycle '+str(self.cycle)
             self.thread = threading.Thread(target = hs.message,
                                            args = (restart_message,))
+        else:
+            self.thread = threading.Thread(target = time.sleep, args = (10,))
 
         thread_id = self.thread.start()
 
@@ -1384,7 +1388,7 @@ def do_recipe(fc):
                 hs.message('PySeq::'+AorB+'::Waiting for camera')
                 while hs.scan_flag:
                     pass
-            hs.scan_flag = True
+            #hs.scan_flag = True
             fc.events_since_IMAG = []
             log_message = 'Imaging flowcell'
             fc.thread = threading.Thread(target = IMAG,
@@ -1417,14 +1421,10 @@ def do_recipe(fc):
         elif fc.thread is not None and fc.cycle > fc.total_cycles:
             fc.thread =  threading.Thread(target = time.sleep, args = (10,))
 
-    elif fc.cycle <= fc.total_cycles:
+    else:
         # End of recipe
         fc.restart_recipe()
-    elif fc.cycle > fc.total_cycles:
-        #End of experiment
-        fc.temperature = None
-        fc.thread =  threading.Thread(target = time.sleep, args = (10,))
-        fc.thread.start()
+
 
 ##########################################################
 ## Image flowcell ########################################
