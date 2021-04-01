@@ -257,12 +257,12 @@ os.mkdir(image_path)
 log_path = join(image_path,timestamp+'_HiSeqCheck.log')
 logger = setup_logger(log_path)
 
-try:
-    import pyseq
-    hs = pyseq.HiSeq(logger, laser1COM = 99)
-    hs.image_path = image_path
-    hs = None
-    message('HiSeq Failed')
+
+import pyseq
+hs = pyseq.HiSeq(logger, laser1COM = 99)
+hs.image_path = image_path
+hs = None
+message('HiSeq Failed')
 
 if hs is not None:
     instrument_tests = {'FPGA': test_led(),
