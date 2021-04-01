@@ -259,8 +259,10 @@ logger = setup_logger(log_path)
 
 
 import pyseq
-hs = pyseq.HiSeq(logger, laser1COM = 'COM99')
+hs = pyseq.HiSeq(logger)
 # Exception for ValueError of port, must be string or None, not int)
+# Exception for SerialException, could not open port
+
 hs.image_path = image_path
 hs = None
 message('HiSeq Failed')
