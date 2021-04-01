@@ -215,6 +215,7 @@ def test_optics():
     try:
         hs.optics.initialize()
         status = True
+        message('Optics Nominal')
     except:
         status = False
         message('Optics Failed')
@@ -224,7 +225,7 @@ def test_optics():
 # Test Temperature Control
 def test_temperature_control():
     message('Testing Stage Temperature Control')
-    flowells = ['A', 'B']
+    flowcells = ['A', 'B']
     try:
         hs.T.initialize()
         for fc in flowcells:
@@ -297,7 +298,7 @@ if hs is not None:
 
     for instrument in instrument_tests.keys():
         if instrument_status['FPGA']:
-            hs.f.LED('A', 'pulse green')
+            hs.f.LED('A', 'green')
             hs.f.LED('B', 'off')
 
         instrument_status[instrument] = instrument_tests[instrument]()
@@ -305,3 +306,18 @@ if hs is not None:
         if instrument_status[instrument] and instrument_status['FPGA']:
             hs.f.LED('B', 'green')
             time.sleep(2)
+
+    hs.f.LED('A', 'pulse green')
+    hs.f.LED('A', 'pulse green')
+
+    table = []
+    for instrument in instrument_status.keys():
+        if instrument_status[instrument]:
+            table.append(instrument, 'PASSED')
+        else:
+            table.append(instrument, 'FAILED')
+    try:
+        import tabulate
+        print(tabulate.tabulate(table, tablefmt = 'presto'))
+    except:
+        print(table)
