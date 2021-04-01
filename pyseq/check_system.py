@@ -238,10 +238,10 @@ except:
 
 if hs is not None:
     timestamp = time.strftime('%Y%m%d%H%M')
-    hs.logger = setup_logger(timestamp)
     hs.image_path = join(os.getcwd,timestamp+'_HiSeqCheck')
+    os.mkdir(hs.image_path)
     hs.log_path = join(hs.image_path,timestamp+'_HiSeqCheck.log')
-    setup_logger()
+    hs.logger = setup_logger()
 
     instrument_tests = {'FPGA': test_led(),
                    'XSTAGE': test_x_stage(),
