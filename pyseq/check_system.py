@@ -261,7 +261,6 @@ try:
     import pyseq
     hs = pyseq.HiSeq(logger, laser1COM = 99)
     hs.image_path = image_path
-except:
     hs = None
     message('HiSeq Failed')
 
