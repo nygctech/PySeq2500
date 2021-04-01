@@ -67,6 +67,7 @@ class Xstage():
                                             encoding = 'ascii',
                                             errors = 'ignore')
         self.min_x = 1000
+        # Need to update too large
         self.max_x = 50000
         self.home = 30000
         self.spum = 0.4096     #steps per um
@@ -136,11 +137,11 @@ class Xstage():
             self.move(40000)
             self.command('EX 1')
             self.position = 30000
-            self.check_position(self.position)    
+            self.check_position(self.position)
             homed = self.check_home()
 
         return homed
-                 
+
     def check_home(self):
 
         homed = False
@@ -153,7 +154,7 @@ class Xstage():
                 homed = True
 
         self.move(30000)
-        
+
         return homed
 
     def command(self, text):

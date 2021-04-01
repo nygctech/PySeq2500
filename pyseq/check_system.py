@@ -10,6 +10,8 @@ def message(text):
 
 def error(text):
     warnings.warn('ERROR::'+text, RuntimeWarning)
+    if instrument_status['FPGA']:
+        hs.f.LED(1, 'yellow')
 
 def setup_logger(log_path):
     """Create a logger and return the handle."""
@@ -84,6 +86,14 @@ def test_y_stage():
     try:
         message('Testing Y Stage')
         hs.y.initialize()
+        start = time.time()
+        timeout = 60*10
+        while hs.y.check_position == 0:
+            if time.time() - start > timeout:
+                error('Y Stage failed to home')
+                break
+            else:
+                time.sleep(10)
         if not hs.y.move(hs.y.min_y):
             error('Y Stage failed to move out')
         if not hs.y.move(hs.y.max_y):
@@ -165,7 +175,7 @@ def test_lasers():
 
     for i, color in enumerate(laser_color):
         try:
-            hs.laser[color].initialize()
+            hs.lasers[color].initialize()
             laser_pass[i] = True
         except:
             error('Check COM port assignment for '+color+' laser')
@@ -178,6 +188,7 @@ def test_lasers():
         for i, color in enumerate(laser_color):
             if laser_pass[i]:
                 if abs(hs.laser[color].get_power()/400-1) > 0.05:
+                    laser_pass[i] = False
                     error('Laser ('+color+') unable to reach 400 mW')
                 else:
                     hs.laser[color].set_power(10)
@@ -186,8 +197,11 @@ def test_lasers():
             if laser_pass[i]:
                 if abs(hs.laser[color].get_power()/10-1) > 0.05:
                     error('Laser ('+color+') unable to reach 10 mW')
-        status = True
-        message('Lasers Nominal')
+                else:
+                    laser_pass[i] = True
+        if all(laser_pass):
+            status = True
+            message('Lasers Nominal')
     except:
         status = False
         message('Lasers Failed')
@@ -268,14 +282,21 @@ except:
     message('HiSeq Failed')
 
 if hs is not None:
-    instrument_tests = {'FPGA': test_led(),
-                   'XSTAGE': test_x_stage(),
-                   'YSTAGE': test_y_stage(),
-                   'ZSTAGE': test_z_stage(),
-                   'OBJSTAGE': test_objective_stage(),
-                   'LASERS': test_lasers(),
-                   'OPTICS': test_optics(),
-                   'CAMERAS': test_cameras()}
+    instrument_tests = {'FPGA': test_led,
+                   'XSTAGE': test_x_stage,
+                   'YSTAGE': test_y_stage,
+                   'ZSTAGE': test_z_stage,
+                   'OBJSTAGE': test_objective_stage,
+                   'LASERS': test_lasers,
+                   'OPTICS': test_optics,
+                   'TEMPERATURE': test_temperature_control,
+                   'CAMERAS': test_cameras}
 
     for instrument in instrument_tests.keys():
-        instrument_status[instrument] = intruments_tests[instrument]
+        if instrument_status['FPGA']:
+            hs.f.LED(0, 'pulse green')
+            hs.f.LED(1, 'off')
+        instrument_status[instrument] = instrument_tests[instrument]()
+        if instrument_status[instrument]:
+                hs.f.LED(1, 'green')
+                time.sleep(2)
