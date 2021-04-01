@@ -5,7 +5,7 @@ import os
 from os.path import join
 
 
-def setup_logger(timestamp):
+def setup_logger():
     """Create a logger and return the handle."""
 
 
