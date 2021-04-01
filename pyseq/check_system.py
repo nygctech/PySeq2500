@@ -298,7 +298,9 @@ if hs is not None:
         if instrument_status['FPGA']:
             hs.f.LED(0, 'pulse green')
             hs.f.LED(1, 'off')
+
         instrument_status[instrument] = instrument_tests[instrument]()
-        if instrument_status[instrument]:
-                hs.f.LED(1, 'green')
-                time.sleep(2)
+
+        if instrument_status[instrument] and instrument_status['FPGA']:
+            hs.f.LED(1, 'green')
+            time.sleep(2)
