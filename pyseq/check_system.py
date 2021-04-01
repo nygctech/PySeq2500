@@ -257,15 +257,15 @@ os.mkdir(image_path)
 log_path = join(image_path,timestamp+'_HiSeqCheck.log')
 logger = setup_logger(log_path)
 
-
-import pyseq
-hs = pyseq.HiSeq(logger)
-# Exception for ValueError of port, must be string or None, not int)
-# Exception for SerialException, could not open port
-
-hs.image_path = image_path
-hs = None
-message('HiSeq Failed')
+try:
+    import pyseq
+    hs = pyseq.HiSeq(logger)
+    # Exception for ValueError of port, must be string or None, not int)
+    # Exception for SerialException, could not open port
+    hs.image_path = image_path
+except:
+    hs = None
+    message('HiSeq Failed')
 
 if hs is not None:
     instrument_tests = {'FPGA': test_led(),
