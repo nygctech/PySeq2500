@@ -251,6 +251,8 @@ def test_temperature_control():
         status = False
         message('Temperature Control Failed')
 
+    return status
+
 # Test cameras
 def test_cameras():
     message('Testing Cameras')
@@ -271,7 +273,7 @@ def test_cameras():
         status = False
         message('Cameras Failed')
 
-
+    return status
 
 
 timestamp = time.strftime('%Y%m%d%H%M')
@@ -325,6 +327,7 @@ if hs is not None:
             table.append([instrument, 'FAILED'])
     try:
         import tabulate
+        print('\n')
         print(tabulate.tabulate(table, tablefmt = 'presto'))
     except:
         print(table)
