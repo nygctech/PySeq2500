@@ -247,15 +247,15 @@ def test_temperature_control():
         for fc in flowcells:
             hs.T.fc_on(fc)
         for fc in flowcells:
-            hs.set_fc_T(fc,50)
+            hs.T.set_fc_T(fc,50)
         for fc in flowcells:
-            hs.wait_fc_T(fc,50)
+            hs.T.wait_fc_T(fc,50)
         for fc in flowcells:
-            hs.set_fc_T(fc,4)
+            hs.T.set_fc_T(fc,4)
         for fc in flowcells:
-            hs.wait_fc_T(fc,4)
+            hs.T.wait_fc_T(fc,4)
         for fc in flowcells:
-            hs.fc_off(fc,4)
+            hs.T.fc_off(fc,4)
         message('Temperature Control Nominal')
         status = True
     except:
