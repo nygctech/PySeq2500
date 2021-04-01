@@ -64,14 +64,14 @@ def test_x_stage():
         hs.y.command('OFF')
         message('Testing X Stage')
         homed = hs.x.initialize()
-            if homed:
-                hs.x.move(hs.x.min_x)
-                hs.x.move(hs.x.max_x)
-                hs.x.move(hs.x.home)
-                logger.log(21, 'X Stage Nominal')
-                status = True
-            else:
-                error('X Stage Homing Failed')
+        if homed:
+            hs.x.move(hs.x.min_x)
+            hs.x.move(hs.x.max_x)
+            hs.x.move(hs.x.home)
+            logger.log(21, 'X Stage Nominal')
+            status = True
+        else:
+            error('X Stage Homing Failed')
     except:
         status = False
         #logger.log(21, 'Check COM port')
