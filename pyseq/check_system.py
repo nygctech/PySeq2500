@@ -185,21 +185,37 @@ def test_lasers():
         for i, color in enumerate(laser_color):
             if laser_pass[i]:
                  hs.lasers[color].set_power(400)
-        time.sleep(100)
-        for i, color in enumerate(laser_color):
-            if laser_pass[i]:
-                if abs(hs.lasers[color].get_power()/400-1) > 0.05:
-                    laser_pass[i] = False
-                    error('Laser ('+color+') unable to reach 400 mW')
+        timeout = 10*60
+        start = time.time()
+        keep_going = [True, True]
+        while any(keep_going):
+            for i, color in enumerate(laser_color):
+                if laser_pass[i]:
+                    if abs(hs.lasers[color].get_power()/400-1) > 0.05:
+                        if time.time()-start > timeout:
+                            laser_pass[i] = False
+                            keep_going[i] = False
+                            error('Laser ('+color+') unable to reach 400 mW')
+                    else:
+                        keep_going[i] = False
+                        hs.lasers[color].set_power(10)
                 else:
-                    hs.lasers[color].set_power(10)
-        time.sleep(100)
-        for i, color in enumerate(laser_color):
-            if laser_pass[i]:
-                if abs(hs.lasers[color].get_power()/10-1) > 0.05:
-                    error('Laser ('+color+') unable to reach 10 mW')
+                    keep_going[i] = True
+
+        start = time.time()
+        keep_going = [True, True]
+        while any(keep_going):
+            for i, color in enumerate(laser_color):
+                if laser_pass[i]:
+                    if abs(hs.lasers[color].get_power()/10-1) > 0.05:
+                        laser_pass[i] = False
+                        keep_going[i] = False
+                        error('Laser ('+color+') unable to reach 10 mW')
+                    else:
+                        keep_going[i] = False
                 else:
-                    laser_pass[i] = True
+                    keep_going[i] = False
+
         if all(laser_pass):
             status = True
             message('Lasers Nominal')
@@ -260,6 +276,8 @@ def test_cameras():
                 message('Cameras Nominal')
             else:
                 error('Dark Images Failed')
+        else:
+            error('Unable to image without Y Stage and FPGA')
     except:
         status = False
         message('Cameras Failed')
