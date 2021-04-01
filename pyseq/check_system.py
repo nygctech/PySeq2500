@@ -9,7 +9,7 @@ def message(text):
     logger.log(21, 'PySeq::'+text)
 
 def error(text):
-    warnings.warn('ERROR::'text, RuntimeWarning)
+    warnings.warn('ERROR::'+text, RuntimeWarning)
 
 def setup_logger(log_path):
     """Create a logger and return the handle."""
