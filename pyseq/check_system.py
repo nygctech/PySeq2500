@@ -292,6 +292,8 @@ if hs is not None:
                    'TEMPERATURE': test_temperature_control,
                    'CAMERAS': test_cameras}
 
+    instrument_status = {'FPGA':False}
+
     for instrument in instrument_tests.keys():
         if instrument_status['FPGA']:
             hs.f.LED(0, 'pulse green')
