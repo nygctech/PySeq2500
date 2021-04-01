@@ -308,7 +308,7 @@ if hs is not None:
             time.sleep(2)
 
     hs.f.LED('A', 'pulse green')
-    hs.f.LED('A', 'pulse green')
+    hs.f.LED('B', 'pulse green')
 
     table = []
     for instrument in instrument_status.keys():
