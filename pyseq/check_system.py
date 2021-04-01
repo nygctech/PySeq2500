@@ -70,7 +70,7 @@ def test_x_stage():
             hs.x.move(hs.x.min_x)
             hs.x.move(hs.x.max_x)
             hs.x.move(hs.x.home)
-            logger.log(21, 'X Stage Nominal')
+            message('X Stage Nominal')
             status = True
         else:
             error('X Stage Homing Failed')
@@ -184,19 +184,19 @@ def test_lasers():
     try:
         for i, color in enumerate(laser_color):
             if laser_pass[i]:
-                 hs.laser[color].set_power(400)
+                 hs.lasers[color].set_power(400)
         time.sleep(100)
         for i, color in enumerate(laser_color):
             if laser_pass[i]:
-                if abs(hs.laser[color].get_power()/400-1) > 0.05:
+                if abs(hs.lasers[color].get_power()/400-1) > 0.05:
                     laser_pass[i] = False
                     error('Laser ('+color+') unable to reach 400 mW')
                 else:
-                    hs.laser[color].set_power(10)
+                    hs.lasers[color].set_power(10)
         time.sleep(100)
         for i, color in enumerate(laser_color):
             if laser_pass[i]:
-                if abs(hs.laser[color].get_power()/10-1) > 0.05:
+                if abs(hs.lasers[color].get_power()/10-1) > 0.05:
                     error('Laser ('+color+') unable to reach 10 mW')
                 else:
                     laser_pass[i] = True
@@ -254,7 +254,7 @@ def test_cameras():
         hs.cam2.setAREA()
         if instrument_status['YSTAGE'] and instrument_status['FPGA']:
             image_complete = hs.take_picture(n_frames=32, image_name = 'dark')
-            if image_complete == 2:
+            if image_complete:
                 status = True
                 message('Cameras Nominal')
             else:
@@ -297,11 +297,11 @@ if hs is not None:
 
     for instrument in instrument_tests.keys():
         if instrument_status['FPGA']:
-            hs.f.LED(0, 'pulse green')
-            hs.f.LED(1, 'off')
+            hs.f.LED('A', 'pulse green')
+            hs.f.LED('B', 'off')
 
         instrument_status[instrument] = instrument_tests[instrument]()
 
         if instrument_status[instrument] and instrument_status['FPGA']:
-            hs.f.LED(1, 'green')
+            hs.f.LED('B', 'green')
             time.sleep(2)
