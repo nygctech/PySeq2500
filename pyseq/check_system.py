@@ -1,6 +1,6 @@
-import pyseq
 import logging
 import warnings
+import time
 
 
 def setup_logger(timestamp):
@@ -225,28 +225,32 @@ def test_cameras():
             else:
                 warnings.warn('Dark Images Failed', RuntimeWarning)
     except:
-        status = False 
+        status = False
         logger.log(21, 'Cameras Failed')
 
 
+try:
+    import pyseq
+    hs = pyseq.HiSeq()
+except:
+    hs = None
+    print('HiSeq Failed')
 
-import pyseq
-hs = pyseq.HiSeq()
+if hs is not None:
+    timestamp = time.strftime('%Y%m%d%H%M')
+    hs.logger = setup_logger(timestamp)
+    hs.image_path = join(os.getcwd,timestamp+'_HiSeqCheck')
+    hs.log_path = join(hs.image_path,timestamp+'_HiSeqCheck.log')
+    setup_logger()
 
-timestamp = time.strftime('%Y%m%d%H%M')
-hs.logger = setup_logger(timestamp)
-hs.image_path = join(os.getcwd,timestamp+'_HiSeqCheck')
-hs.log_path = join(hs.image_path,timestamp+'_HiSeqCheck.log')
-setup_logger()
+    instrument_tests = {'FPGA': test_led(),
+                   'XSTAGE': test_x_stage(),
+                   'YSTAGE': test_y_stage(),
+                   'ZSTAGE': test_z_stage(),
+                   'OBJSTAGE': test_objective_stage(),
+                   'LASERS': test_lasers(),
+                   'OPTICS': test_optics(),
+                   'CAMERAS': test_cameras()}
 
-instrument_tests = {'FPGA': test_led(),
-               'XSTAGE': test_x_stage(),
-               'YSTAGE': test_y_stage(),
-               'ZSTAGE': test_z_stage(),
-               'OBJSTAGE': test_objective_stage(),
-               'LASERS': test_lasers(),
-               'OPTICS': test_optics(),
-               'CAMERAS': test_cameras()}
-
-for instrument in instrument_tests.keys():
-    instrument_status[instrument] = intruments_tests[instrument]
+    for instrument in instrument_tests.keys():
+        instrument_status[instrument] = intruments_tests[instrument]
