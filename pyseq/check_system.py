@@ -202,23 +202,12 @@ def test_lasers():
                 else:
                     keep_going[i] = True
 
-        start = time.time()
-        keep_going = [True, True]
-        while any(keep_going):
-            for i, color in enumerate(laser_color):
-                if laser_pass[i]:
-                    if abs(hs.lasers[color].get_power()/10-1) > 0.05:
-                        laser_pass[i] = False
-                        keep_going[i] = False
-                        error('Laser ('+color+') unable to reach 10 mW')
-                    else:
-                        keep_going[i] = False
-                else:
-                    keep_going[i] = False
-
         if all(laser_pass):
             status = True
             message('Lasers Nominal')
+        else:
+            for i, color in enumerate(laser_color):
+                error('Laser ('+color+') Failed')
     except:
         status = False
         message('Lasers Failed')
