@@ -5,7 +5,7 @@ import os
 from os.path import join
 
 
-def setup_logger():
+def setup_logger(log_path):
     """Create a logger and return the handle."""
 
 
@@ -17,7 +17,7 @@ def setup_logger():
     c_handler = logging.StreamHandler()
     c_handler.setLevel(21)
     # Create file handler
-    f_handler = logging.FileHandler(hs.log_path)
+    f_handler = logging.FileHandler(log_path)
     f_handler.setLevel(logging.INFO)
 
     # Create formatters and add it to handlers
@@ -231,20 +231,23 @@ def test_cameras():
         logger.log(21, 'Cameras Failed')
 
 
+
+
+timestamp = time.strftime('%Y%m%d%H%M')
+image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
+os.mkdir(image_path)
+log_path = join(image_path,timestamp+'_HiSeqCheck.log')
+logger = setup_logger(log_path)
+
 try:
     import pyseq
-    hs = pyseq.HiSeq()
+    hs = pyseq.HiSeq(logger)
+    hs.image_path = image_path
 except:
     hs = None
     print('HiSeq Failed')
 
 if hs is not None:
-    timestamp = time.strftime('%Y%m%d%H%M')
-    hs.image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
-    os.mkdir(hs.image_path)
-    hs.log_path = join(hs.image_path,timestamp+'_HiSeqCheck.log')
-    hs.logger = setup_logger()
-
     instrument_tests = {'FPGA': test_led(),
                    'XSTAGE': test_x_stage(),
                    'YSTAGE': test_y_stage(),
