@@ -57,7 +57,12 @@ class Laser():
         """
 
         # Open Serial Port
-        s = serial.Serial(com_port, baudrate, timeout = 1)
+        try:
+            s = serial.Serial(com_port, baudrate, timeout = 1)
+        except ValueError:
+            print('Laser ('+color+') COM Port must be a string')
+        except SerialException:
+            print('Check Laser ('+color+') Port')
 
         # Text wrapper around serial port
         self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),

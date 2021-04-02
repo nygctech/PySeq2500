@@ -60,8 +60,13 @@ class Xstage():
         """
 
         # Open Serial Port
-        s = serial.Serial(com_port, baudrate, timeout = 1)
-
+        try:
+            s  = serial.Serial(com_port, baudrate, timeout = 1)
+        except ValueError:
+            print('X Stage COM Port must be a string')
+        except SerialException:
+            print('Check X Stage Port')
+            
         # Text wrapper around serial port
         self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
                                             encoding = 'ascii',

@@ -328,11 +328,14 @@ try:
     log_path = join(image_path,timestamp+'_HiSeqCheck.log')
     logger = setup_logger(log_path)
 
+
+    # Creat HiSeq Object
     import pyseq
-    hs = pyseq.HiSeq(logger)
+    hs = pyseq.HiSeq(logger, xCOM = 'COM99' laser1COM=99)
     # Exception for ValueError of port, must be string or None, not int)
     # Exception for SerialException, could not open port
     hs.image_path = image_path
+
 except ImportError:
     message('PySeq Failed')
     sys.exit()
