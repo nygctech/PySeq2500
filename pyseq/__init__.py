@@ -117,7 +117,7 @@ class HiSeq():
         - fc_origin: Upper right X and Y stage step position for flowcell slots.
         - scan_flag: True if HiSeq is currently scanning
         - current_view: Block run to show latest images, otherwise is None
-        
+
     """
 
 
@@ -174,6 +174,42 @@ class HiSeq():
         self.virtual = False                                                    # virtual flag
         self.scan_flag = False                                                  # imaging/scanning flag
         self.current_view = None                                                # latest images
+
+        self.check_COM()
+
+
+    def check_COM(self):
+        """Check to see COM Ports setup sucessfully."""
+
+        com_ports = ['X Stage', 'Y Stage', 'FPGA', 'Laser1', 'Laser2',
+                     'Kloehn A', 'Kloehn B', 'VICI A1', 'VICI B1', 'VICI A2',
+                     'VICI B2', 'ARM9 CHEM']
+        success = []
+        success.append(False) if self.x.serial_port is None else success.append(True)
+        success.append(False) if self.y.serial_port is None else success.append(True)
+        success.append(False) if self.f.serial_port is None else success.append(True)
+        success.append(False) if self.lasers['green'].serial_port is None else success.append(True)
+        success.append(False) if self.lasers['red'].serial_port is None else success.append(True)
+        success.append(False) if self.p['A'].serial_port is None else success.append(True)
+        success.append(False) if self.p['B'].serial_port is None else success.append(True)
+        success.append(False) if self.v10['A'].serial_port is None else success.append(True)
+        success.append(False) if self.v10['B'].serial_port is None else success.append(True)
+        success.append(False) if self.v24['A'].serial_port is None else success.append(True)
+        success.append(False) if self.v24['B'].serial_port is None else success.append(True)
+        success.append(False) if self.T.serial_port is None else success.append(True)
+
+        if not all(success):
+            for i, go in enumerate(success):
+                if not go:
+                    print(com_ports[i],'Offline')
+            response = None
+            while response is None:
+                response = input('Proceed with out all instruments? ').lower()
+                if response not in ['y', 'yes', 'proceed', 'true']:
+                    raise ValueError
+                else:
+                    return True
+
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""

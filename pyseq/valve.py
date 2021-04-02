@@ -40,7 +40,7 @@ class Valve():
     """
 
 
-    def __init__(self, com_port, name = None, logger = None, port_dict = dict()):
+    def __init__(self, com_port, name = None, logger = None, baudrate = 9600):
         """The constructor for the valve.
 
            **Parameters:**
@@ -57,17 +57,23 @@ class Valve():
 
         """
 
-        baudrate = 9600
 
-        # Open Serial Port
-        s = serial.Serial(com_port, baudrate, timeout = 1)
+        if isinstance(com_port, int):
+            com_port = 'COM'+str(com_port)
 
-        # Text wrapper around serial port
-        self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
-                                            encoding = 'ascii',
-                                            errors = 'ignore')
+        try:
+            # Open Serial Port
+            s  = serial.Serial(com_port, baudrate, timeout = 1)
+            # Text wrapper around serial port
+            self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
+                                                encoding = 'ascii',
+                                                errors = 'ignore')
+        except:
+            print('ERROR::Check Valve Port')
+            self.serial_port = None
+
         self.n_ports = 10
-        self.port_dict = port_dict
+        self.port_dict = {}
         self.variable_ports = []
         self.side_ports = None
         self.sample_port = None

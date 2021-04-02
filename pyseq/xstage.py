@@ -59,18 +59,21 @@ class Xstage():
 
         """
 
-        # Open Serial Port
+        if isinstance(com_port, int):
+            com_port = 'COM'+str(com_port)
+
         try:
+            # Open Serial Port
             s  = serial.Serial(com_port, baudrate, timeout = 1)
-        except ValueError:
-            print('X Stage COM Port must be a string')
-        except SerialException:
-            print('Check X Stage Port')
-            
-        # Text wrapper around serial port
-        self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
-                                            encoding = 'ascii',
-                                            errors = 'ignore')
+            # Text wrapper around serial port
+            self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
+                                                encoding = 'ascii',
+                                                errors = 'ignore')
+        except:
+            print('ERROR::Check X Stage Port')
+            self.serial_port = None
+
+
         self.min_x = 1000
         # Need to update too large
         self.max_x = 50000

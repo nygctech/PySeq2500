@@ -181,7 +181,7 @@ def test_lasers():
             hs.lasers[color].initialize()
             laser_pass[i] = True
         except:
-            error('Check COM port assignment for '+color+' laser')
+            laser_pass[i] = False
 
     try:
         for i, color in enumerate(laser_color):
@@ -202,14 +202,15 @@ def test_lasers():
                         keep_going[i] = False
                         hs.lasers[color].set_power(10)
                 else:
-                    keep_going[i] = True
+                    keep_going[i] = False
 
         if all(laser_pass):
             status = True
             message('Lasers Nominal')
         else:
-            for i, color in enumerate(laser_color):
-                error('Laser ('+color+') Failed')
+            for i, go in enumerate(laser_pass):
+                error('Laser ('+laser_color[i]+') Failed')
+            raise RuntimeWarning
     except:
         status = False
         message('Lasers Failed')
@@ -331,7 +332,7 @@ try:
 
     # Creat HiSeq Object
     import pyseq
-    hs = pyseq.HiSeq(logger, xCOM = 'COM99' laser1COM=99)
+    hs = pyseq.HiSeq(logger)
     # Exception for ValueError of port, must be string or None, not int)
     # Exception for SerialException, could not open port
     hs.image_path = image_path
@@ -342,9 +343,9 @@ except ImportError:
 except OSError:
     message('Failed to make directories')
     sys.exit()
-except:
-    message('HiSeq Failed')
-    sys.exit()
+# except:
+#     message('HiSeq Failed')
+#     sys.exit()
 
 
 instrument_tests = {'FPGA': test_led,
@@ -371,9 +372,10 @@ for instrument in instrument_tests.keys():
     if instrument_status[instrument] and instrument_status['FPGA']:
         hs.f.LED('B', 'green')
         time.sleep(2)
-
-hs.f.LED('A', 'pulse green')
-hs.f.LED('B', 'pulse green')
+        
+if instrument_status['FPGA']:
+    hs.f.LED('A', 'pulse green')
+    hs.f.LED('B', 'pulse green')
 
 table = []
 for instrument in instrument_status.keys():
