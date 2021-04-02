@@ -2,7 +2,9 @@ import logging
 import warnings
 import time
 import os
+import sys
 from os.path import join
+
 
 
 def message(text):
@@ -253,6 +255,45 @@ def test_temperature_control():
 
     return status
 
+# Test valves
+def test_valves():
+    message('Testing Valves')
+    try:
+        hs.v24['A'].initialize()
+        hs.v24['B'].initialize()
+        hs.v10['A'].initialize()
+        hs.v10['B'].initialize()
+        hs.v24['A'].move(1)
+        hs.v24['B'].move(1)
+        hs.move_inlet(8)
+        hs.move_inlet(8)
+        status = True
+        message('Valves Nominal')
+    except:
+        status = False
+        message('Valves Failed')
+
+    return status
+
+# Test Pumps
+def test_pumps():
+    message('Testing Pumps')
+    try:
+        hs.p['A'].initialize()
+        hs.p['B'].initialize()
+        if all(hs.p['A'].check_pump(), hs.p['B'].check_pump()):
+            status = True
+            message('Pumps Nominal')
+        else:
+            error('Pump Error')
+
+    except:
+        status = False
+        message('Pumps Failed')
+
+    return status
+
+
 # Test cameras
 def test_cameras():
     message('Testing Cameras')
@@ -276,58 +317,71 @@ def test_cameras():
     return status
 
 
-timestamp = time.strftime('%Y%m%d%H%M')
-image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
-os.mkdir(image_path)
-log_path = join(image_path,timestamp+'_HiSeqCheck.log')
-logger = setup_logger(log_path)
+
+
+
 
 try:
+    timestamp = time.strftime('%Y%m%d%H%M')
+    image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
+    os.mkdir(image_path)
+    log_path = join(image_path,timestamp+'_HiSeqCheck.log')
+    logger = setup_logger(log_path)
+
     import pyseq
     hs = pyseq.HiSeq(logger)
     # Exception for ValueError of port, must be string or None, not int)
     # Exception for SerialException, could not open port
     hs.image_path = image_path
+except ImportError:
+    message('PySeq Failed')
+    sys.exit()
+except OSError:
+    message('Failed to make directories')
+    sys.exit()
 except:
-    hs = None
     message('HiSeq Failed')
+    sys.exit()
 
-if hs is not None:
-    instrument_tests = {'FPGA': test_led,
-                   'XSTAGE': test_x_stage,
-                   'YSTAGE': test_y_stage,
-                   'ZSTAGE': test_z_stage,
-                   'OBJSTAGE': test_objective_stage,
-                   'LASERS': test_lasers,
-                   'OPTICS': test_optics,
-                   'TEMPERATURE': test_temperature_control,
-                   'CAMERAS': test_cameras}
 
-    instrument_status = {'FPGA':False}
+instrument_tests = {'FPGA': test_led,
+               'XSTAGE': test_x_stage,
+               'YSTAGE': test_y_stage,
+               'ZSTAGE': test_z_stage,
+               'OBJSTAGE': test_objective_stage,
+               'LASERS': test_lasers,
+               'OPTICS': test_optics,
+               'TEMPERATURE': test_temperature_control,
+               'VALVES': test_valves,
+               'PUMPS': test_pumps,
+               'CAMERAS': test_cameras}
 
-    for instrument in instrument_tests.keys():
-        if instrument_status['FPGA']:
-            hs.f.LED('A', 'green')
-            hs.f.LED('B', 'off')
+instrument_status = {'FPGA':False}
 
-        instrument_status[instrument] = instrument_tests[instrument]()
+for instrument in instrument_tests.keys():
+    if instrument_status['FPGA']:
+        hs.f.LED('A', 'green')
+        hs.f.LED('B', 'pulse blue')
 
-        if instrument_status[instrument] and instrument_status['FPGA']:
-            hs.f.LED('B', 'green')
-            time.sleep(2)
+    instrument_status[instrument] = instrument_tests[instrument]()
 
-    hs.f.LED('A', 'pulse green')
-    hs.f.LED('B', 'pulse green')
+    if instrument_status[instrument] and instrument_status['FPGA']:
+        hs.f.LED('B', 'green')
+        time.sleep(2)
 
-    table = []
-    for instrument in instrument_status.keys():
-        if instrument_status[instrument]:
-            table.append([instrument, 'PASSED'])
-        else:
-            table.append([instrument, 'FAILED'])
-    try:
-        import tabulate
-        print('\n')
-        print(tabulate.tabulate(table, tablefmt = 'presto'))
-    except:
-        print(table)
+hs.f.LED('A', 'pulse green')
+hs.f.LED('B', 'pulse green')
+
+table = []
+for instrument in instrument_status.keys():
+    if instrument_status[instrument]:
+        table.append([instrument, 'PASSED'])
+    else:
+        table.append([instrument, 'FAILED'])
+try:
+    import tabulate
+    print('\n')
+    print(tabulate.tabulate(table, headers = ['INSTRUMENT', 'STATUS'],
+                                  tablefmt = 'presto'))
+except:
+    print(table)
