@@ -66,14 +66,21 @@ from . import focus
 from . import temperature
 
 import time
-from os.path import getsize
-from os.path import join
+from os.path import getsize, join, isfile
 from os import getcwd
 import threading
 import numpy as np
 import imageio
 from scipy.optimize import curve_fit
 from math import ceil
+import configparser
+
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Try backported to PY<37 `importlib_resources`.
+    import importlib_resources as pkg_resources
+from . import resources
 
 
 class HiSeq():
@@ -121,7 +128,7 @@ class HiSeq():
     """
 
 
-    def __init__(self, Logger = None,
+    def __init__(self, Logger = None, com_ports = {})
                        yCOM = 'COM10',
                        xCOM = 'COM9',
                        pumpACOM = 'COM20',
@@ -136,28 +143,30 @@ class HiSeq():
                        tempCOM = 'COM8'):
         """Constructor for the HiSeq."""
 
-        self.y = ystage.Ystage(yCOM, logger = Logger)
-        self.f = fpga.FPGA(fpgaCOM[0], fpgaCOM[1], logger = Logger)
-        self.x = xstage.Xstage(xCOM, logger = Logger)
-        self.lasers = {'green': laser.Laser(laser1COM, color = 'green',
+        com_ports = get_com_ports(com_ports)
+
+        self.y = ystage.Ystage(com_ports['ystage'], logger = Logger)
+        self.f = fpga.FPGA(com_ports['fpgacommand'], com_ports['fpgaresponse'], logger = Logger)
+        self.x = xstage.Xstage(['xstage'], logger = Logger)
+        self.lasers = {'green': laser.Laser(com_ports['laser1'], color = 'green',
                                             logger = Logger),
-                      'red': laser.Laser(laser2COM, color = 'red',
+                      'red': laser.Laser(com_ports['laser2'], color = 'red',
                                          logger = Logger)}
         self.z = zstage.Zstage(self.f.serial_port, logger = Logger)
         self.obj = objstage.OBJstage(self.f.serial_port, logger = Logger)
         self.optics = optics.Optics(self.f.serial_port, logger = Logger)
         self.cam1 = None
         self.cam2 = None
-        self.p = {'A': pump.Pump(pumpACOM, 'pumpA', logger = Logger),
-                  'B': pump.Pump(pumpBCOM, 'pumpB', logger = Logger)
+        self.p = {'A': pump.Pump(com_ports['kloehna'], 'pumpA', logger = Logger),
+                  'B': pump.Pump(com_ports['kloehnb'], 'pumpB', logger = Logger)
                   }
-        self.v10 = {'A': valve.Valve(valveA10COM, 'valveA10', logger = Logger),
-                    'B': valve.Valve(valveB10COM, 'valveB10', logger = Logger)
+        self.v10 = {'A': valve.Valve(com_ports['vicia2'], 'valveA10', logger = Logger),
+                    'B': valve.Valve(com_ports['vicib2'], 'valveB10', logger = Logger)
                     }
-        self.v24 = {'A': valve.Valve(valveA24COM, 'valveA24', logger = Logger),
-                    'B': valve.Valve(valveB24COM, 'valveB24', logger = Logger)
+        self.v24 = {'A': valve.Valve(com_ports['vicia1'], 'valveA24', logger = Logger),
+                    'B': valve.Valve(com_ports['vicib1'], 'valveB24', logger = Logger)
                     }
-        self.T = temperature.Temperature(tempCOM, logger = Logger)
+        self.T = temperature.Temperature(com_ports['arm9chem'], logger = Logger)
         self.image_path = getcwd()                                                  # path to save images in
         self.log_path = getcwd()                                                  # path to save logs in
         self.fc_origin = {'A':[17571,-180000],
@@ -1058,3 +1067,36 @@ class HiSeq():
 def _1gaussian(x, amp1,cen1,sigma1):
     """Gaussian function for curve fitting."""
     return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
+
+def get_com_ports(com_ports):
+    updated_com_ports = configparser.ConfigParser()
+
+    if com_ports == 'auto':
+        # automatically find com Ports
+        import wmi
+        # connecting to local machine
+        conn = wmi.WMI()
+        # get devices
+        devices = conn.CIM_LogicalDevice
+        # look through devices to find COM ports
+        com_ports = {'com ports':{}}
+
+    elif isinstance(com_ports, dict):
+        com_ports = {'com ports':comp_ports}
+
+    elif isfile(com_ports):
+        updated_com_ports.read(com_ports)
+        if not update_com_ports.has_section('com ports'):
+            raise ValueError
+        else:
+            updated_com_ports = {'com ports':updated_com_ports['com ports']}
+
+    # Read default COM ports
+    config_path = pkg_resources.path(resources, 'com_ports.cfg')
+    default_com_ports = configparser.ConfigParser()
+    default_com_ports.read(config_path)
+
+    # Overide default COM port
+    default_com_ports.read_dict(updated_com_ports)
+
+    return default_com_ports
