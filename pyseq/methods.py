@@ -13,6 +13,7 @@ except ImportError:
     import importlib_resources as pkg_resources
 
 from . import recipes
+from . import resources
 
 
 def return_method(method):
@@ -117,3 +118,86 @@ def check_settings(input_settings, instrument = 'HiSeq2500'):
             all_clear = False
 
     return all_clear
+
+def list_com_ports(instrument = 'HiSeq2500'):
+
+    com_ports = configparser.ConfigParser()
+    with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
+        com_ports.read(config_path)
+
+    com_ports = com_ports[instrument]
+    for port_name in com_ports:
+        print(port_name,':', com_ports[port_name])
+
+def get_com_ports(instrument = 'HiSeq2500'):
+
+    com_ports = configparser.ConfigParser()
+    with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
+        com_ports.read(config_path)
+
+    com_ports = com_ports[instrument]
+
+    return com_ports
+
+def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
+    com_ports = get_com_ports()
+
+    if userYN('Assign new COM ports?'):
+        keep_assigning = True
+    else:
+        keep_assigning = False
+
+
+    while keep_assigning:
+        if not instrument:
+            instrument = input('Which instrument? ')
+
+        if instrument in com_ports:
+            print('Old port =', com_ports[instrument])
+            port = input('New port? ').strip()
+            if userYN('Confirm new port for', instrument, 'is', port):
+                com_ports[instrument] = port
+        else:
+            instrument = False
+            print('Instrument is not valid. Enter one of the following:')
+            print(com_ports.options('HiSeq2500'))
+
+        if not userYN('Assign another new COM port?'):
+            keep_assigning = False
+
+            # Read default COM ports
+            default_com_ports = configparser.ConfigParser()
+            with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
+                default_com_ports.read(config_path)
+
+            # Overide default COM port
+            updated_com_ports = {machine:com_ports}
+            default_com_ports.read_dict(updated_com_ports)
+
+            # write new config file
+            with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
+                f = open(config_path,mode='w')
+                default_com_ports.write(f)
+        else:
+            instrument = False
+
+
+def userYN(*args):
+    """Ask a user a Yes/No question and return True if Yes, False if No."""
+
+    question = ''
+    for a in args:
+        question += str(a) + ' '
+
+    response = True
+    while response:
+        answer = input(question + '? Y/N = ')
+        answer = answer.upper().strip()
+        if answer == 'Y':
+            response = False
+            answer = True
+        elif answer == 'N':
+            response = False
+            answer = False
+
+    return answer

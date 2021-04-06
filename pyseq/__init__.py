@@ -128,19 +128,19 @@ class HiSeq():
     """
 
 
-    def __init__(self, Logger = None, com_ports = {})
-                       yCOM = 'COM10',
-                       xCOM = 'COM9',
-                       pumpACOM = 'COM20',
-                       pumpBCOM = 'COM21',
-                       valveA24COM = 'COM22',
-                       valveB24COM = 'COM23',
-                       valveA10COM = 'COM18',
-                       valveB10COM = 'COM19',
-                       fpgaCOM = ['COM12','COM15'],
-                       laser1COM = 'COM13',
-                       laser2COM = 'COM14',
-                       tempCOM = 'COM8'):
+    def __init__(self, Logger = None, com_ports = {}):
+                       # yCOM = 'COM10',
+                       # xCOM = 'COM9',
+                       # pumpACOM = 'COM20',
+                       # pumpBCOM = 'COM21',
+                       # valveA24COM = 'COM22',
+                       # valveB24COM = 'COM23',
+                       # valveA10COM = 'COM18',
+                       # valveB10COM = 'COM19',
+                       # fpgaCOM = ['COM12','COM15'],
+                       # laser1COM = 'COM13',
+                       # laser2COM = 'COM14',
+                       # tempCOM = 'COM8'):
         """Constructor for the HiSeq."""
 
         com_ports = get_com_ports(com_ports)
@@ -1079,17 +1079,17 @@ def get_com_ports(com_ports):
         # get devices
         devices = conn.CIM_LogicalDevice
         # look through devices to find COM ports
-        com_ports = {'com ports':{}}
+        com_ports = {'HiSeq2500':{}}
 
     elif isinstance(com_ports, dict):
-        com_ports = {'com ports':comp_ports}
+        com_ports = {'HiSeq2500':comp_ports}
 
     elif isfile(com_ports):
         updated_com_ports.read(com_ports)
         if not update_com_ports.has_section('com ports'):
             raise ValueError
         else:
-            updated_com_ports = {'com ports':updated_com_ports['com ports']}
+            updated_com_ports = {'HiSeq2500':updated_com_ports['com ports']}
 
     # Read default COM ports
     config_path = pkg_resources.path(resources, 'com_ports.cfg')
