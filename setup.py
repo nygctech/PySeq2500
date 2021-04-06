@@ -31,7 +31,13 @@ setup(
                       'pandas',
                       'scipy',
                       'imageio',
-                      'scikit-image'],
+                      'scikit-image',
+                      'dask',
+                      'xarray',
+                      'zarr',
+                      'napari',
+                      'qtpy',
+                      'glob'],
     package_data={
         'pyseq': ['recipes/*', 'focus_data/*',
                   'focus_data/full/*', 'focus_data/partial/*']

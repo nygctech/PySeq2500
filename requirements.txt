@@ -4,3 +4,9 @@ pandas
 scipy
 imageio
 scikit-image
+dask
+xarray
+zarr
+glob
+qtpy
+napari

@@ -23,8 +23,8 @@ hs = pyseq.HiSeq(xCOM='COM67', yCOM='COM68', fpgaCOM=['COM10', 'COM11'], laser1C
 # Basic setup of HiSeq
 
 ```python
-hs.l1.set_power(100)                #Set green laser power to 100 mW
-hs.l2.set_power(100)                #Set red laser power to 100 mW
+hs.lasers['green'].set_power(100)   #Set green laser power to 100 mW
+hs.lasers['red'].set_power(100)     #Set red laser power to 100 mW
 
 hs.y.move(-180000)                  #Move stage to top right corner of Flow Cell A
 hs.x.move(17571)
@@ -35,8 +35,8 @@ hs.obj.move(30000)                  #Move objective to middle-ish
 hs.move_ex(1,'open')                #Move excitation filter 1 to open position
 hs.move_ex(2,'open')                #Move excitation filter 2 to open position
 
-hs.l1.get_power()                   #Get green laser power (mW i think)
-hs.l2.get_power()                   #Get red laser power   (mW i think)
+hs.lasers['green'].get_power()      #Get green laser power (mW i think)
+hs.lasers['red'].get_power()        #Get red laser power   (mW i think)
 ```
 
 # Image acquisition
@@ -72,7 +72,7 @@ hs.y.move(Y)         # Y should be between -7000000 and 7500000
 hs.x.move(X)         # X should be between 1000 and 50000
 hs.z.move([Z, Z, Z]) # Z should be between 0 and 25000
 
-hs.obj.move(O)       # O should be between 0 and 65000
+hs.obj.move(31000)   # Objective should be between 0 and 65000
 ```
 
 To move the stage out to load slides onto it is `hs.move_stage_out()`.
@@ -87,11 +87,11 @@ Before taking a picture, the laser power should be set, the excitation filters s
 ## Lasers
 
 ```python
-hs.l1.set_power(100) # sets laser 1 (green) to 100 mW
-hs.l2.set_power(100) # sets laser 2 (red) to 100 mW
+hs.lasers['green'].set_power(100)  # sets laser 1 (green) to 100 mW
+hs.lasers['red'].set_power(100)    # sets laser 2 (red) to 100 mW
 
-hs.l1.get_power() # returns the power of laser 1 and stores it in hs.l1.power
-hs.l2.get_power() # returns the power of laser 2 and stores it in hs.l2.power
+hs.lasers['green'].get_power()     # returns the power of laser 1 and stores it in hs.lasers['green'].power
+hs.lasers['red'].get_power()       # returns the power of laser 2 and stores it in hs.lasers['red'].power
 ```
 
 During `hs.initializeInstruments()`, both lasers are set to 10 mW
@@ -101,8 +101,8 @@ During `hs.initializeInstruments()`, both lasers are set to 10 mW
 During `hs.initializeInstruments()`, the excitation filters are homed to the block position and the emission filter is moved into the light path.
 
 ```python
-hs.optics.move_ex(N, filter)		#  moves the excitation filter wheel in the N (1 or 2) light path to the filter.
-hs.optics.ex_dict 					# stores the positions and names of the filters in a dictionary
+hs.optics.move_ex(N, filter)		 #  moves the excitation filter wheel in the N (1 or 2) light path to the filter.
+hs.optics.ex_dict 					      # stores the positions and names of the filters in a dictionary
 hs.optics.move_em_in(True/False) 	# "True" moves the emission filter into the light path, False moves it out.
 ```
 
@@ -280,7 +280,7 @@ Useful if running the same method repeatedly and only some of the ports change f
 ```
 
 ## Method Recipe
-There are 5 basic actions to build a recipe.
+There are 6 basic actions to build a recipe.
 1. **PORT**: *port name* (string)
 >Valve switches to specified port.
 ```
@@ -296,7 +296,7 @@ PUMP: 2000
 ```
 HOLD: 10
 ```
-4. **WAIT**: ***IMAG** or port name* (string)
+4. **WAIT**: **IMAG** or port name* (string)
 >Recipe waits to continue until the other flowcell is imaging (**IMAG**) or switches to *port name*. If there is only one flowcell, **WAIT** is ignored.
 ```
 WAIT: water
@@ -306,6 +306,12 @@ WAIT: water
 ```
 IMAG: 15
 ```
+6. **TEMP**: *temperature in degrees Celsius* (integer/float)
+>The temperature of the stage is change to the specified temperature.
+```
+TEMP: 55
+```
+
 
 # Run an automated experiment
 Start a method on a HiSeq2500 System from the command line.
@@ -321,6 +327,7 @@ usage: pyseq [-h] [-config PATH] [-name NAME] [-output PATH] [-list]
 - **list**: **See installed methods**
 - **method**: **See an installed method config and method recipe**
 - **virtual**: **Run a virtual experiment**
+- **settings**: **See available configuration options**
 
 ## Run an experiment
 Assumes an experiment file, config.cfg, is in the current working directory.
