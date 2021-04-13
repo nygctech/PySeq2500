@@ -368,7 +368,7 @@ def setup_logger():
     return logger
 
 
-def configure_instrument(virtual, IMAG_counter, port_dict):
+def configure_instrument(IMAG_counter, port_dict):
     """Configure and check HiSeq settings."""
 
     global n_errors
@@ -383,13 +383,14 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
         error('ConfigFile:: Cycles not specified')
 
     # Creat HiSeq Object
-    if virtual:
+    if args_['virtual']:
         from . import virtualHiSeq
         hs = virtualHiSeq.HiSeq(logger)
         hs.speed_up = int(method.get('speed up', fallback = 5000))
     else:
         import pyseq
-        hs = pyseq.HiSeq(logger)
+        com_ports = pyseq.get_com_ports()
+        hs = pyseq.HiSeq(logger, com_ports)
 
     # Check side ports
     try:
@@ -733,7 +734,7 @@ def confirm_settings(recipe_z_planes = []):
 ##########################################################
 ## Setup HiSeq ###########################################
 ##########################################################
-def initialize_hs(virtual, IMAG_counter):
+def initialize_hs(IMAG_counter):
     """Initialize the HiSeq and return the handle."""
 
     global n_errors
@@ -1803,9 +1804,9 @@ if __name__ == 'pyseq.main':
     port_dict = check_ports()                                                   # Check ports in configuration file
     first_line, IMAG_counter, z_planes = check_instructions()                   # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, IMAG_counter)                       # Create flowcells
-    hs = configure_instrument(args_['virtual'], IMAG_counter, port_dict)
+    hs = configure_instrument(IMAG_counter, port_dict)
     confirm_settings(z_planes)
-    hs = initialize_hs(args_['virtual'], IMAG_counter)                          # Initialize HiSeq, takes a few minutes
+    hs = initialize_hs(IMAG_counter)                                            # Initialize HiSeq, takes a few minutes
 
     if n_errors is 0:
         flush_YorN = do_flush()                                                 # Ask to flush out lines

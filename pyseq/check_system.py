@@ -10,8 +10,7 @@ from os.path import join
 def message(text):
     logger.log(21, 'PySeq::'+text)
 
-def error(text):
-    warnings.warn('ERROR::'+text, RuntimeWarning)
+def error():
     if instrument_status['FPGA']:
         hs.f.LED(1, 'yellow')
 
@@ -75,8 +74,11 @@ def test_x_stage():
             message('X Stage Nominal')
             status = True
         else:
-            error('X Stage Homing Failed')
+            text = 'X Stage Homing Failed'
+            warnings.warn('ERROR::'+text, RuntimeWarning)
+
     except:
+        error()
         status = False
         #logger.log(21, 'Check COM port')
         message('X Stage Failed')
@@ -92,28 +94,34 @@ def test_y_stage():
         timeout = 60*10
         while hs.y.check_position == 0:
             if time.time() - start > timeout:
-                error('Y Stage failed to home')
+                text = 'Y Stage failed to home'
+                warnings.warn('ERROR::'+text, RuntimeWarning)
                 break
             else:
                 time.sleep(10)
         if not hs.y.move(hs.y.min_y):
-            error('Y Stage failed to move out')
+            text = 'Y Stage failed to move out'
+            warnings.warn('ERROR::'+text, RuntimeWarning)
         if not hs.y.move(hs.y.max_y):
-            error('Y Stage failed to move in')
+            text = 'Y Stage failed to move in'
+            warnings.warn('ERROR::'+text, RuntimeWarning)
         if not hs.y.move(hs.y.home):
-            error('Y stage failed to move home')
+            text = 'Y stage failed to move home'
+            warnings.warn('ERROR::'+text, RuntimeWarning)
         if instrument_status['FPGA'] and hs.x.check_position(hs.x.home):
             attempts = 0
             if abs(hs.f.read_position() - hs.y.read_position()) > 10:
                 hs.reset_stage()
                 attempts += 1
                 if attempts >= 10:
-                    error('Unable to sync FPGA & Y Stage')
+                    text = 'Unable to sync FPGA & Y Stage'
+                    warnings.warn('ERROR::'+text, RuntimeWarning)
 
         status = True
         message('Y Stage Nominal')
 
     except:
+        error()
         status = False
         #logger.log(21, 'Check COM port')
         message('Y Stage Failed')
@@ -141,8 +149,11 @@ def test_z_stage():
         else:
             for i, z in enumerate(z_pass):
                 if not z:
-                    error('Z Tilt Motor '+str(i)+' Failed.')
+                    text = 'Z Tilt Motor '+str(i)+' Failed.'
+                    warnings.warn('ERROR::'+text, RuntimeWarning)
+
     except:
+        error()
         status = False
         message('Z Stage Failed')
 
@@ -181,39 +192,35 @@ def test_lasers():
             hs.lasers[color].initialize()
             laser_pass[i] = True
         except:
-            laser_pass[i] = False
+            text = 'Laser ('+color+') unable to initialize'
+            warnings.warn('ERROR::'+text, RuntimeWarning)
 
-    try:
-        for i, color in enumerate(laser_color):
-            if laser_pass[i]:
-                 hs.lasers[color].set_power(400)
-        timeout = 10*60
-        start = time.time()
-        keep_going = [True, True]
-        while any(keep_going):
-            for i, color in enumerate(laser_color):
-                if laser_pass[i]:
+        if laser_pass[i]:
+            try:
+                hs.lasers[color].set_power(400)
+                timeout = 10*60
+                start = time.time()
+                keep_waiting = True
+                while keep_waiting:
                     if abs(hs.lasers[color].get_power()/400-1) > 0.05:
                         if time.time()-start > timeout:
-                            laser_pass[i] = False
-                            keep_going[i] = False
-                            error('Laser ('+color+') unable to reach 400 mW')
+                            keep_waiting = False
+                            text = 'Laser ('+color+') unable to reach 400 mW'
+                            warnings.warn('ERROR::'+text, RuntimeWarning)
                     else:
-                        keep_going[i] = False
+                        keep_waiting = False
                         hs.lasers[color].set_power(10)
-                else:
-                    keep_going[i] = False
 
-        if all(laser_pass):
-            status = True
-            message('Lasers Nominal')
-        else:
-            for i, go in enumerate(laser_pass):
-                error('Laser ('+laser_color[i]+') Failed')
-            raise RuntimeWarning
-    except:
+            except:
+                error()
+                laser_pass[i] = False
+                message(color + ' Laser Failed')
+
+    if all(laser_pass):
+        status = True
+        message('Lasers Nominal')
+    else:
         status = False
-        message('Lasers Failed')
 
     return status
 
@@ -258,39 +265,65 @@ def test_temperature_control():
 
 # Test valves
 def test_valves():
+    valve_pass = [False, False, False, False]
+
     message('Testing Valves')
+
+    for i, AorB in enumerate(['A','B']):
+        try:
+            hs.v24[AorB].initialize()
+            hs.v24[AorB].move(1)
+            valve_pass[i] = True
+        except:
+            error()
+            message('24 Port ' + AorB + ' Valve Failed')
+
+    for i, AorB in enumerate(['A','B']):
+        try:
+            hs.v10[AorB].initialize()
+            valve_pass[i+2] = True
+        except:
+            error()
+            message('10 Port ' + AorB + ' Valve Failed')
     try:
-        hs.v24['A'].initialize()
-        hs.v24['B'].initialize()
-        hs.v10['A'].initialize()
-        hs.v10['B'].initialize()
-        hs.v24['A'].move(1)
-        hs.v24['B'].move(1)
         hs.move_inlet(8)
-        hs.move_inlet(8)
+    except:
+        valve_pass[2] = False
+        valve_pass[3] = False
+        error()
+        message('Error moving 10 Port Valves')
+
+    if all(valve_pass):
         status = True
         message('Valves Nominal')
-    except:
+    else:
         status = False
-        message('Valves Failed')
 
     return status
 
 # Test Pumps
 def test_pumps():
-    message('Testing Pumps')
-    try:
-        hs.p['A'].initialize()
-        hs.p['B'].initialize()
-        if all(hs.p['A'].check_pump(), hs.p['B'].check_pump()):
-            status = True
-            message('Pumps Nominal')
-        else:
-            error('Pump Error')
 
-    except:
+    pump_pass = [False, False]
+    message('Testing Pumps')
+    for i, AorB in enumerate(['A','B']):
+        try:
+            hs.p[AorB].initialize()
+            if hs.p['AorB'].check_pump():
+                pump_pass[i] = True
+            else:
+                text = 'Pump ' + AorB + ' Error'
+                warnings.warn('ERROR::'+text, RuntimeWarning)
+        except:
+            error()
+            pump_pass[i] = False
+            message('Pump ' + AorB + ' Failed')
+
+    if all(pump_pass):
+        status = True
+        message('Pumps Nominal')
+    else:
         status = False
-        message('Pumps Failed')
 
     return status
 
@@ -308,10 +341,13 @@ def test_cameras():
                 status = True
                 message('Cameras Nominal')
             else:
-                error('Dark Images Failed')
+                text = 'Dark Images Failed'
+                warnings.warn('ERROR::'+text, RuntimeWarning)
         else:
-            error('Unable to image without Y Stage and FPGA')
+            text = 'Unable to image without Y Stage and FPGA'
+            warnings.warn('ERROR::'+text, RuntimeWarning)
     except:
+        error()
         status = False
         message('Cameras Failed')
 
@@ -332,7 +368,8 @@ try:
 
     # Creat HiSeq Object
     import pyseq
-    hs = pyseq.HiSeq(logger)
+    com_ports = pyseq.get_com_ports()
+    hs = pyseq.HiSeq(logger, com_ports)
     # Exception for ValueError of port, must be string or None, not int)
     # Exception for SerialException, could not open port
     hs.image_path = image_path
@@ -372,7 +409,7 @@ for instrument in instrument_tests.keys():
     if instrument_status[instrument] and instrument_status['FPGA']:
         hs.f.LED('B', 'green')
         time.sleep(2)
-        
+
 if instrument_status['FPGA']:
     hs.f.LED('A', 'pulse green')
     hs.f.LED('B', 'pulse green')

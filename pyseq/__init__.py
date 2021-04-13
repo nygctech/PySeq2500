@@ -1068,7 +1068,7 @@ def _1gaussian(x, amp1,cen1,sigma1):
     """Gaussian function for curve fitting."""
     return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
 
-def get_com_ports(com_ports):
+def get_com_ports(com_ports=None, machine = 'HiSeq2500'):
     updated_com_ports = configparser.ConfigParser()
 
     if com_ports == 'auto':
@@ -1079,24 +1079,27 @@ def get_com_ports(com_ports):
         # get devices
         devices = conn.CIM_LogicalDevice
         # look through devices to find COM ports
-        com_ports = {'HiSeq2500':{}}
+        com_ports = {machine:{}}
 
     elif isinstance(com_ports, dict):
-        com_ports = {'HiSeq2500':comp_ports}
+        updated_com_ports = {machine:com_ports}
 
-    elif isfile(com_ports):
+    elif isfile(str(com_ports)):
         updated_com_ports.read(com_ports)
         if not update_com_ports.has_section('com ports'):
             raise ValueError
         else:
-            updated_com_ports = {'HiSeq2500':updated_com_ports['com ports']}
+            updated_com_ports = {machine:updated_com_ports['com ports']}
+    else:
+        updated_com_ports = {machine:{}}
+
 
     # Read default COM ports
-    config_path = pkg_resources.path(resources, 'com_ports.cfg')
     default_com_ports = configparser.ConfigParser()
-    default_com_ports.read(config_path)
+    with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
+        default_com_ports.read(config_path)
 
     # Overide default COM port
     default_com_ports.read_dict(updated_com_ports)
 
-    return default_com_ports
+    return default_com_ports[machine]
