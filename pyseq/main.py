@@ -368,7 +368,7 @@ def setup_logger():
     return logger
 
 
-def configure_instrument(IMAG_counter, port_dict):
+def configure_instrument(IMAG_counter, port_dict, com_ports):
     """Configure and check HiSeq settings."""
 
     global n_errors
@@ -1760,6 +1760,19 @@ def get_config(args):
 
     config['experiment']['recipe path'] = recipe_path
 
+    # Get COM ports:
+    # if section exists but there are no items automatically find COM Ports
+    # if section exists and there are items, override default COM Ports
+    # if section does not exist, use default COM Ports
+    if config.has_section('COM Ports'):
+        if len(config['COM Ports']) == 0:
+            com_ports = 'auto'
+        else:
+            com_ports = dict(config['COM Ports'])
+    else:
+        com_ports = None
+
+
     # Don't override user defined valve
     user_config = configparser.ConfigParser()
     user_config.read(args['config'])
@@ -1768,7 +1781,7 @@ def get_config(args):
     if user_config.has_section(method):
         config.read_dict({method:dict(user_config[method])})
 
-    return config
+    return config, com_ports
 
 def check_fc_temp(fc):
     """Check temperature of flowcell."""
@@ -1799,12 +1812,12 @@ def check_fc_temp(fc):
 args_ = args.get_arguments()                                                    # Get config path, experiment name, & output path
 if __name__ == 'pyseq.main':
     n_errors = 0
-    config = get_config(args_)                                                  # Get config file
+    config, com_ports = get_config(args_)                                       # Get config file
     logger = setup_logger()                                                     # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
     first_line, IMAG_counter, z_planes = check_instructions()                   # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, IMAG_counter)                       # Create flowcells
-    hs = configure_instrument(IMAG_counter, port_dict)
+    hs = configure_instrument(IMAG_counter, port_dict, com_ports)
     confirm_settings(z_planes)
     hs = initialize_hs(IMAG_counter)                                            # Initialize HiSeq, takes a few minutes
 
