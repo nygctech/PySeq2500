@@ -77,10 +77,11 @@ def test_x_stage():
             status = True
         else:
             text = 'X Stage Homing Failed'
-            warnings.warn('ERROR::'+text, RuntimeWarning)
+            error(text)
+            #warnings.warn('ERROR::'+text, RuntimeWarning)
 
     except:
-        error()
+        #error()
         status = False
         #logger.log(21, 'Check COM port')
         message('X Stage Failed')
@@ -97,19 +98,23 @@ def test_y_stage():
         while hs.y.check_position == 0:
             if time.time() - start > timeout:
                 text = 'Y Stage failed to home'
-                warnings.warn('ERROR::'+text, RuntimeWarning)
+                error(text)
+                #warnings.warn('ERROR::'+text, RuntimeWarning)
                 break
             else:
                 time.sleep(10)
         if not hs.y.move(hs.y.min_y):
             text = 'Y Stage failed to move out'
-            warnings.warn('ERROR::'+text, RuntimeWarning)
+            error(text)
+            #warnings.warn('ERROR::'+text, RuntimeWarning)
         if not hs.y.move(hs.y.max_y):
             text = 'Y Stage failed to move in'
-            warnings.warn('ERROR::'+text, RuntimeWarning)
+            error(text)
+            #warnings.warn('ERROR::'+text, RuntimeWarning)
         if not hs.y.move(hs.y.home):
             text = 'Y stage failed to move home'
-            warnings.warn('ERROR::'+text, RuntimeWarning)
+            error(text)
+            #warnings.warn('ERROR::'+text, RuntimeWarning)
         if instrument_status['FPGA'] and hs.x.check_position(hs.x.home):
             attempts = 0
             if abs(hs.f.read_position() - hs.y.read_position()) > 10:
@@ -117,13 +122,14 @@ def test_y_stage():
                 attempts += 1
                 if attempts >= 10:
                     text = 'Unable to sync FPGA & Y Stage'
-                    warnings.warn('ERROR::'+text, RuntimeWarning)
+                    error(text)
+                    #warnings.warn('ERROR::'+text, RuntimeWarning)
 
         status = True
         message('Y Stage Nominal')
 
     except:
-        error()
+        #error()
         status = False
         #logger.log(21, 'Check COM port')
         message('Y Stage Failed')

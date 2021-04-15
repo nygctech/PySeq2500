@@ -147,7 +147,7 @@ class HiSeq():
 
         self.y = ystage.Ystage(com_ports['ystage'], logger = Logger)
         self.f = fpga.FPGA(com_ports['fpgacommand'], com_ports['fpgaresponse'], logger = Logger)
-        self.x = xstage.Xstage(['xstage'], logger = Logger)
+        self.x = xstage.Xstage(com_ports['xstage'], logger = Logger)
         self.lasers = {'green': laser.Laser(com_ports['laser1'], color = 'green',
                                             logger = Logger),
                       'red': laser.Laser(com_ports['laser2'], color = 'red',
