@@ -254,7 +254,7 @@ def test_temperature_control():
         for fc in flowcells:
             hs.T.wait_fc_T(fc,20)
         for fc in flowcells:
-            hs.T.fc_off(fc,20)
+            hs.T.fc_off(fc)
         message('Temperature Control Nominal')
         status = True
     except:
@@ -309,7 +309,7 @@ def test_pumps():
     for i, AorB in enumerate(['A','B']):
         try:
             hs.p[AorB].initialize()
-            if hs.p['AorB'].check_pump():
+            if hs.p[AorB].check_pump():
                 pump_pass[i] = True
             else:
                 text = 'Pump ' + AorB + ' Error'
@@ -345,7 +345,8 @@ def test_cameras():
                 warnings.warn('ERROR::'+text, RuntimeWarning)
         else:
             text = 'Unable to image without Y Stage and FPGA'
-            warnings.warn('ERROR::'+text, RuntimeWarning)
+            raise RuntimeError(text)
+            #warnings.warn('ERROR::'+text, RuntimeWarning)
     except:
         error()
         status = False
