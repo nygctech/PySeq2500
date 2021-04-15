@@ -1072,14 +1072,22 @@ def get_com_ports(com_ports=None, machine = 'HiSeq2500'):
     updated_com_ports = configparser.ConfigParser()
 
     if com_ports == 'auto':
+        com_ports = {machine:{}}
         # automatically find com Ports
         import wmi
         # connecting to local machine
         conn = wmi.WMI()
         # get devices
-        devices = conn.CIM_LogicalDevice
+        devices = conn.CIM_LogicalDevice()
         # look through devices to find COM ports
-        com_ports = {machine:{}}
+        for dn in device_names:
+            for d in devices:
+                if dn in d.deviceid and 'USB Serial Port' in d.caption:
+                    caption = d.caption
+                    id_start = caption.find('(')+1
+                    id_end = caption.find(')')
+                    caption = caption[id_start:id_end]
+                    com_ports[machine][dn] = caption
 
     elif isinstance(com_ports, dict):
         updated_com_ports = {machine:com_ports}

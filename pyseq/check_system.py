@@ -65,8 +65,10 @@ def test_led():
 
 # Test X Stage
 def test_x_stage():
+    hs.y.command('Z')
+    hs.y.command('OFF')
     try:
-        hs.y.command('OFF')
+
         message('Testing X Stage')
         homed = hs.x.initialize()
         if homed:
@@ -353,10 +355,11 @@ def test_cameras():
                 warnings.warn('ERROR::'+text, RuntimeWarning)
         else:
             text = 'Unable to image without Y Stage and FPGA'
-            raise RuntimeError(text)
+            error(text)
+            #raise RuntimeError(text)
             #warnings.warn('ERROR::'+text, RuntimeWarning)
     except:
-        error()
+        #error()
         status = False
         message('Cameras Failed')
 
@@ -408,7 +411,8 @@ instrument_tests = {'FPGA': test_led,
 
 instrument_status = {'FPGA':False}
 
-for instrument in instrument_tests.keys():
+#for instrument in instrument_tests.keys():
+for instruments in ['CAMERAS']:
     if instrument_status['FPGA']:
         hs.f.LED('A', 'green')
         hs.f.LED('B', 'pulse blue')
