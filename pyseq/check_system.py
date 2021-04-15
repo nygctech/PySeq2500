@@ -10,9 +10,11 @@ from os.path import join
 def message(text):
     logger.log(21, 'PySeq::'+text)
 
-def error():
+def error(text):
+    message(test)
     if instrument_status['FPGA']:
         hs.f.LED(1, 'yellow')
+    raise RuntimeError
 
 def setup_logger(log_path):
     """Create a logger and return the handle."""
