@@ -1089,7 +1089,7 @@ def get_com_ports(machine = 'HiSeq2500'):
             ind = [i for i, id in enumerate(ids) if com_name in id]
             if len(ind) == 1:
                 ind = ind[0]
-            else:`
+            else:
                 print('Multiple COM Port matches for', instrument)
                 raise ValueError
             matched_ports[instrument] = com_ports[ind]
