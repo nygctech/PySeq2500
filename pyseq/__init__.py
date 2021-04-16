@@ -129,18 +129,6 @@ class HiSeq():
 
 
     def __init__(self, Logger = None):
-                       # yCOM = 'COM10',
-                       # xCOM = 'COM9',
-                       # pumpACOM = 'COM20',
-                       # pumpBCOM = 'COM21',
-                       # valveA24COM = 'COM22',
-                       # valveB24COM = 'COM23',
-                       # valveA10COM = 'COM18',
-                       # valveB10COM = 'COM19',
-                       # fpgaCOM = ['COM12','COM15'],
-                       # laser1COM = 'COM13',
-                       # laser2COM = 'COM14',
-                       # tempCOM = 'COM8'):
         """Constructor for the HiSeq."""
 
         com_ports = get_com_ports('HiSeq2500')
@@ -157,14 +145,14 @@ class HiSeq():
         self.optics = optics.Optics(self.f.serial_port, logger = Logger)
         self.cam1 = None
         self.cam2 = None
-        self.p = {'A': pump.Pump(com_ports['kloehna'], 'pumpA', logger = Logger),
-                  'B': pump.Pump(com_ports['kloehnb'], 'pumpB', logger = Logger)
+        self.p = {'A': pump.Pump(com_ports['pumpa'], 'pumpA', logger = Logger),
+                  'B': pump.Pump(com_ports['pumpb'], 'pumpB', logger = Logger)
                   }
-        self.v10 = {'A': valve.Valve(com_ports['vicia2'], 'valveA10', logger = Logger),
-                    'B': valve.Valve(com_ports['vicib2'], 'valveB10', logger = Logger)
+        self.v10 = {'A': valve.Valve(com_ports['valvea10'], 'valveA10', logger = Logger),
+                    'B': valve.Valve(com_ports['valveb10'], 'valveB10', logger = Logger)
                     }
-        self.v24 = {'A': valve.Valve(com_ports['vicia1'], 'valveA24', logger = Logger),
-                    'B': valve.Valve(com_ports['vicib1'], 'valveB24', logger = Logger)
+        self.v24 = {'A': valve.Valve(com_ports['valvea24'], 'valveA24', logger = Logger),
+                    'B': valve.Valve(com_ports['valveb24'], 'valveB24', logger = Logger)
                     }
         self.T = temperature.Temperature(com_ports['arm9chem'], logger = Logger)
         self.image_path = getcwd()                                                  # path to save images in
@@ -1098,10 +1086,10 @@ def get_com_ports(machine = 'HiSeq2500'):
     matched_ports = {}
     for instrument, com_name in com_names.items(machine):
         try:
-            ind = [i for i, id in enumerate(ids) if com_name in id]
+            ind = [i for i, id in enum`erate(ids) if com_name in id]
             if len(ind) == 1:
                 ind = ind[0]
-            else:
+            else:`
                 print('Multiple COM Port matches for', instrument)
                 raise ValueError
             matched_ports[instrument] = com_ports[ind]
