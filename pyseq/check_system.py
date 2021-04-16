@@ -11,7 +11,7 @@ def message(text):
     logger.log(21, 'PySeq::'+text)
 
 def error(text):
-    message(test)
+    message(text)
     if instrument_status['FPGA']:
         hs.f.LED(1, 'yellow')
     raise RuntimeError
@@ -97,7 +97,7 @@ def test_y_stage():
         hs.y.initialize()
         start = time.time()
         timeout = 60*10
-        while hs.y.check_position == 0:
+        while hs.y.check_position() == 0:
             if time.time() - start > timeout:
                 text = 'Y Stage failed to home'
                 error(text)
@@ -411,8 +411,7 @@ instrument_tests = {'FPGA': test_led,
 
 instrument_status = {'FPGA':False}
 
-#for instrument in instrument_tests.keys():
-for instruments in ['CAMERAS']:
+for instrument in instrument_tests.keys():
     if instrument_status['FPGA']:
         hs.f.LED('A', 'green')
         hs.f.LED('B', 'pulse blue')

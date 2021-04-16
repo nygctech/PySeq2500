@@ -128,7 +128,7 @@ class HiSeq():
     """
 
 
-    def __init__(self, Logger = None, com_ports = {}):
+    def __init__(self, Logger = None):
                        # yCOM = 'COM10',
                        # xCOM = 'COM9',
                        # pumpACOM = 'COM20',
@@ -143,7 +143,7 @@ class HiSeq():
                        # tempCOM = 'COM8'):
         """Constructor for the HiSeq."""
 
-        com_ports = get_com_ports(com_ports)
+        com_ports = get_com_ports('HiSeq2500')
 
         self.y = ystage.Ystage(com_ports['ystage'], logger = Logger)
         self.f = fpga.FPGA(com_ports['fpgacommand'], com_ports['fpgaresponse'], logger = Logger)
@@ -1068,46 +1068,40 @@ def _1gaussian(x, amp1,cen1,sigma1):
     """Gaussian function for curve fitting."""
     return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
 
-def get_com_ports(com_ports=None, machine = 'HiSeq2500'):
-    updated_com_ports = configparser.ConfigParser()
+def get_com_ports(machine = 'HiSeq2500'):
 
-    if com_ports == 'auto':
-        com_ports = {machine:{}}
-        # automatically find com Ports
-        import wmi
-        # connecting to local machine
-        conn = wmi.WMI()
-        # get devices
-        devices = conn.CIM_LogicalDevice()
-        # look through devices to find COM ports
-        for dn in device_names:
-            for d in devices:
-                if dn in d.deviceid and 'USB Serial Port' in d.caption:
-                    caption = d.caption
-                    id_start = caption.find('(')+1
-                    id_end = caption.find(')')
-                    caption = caption[id_start:id_end]
-                    com_ports[machine][dn] = caption
-
-    elif isinstance(com_ports, dict):
-        updated_com_ports = {machine:com_ports}
-
-    elif isfile(str(com_ports)):
-        updated_com_ports.read(com_ports)
-        if not update_com_ports.has_section('com ports'):
-            raise ValueError
-        else:
-            updated_com_ports = {machine:updated_com_ports['com ports']}
-    else:
-        updated_com_ports = {machine:{}}
-
-
-    # Read default COM ports
-    default_com_ports = configparser.ConfigParser()
+    # Read COM Names
+    com_names = configparser.ConfigParser()
     with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
-        default_com_ports.read(config_path)
+        com_names.read(config_path)
 
-    # Overide default COM port
-    default_com_ports.read_dict(updated_com_ports)
+    # Get list of connected devices
+    import wmi
+    conn = wmi.WMI()
+    devices = conn.CIM_LogicalDevice()
+    # Get lists of valid COM ports
+    ids = []
+    com_ports = []
+    for d in devices:
+        if 'USB Serial Port' in d.caption:
+            try:
+                ids.append(d.deviceid)
+                caption = d.caption
+                id_start = caption.find('(')+1
+                id_end = caption.find(')')
+                caption = caption[id_start:id_end]
+                com_ports.append(caption)
+            except:
+                pass
 
-    return default_com_ports[machine]
+    # Match instruments to ports
+    matched_ports = {}
+    for instrument, com_name in com_names.items(machine):
+        try:
+            ind = ids.index(com_name)
+            matched_ports[instrument] = com_ports[ind]
+        except ValueError:
+            matched_ports[instrument] = None
+            print('Could not find port for', instrument)
+
+    return matched_ports
