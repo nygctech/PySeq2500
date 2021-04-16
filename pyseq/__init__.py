@@ -1086,7 +1086,7 @@ def get_com_ports(machine = 'HiSeq2500'):
     matched_ports = {}
     for instrument, com_name in com_names.items(machine):
         try:
-            ind = [i for i, id in enum`erate(ids) if com_name in id]
+            ind = [i for i, id in enumerate(ids) if com_name in id]
             if len(ind) == 1:
                 ind = ind[0]
             else:`
