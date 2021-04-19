@@ -117,7 +117,7 @@ class HiSeq():
         - fc_origin: Upper right X and Y stage step position for flowcell slots.
         - scan_flag: True if HiSeq is currently scanning
         - current_view: Block run to show latest images, otherwise is None
-        
+
     """
 
 
@@ -753,7 +753,7 @@ class HiSeq():
 
         return stop-start
 
-    def scan(self, n_tiles, n_Zplanes, n_frames, image_name=None, overlap=0):
+    def scan(self, n_tiles, n_Zplanes, n_frames, image_name=None):
         """Image a volume.
 
            Images a zstack at incremental x positions.
@@ -766,7 +766,6 @@ class HiSeq():
             - n_frames (int): Number of frames to image.
             - image_name (str): Common name for images, the default is a time
               stamp.
-            - overlap (int): Number of column pixels to overlap between tiles.
 
            **Returns:**
             - int: Time it took to do scan in seconds.
@@ -774,7 +773,7 @@ class HiSeq():
         """
 
         self.scan_flag = True
-        dx = self.tile_width*1000-self.resolution*overlap                       # x stage delta in in microns
+        dx = self.tile_width*1000-self.resolution*self.overlap                       # x stage delta in in microns
         dx = round(dx*self.x.spum)                                              # x stage delta in steps
 
         if image_name is None:
@@ -910,8 +909,9 @@ class HiSeq():
         x_init = pos_dict['x_initial']
         y_init = pos_dict['y_initial']
 
+        n_tiles = int(col/2048)
         x_step = col*scale*self.x.spum
-        x_step = int(x_init + x_step - 315/2)
+        x_step = int(x_init + x_step - 315/2 - self.overlap*(n_tiles-1))
 
         trigger_offset = -80000
         frame_offset = 64/2*self.resolution*self.y.spum

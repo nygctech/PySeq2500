@@ -832,6 +832,8 @@ class HiSeqImages():
         self.viewer = None
         self.logger = logger
         self.filenames = []
+        self.resolution = 0.375                                                 # um/px
+        self.x_spum = 0.4096                                                    #steps per um
 
         if len(common_name) > 0:
             common_name = '*'+common_name
@@ -880,31 +882,35 @@ class HiSeqImages():
 
     def correct_background(self):
 
-        # Open background config
-        config = configparser.ConfigParser()
-        if not self.im.machine:
-            config_path = pkg_resources.path(recipes, 'background.cfg')
-        else:
-            config_path = pkg_resources.path(recipes, machine+'.cfg')
-        with config_path as config_path_:
-            config.read(config_path_)
+        if not self.im.fixed_bg:
+            # Open background config
+            config = configparser.ConfigParser()
+            if not self.im.machine:
+                config_path = pkg_resources.path(recipes, 'background.cfg')
+            else:
+                config_path = pkg_resources.path(recipes, machine+'.cfg')
+            with config_path as config_path_:
+                config.read(config_path_)
 
-        # Apply background correction
-        ch_list = []
-        ncols = len(self.im.col)
-        for ch in self.im.channel.values:
-            bg_ = np.zeros(ncols)
-            i = 0
-            for c in range(int(ncols/256)):
-                if c == 0:
-                    i = self.im.first_group
-                if i == 8:
-                    i = 0
-                bg = config.getint(str(ch),str(i))
-                bg_[c*256:(c+1)*256] = bg
-                i += 1
-            ch_list.append(self.im.sel(channel=ch)+bg_)
-        self.im = xr.concat(ch_list,dim='channel')
+            # Apply background correction
+            ch_list = []
+            ncols = len(self.im.col)
+            for ch in self.im.channel.values:
+                bg_ = np.zeros(ncols)
+                i = 0
+                for c in range(int(ncols/256)):
+                    if c == 0:
+                        i = self.im.first_group
+                    if i == 8:
+                        i = 0
+                    bg = config.getint(str(ch),str(i))
+                    bg_[c*256:(c+1)*256] = bg
+                    i += 1
+                ch_list.append(self.im.sel(channel=ch)+bg_)
+            self.im = xr.concat(ch_list,dim='channel')
+            self.im.attrs['fixed_bg'] = True
+        else:
+            print('Image already background corrected.')
 
 
     def register_channels(self, im):
@@ -921,6 +927,28 @@ class HiSeqImages():
         im = im.sel(row=slice(64,None))                                         # Top 64 rows have white noise
 
         return im
+
+    def remove_overlap(self, overlap=0):
+        """Remove pixel overlap between tile."""
+
+        n_tiles = len(self.im.col/2048)
+        try:
+            overlap=int(overlap)
+        except:
+            print('overlap must be an integer')
+
+        if n_tiles > 1 and overlap > 0:
+            tiles = []
+            for t in range(n_tiles):
+                if t == 0:
+                    cols = slice(0,2048)                                        #first tile is not cropped
+                else:
+                    cols = slice(2048*t+overlap,2048*(t+1))                     #initial columns are cropped from subsequent tiles
+                tiles.append(self.im.sel(col=cols))
+            im = xr.concat(tiles, dim = 'col')
+            im.attrs['overlap'] = overlap
+
+            self.im = im
 
     def quit(self):
         if self.stop:
@@ -993,7 +1021,8 @@ class HiSeqImages():
 
         if scale > 0:
             self.im = self.im.coarsen(row=scale, col=scale, boundary='trim').mean()
-            self.im.attrs['scale']=scale
+            old_scale = self.im.attrs['scale']
+            self.im.attrs['scale']=scale*old_scale
 
 
     def crop_section(self, bound_box):
@@ -1253,8 +1282,14 @@ class HiSeqImages():
                 fn_comp_sets[i] = [int(x) for x in fn_comp_sets[i]]
                 fn_comp_sets[i] = sorted(fn_comp_sets[i])
                 remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[4], fn_comp_sets[6], [1],  fn_comp_sets[5]]
+                # List of sorted x steps for calculating overlap
+                #x_steps = sorted(list(fn_comp_sets[5]), reverse=True)
+                x_steps = fn_comp_sets[5]
             else:
                 remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[5], [1],  fn_comp_sets[4]]
+                # List of sorted x steps for calculating overlap
+                #x_steps = sorted(list(fn_comp_sets[4]), reverse=True)
+                x_steps = fn_comp_sets[4]
 
             a = np.empty(tuple(map(len, remap_comps)), dtype=object)
             for fn, x in zip(filenames, lazy_arrays):
@@ -1286,7 +1321,8 @@ class HiSeqImages():
 
 
             im = self.register_channels(im.squeeze())
-            im = im.assign_attrs(first_group = 0, machine = '', scale=1)
+            im = im.assign_attrs(first_group = 0, machine = '', scale=1,
+                                 overlap=0, fixed_bg = False)
             self.im.append(im)
             im_names.append(s[1:])
 
