@@ -1474,11 +1474,16 @@ def IMAG(fc, n_Zplanes):
                 for i, color in enumerate(hs.optics.colors):
                     hs.optics.move_ex(color,hs.optics.focus_filters[i])
                 hs.message(msg + 'Start Autofocus')
-                if hs.autofocus(pos):                                           # Moves to optimal objective position
-                    hs.message(msg + 'Autofocus complete')
-                    pos['obj_pos'] = hs.obj.position
-                else:                                                           # Moves to rough focus objective position
+                try:
+                    if hs.autofocus(pos):                                       # Moves to optimal objective position
+                        hs.message(msg + 'Autofocus complete')
+                        pos['obj_pos'] = hs.obj.position
+                    else:                                                       # Moves to rough focus objective position
+                        hs.message(msg + 'Autofocus failed')
+                        pos['obj_pos'] = None
+                except:
                     hs.message(msg + 'Autofocus failed')
+                    print(sys.exc_info()[0])
                     pos['obj_pos'] = None
             else:
                 hs.obj.move(obj_pos)

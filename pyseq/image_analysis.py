@@ -882,7 +882,7 @@ class HiSeqImages():
 
     def correct_background(self):
 
-        if not self.im.fixed_bg:
+        if not bool(self.im.fixed_bg):
             # Open background config
             config = configparser.ConfigParser()
             if not self.im.machine:
@@ -908,7 +908,7 @@ class HiSeqImages():
                     i += 1
                 ch_list.append(self.im.sel(channel=ch)+bg_)
             self.im = xr.concat(ch_list,dim='channel')
-            self.im.attrs['fixed_bg'] = True
+            self.im.attrs['fixed_bg'] = 1
         else:
             print('Image already background corrected.')
 
@@ -1205,7 +1205,8 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'RoughScan')
 
-        im = im.assign_attrs(first_group = 0, machine='', scale=1)
+        im = im.assign_attrs(first_group = 0, machine = '', scale=1, overlap=0,
+                             fixed_bg = 0)
         self.im = im.sel(row=slice(64,None))
 
         return len(fn_comp_sets[2])
@@ -1221,7 +1222,8 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'Objective Stack')
 
-        im = im.assign_attrs(first_group = 0, machine = '', scale=1)
+        im = im.assign_attrs(first_group = 0, machine = '', scale=1,
+                             overlap=0, fixed_bg = 0)
         self.im = im
 
         return obj_stack.shape[0]
@@ -1322,7 +1324,7 @@ class HiSeqImages():
 
             im = self.register_channels(im.squeeze())
             im = im.assign_attrs(first_group = 0, machine = '', scale=1,
-                                 overlap=0, fixed_bg = False)
+                                 overlap=0, fixed_bg = 0)
             self.im.append(im)
             im_names.append(s[1:])
 
