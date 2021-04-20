@@ -606,6 +606,8 @@ def confirm_settings(recipe_z_planes = []):
     print('Flush flowrate:',fc.pump_speed['flush'], 'μL/min')
     print('Prime flowrate:',fc.pump_speed['prime'], 'μL/min')
     print('Reagent flowrate:',fc.pump_speed['reagent'], 'μL/min')
+    print('Max volume:', hs.p[AorB].max_volume, 'μL')
+    print('Min flow:', hs.p[AorB].min_flow, 'μL/min')
     print()
     if not userYN('Confirm pump settings'):
         sys.exit()
@@ -687,6 +689,7 @@ def confirm_settings(recipe_z_planes = []):
                 print(colors[i+1], 'focus laser power ~', focus_laser_power, 'mW')
         print('z position when imaging:', hs.z.image_step)
         print('pixel overlap:', hs.overlap)
+        print('overlap direction:', hs.overlap_dir)
         z_planes = int(method.get('z planes', fallback = 0))
         if z_planes > 0:
             print('z planes:', z_planes)

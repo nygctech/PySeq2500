@@ -863,9 +863,10 @@ class HiSeq():
         x_center = int(x_center)
 
         # initial X of scan
-        x_initial = int(x_center - n_tiles*dx*1000*self.x.spum/2)
+        x_initial = n_tiles*dx*1000/2                                           #1/2 fov width in microns
         if self.overlap_dir == 'left':
-            x_initial += self.resolution*self.overlap/1000
+            x_initial -= self.resolution*self.overlap                           #Move stage to compensate for discarded initial px
+        x_initial = int(x_center - x_initial*self.x.spum)
         pos['x_initial'] = x_initial
 
         # initial Y of scan
