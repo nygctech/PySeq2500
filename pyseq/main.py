@@ -418,7 +418,7 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
 
     variable_ports = method.get('variable reagents', fallback = None)
     hs.z.image_step = int(method.get('z position', fallback = 21500))
-    hs.overlap = int(method.get('overlap', fallback = 0))
+    hs.overlap = abs(int(method.get('overlap', fallback = 0)))
     hs.overlap_dir = method.get('overlap direction', fallback = 'left').lower()
     if hs.overlap_dir not in ['left', 'right']:
         error('MethodFile:: overlap direction must be left or right')
@@ -688,8 +688,9 @@ def confirm_settings(recipe_z_planes = []):
                     focus_laser_power = laser_power[i]*10**(-float(filter))
                 print(colors[i+1], 'focus laser power ~', focus_laser_power, 'mW')
         print('z position when imaging:', hs.z.image_step)
-        print('pixel overlap:', hs.overlap)
-        print('overlap direction:', hs.overlap_dir)
+        if hs.overlap > 0:
+            print('pixel overlap:', hs.overlap)
+            print('overlap direction:', hs.overlap_dir)
         z_planes = int(method.get('z planes', fallback = 0))
         if z_planes > 0:
             print('z planes:', z_planes)
