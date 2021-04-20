@@ -311,7 +311,7 @@ class Autofocus():
         self.message(name_+'Stitching & Normalizing images')
         im = IA.HiSeqImages(image_path = im_path, RoughScan=True)
         im.correct_background()
-        im.remove_overlap(overlap=self.hs.overlap)
+        im.remove_overlap(overlap=self.hs.overlap, overlap_direction=self.hs.overlap_dir)
         im.downscale()
         self.rough_ims = im
         self.scale = im.im.attrs['scale']

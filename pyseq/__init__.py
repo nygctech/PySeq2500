@@ -113,6 +113,7 @@ class HiSeq():
           partial once, or None, the default is partial once.
         - focus_tol: Focus tolerance, distance in microns.
         - overlap: Pixel overlap, the default is 0.
+        - overlap_dir: Pixel overlap direction (left/right), the default is left.
         - virtual: Flag for using virtual HiSeq
         - fc_origin: Upper right X and Y stage step position for flowcell slots.
         - scan_flag: True if HiSeq is currently scanning
@@ -171,6 +172,7 @@ class HiSeq():
         self.AF = 'partial'                                                     # autofocus routine
         self.focus_tol = 0                                                      # um, focus tolerance
         self.overlap = 0
+        self.overlap_dir = 'left'
         self.virtual = False                                                    # virtual flag
         self.scan_flag = False                                                  # imaging/scanning flag
         self.current_view = None                                                # latest images
@@ -862,6 +864,8 @@ class HiSeq():
 
         # initial X of scan
         x_initial = int(x_center - n_tiles*dx*1000*self.x.spum/2)
+        if self.overlap_dir == 'left':
+            x_initial += self.resolution*self.overlap/1000
         pos['x_initial'] = x_initial
 
         # initial Y of scan
@@ -909,9 +913,10 @@ class HiSeq():
         x_init = pos_dict['x_initial']
         y_init = pos_dict['y_initial']
 
-        n_tiles = int(col/2048)
         x_step = col*scale*self.x.spum
-        x_step = int(x_init + x_step - 315/2 - self.overlap*(n_tiles-1))
+        if self.overlap_dir == 'left':
+            x_step += self.overlap*scale
+        x_step = int(x_init + x_step - 315/2)
 
         trigger_offset = -80000
         frame_offset = 64/2*self.resolution*self.y.spum

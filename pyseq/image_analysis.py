@@ -928,33 +928,53 @@ class HiSeqImages():
 
         return im
 
-    def remove_overlap(self, overlap=0):
+
+
+    def remove_overlap(self, overlap=0, overlap_direction = 'left'):
         """Remove pixel overlap between tile."""
 
-        n_tiles = len(self.im.col/2048)
         try:
             overlap=int(overlap)
+            n_tiles = len(self.im.col)/(2048-overlap)
         except:
             print('overlap must be an integer')
 
-        if n_tiles > 1 and overlap > 0:
-            tiles = []
-            for t in range(n_tiles):
-                if t == 0:
-                    cols = slice(0,2048)                                        #first tile is not cropped
-                else:
-                    cols = slice(2048*t+overlap,2048*(t+1))                     #initial columns are cropped from subsequent tiles
-                tiles.append(self.im.sel(col=cols))
-            im = xr.concat(tiles, dim = 'col')
-            im.attrs['overlap'] = overlap
+        try:
+            if overlap_direction.lower() in ['l','le','lef','left','lft','lt']:
+                overlap_direction = 'left'
+            elif overlap_direction.lower() in ['r','ri','riht','right','rht','rt']:
+                overlap_direction = 'right'
+            else:
+                raise ValueError
+        except:
+            print('overlap direction must be either left or right')
 
-            self.im = im
+        if not bool(self.im.overlap):
+            if n_tiles > 1 and overlap > 0:
+                tiles = []
+                for t in range(n_tiles):
+                    if overlap_direction == 'left':
+                        cols = slice(2048*t+overlap,2048*(t+1))                 #initial columns are cropped from subsequent tiles
+                        tiles.append(self.im.sel(col=cols))
+                    elif overlap_direction == 'right':
+                        cols = slice(2048*t,(2048-overlap)*(t+1))               #end columns are cropped from subsequent tiles
+                        tiles.append(self.im.sel(col=cols))
+                im = xr.concat(tiles, dim = 'col')
+                im.attrs['overlap'] = overlap
+
+                self.im = im
+        else:
+            print('Overlap already removed')
+
+
 
     def quit(self):
         if self.stop:
             self.app.quit()
             self.viewer.close()
             self.viewer = None
+
+
 
     def hs_napari(self, dataset):
 
@@ -1097,7 +1117,7 @@ class HiSeqImages():
                                          blending = 'additive')
 
 
-    def save_zarr(self, save_path):
+    def save_zarr(self, save_path, show_progress = True):
         """Save all sections in a zipped zarr store.
 
            Note that coordinates for unused dimensions are not saved.
@@ -1116,7 +1136,12 @@ class HiSeqImages():
             if c not in self.im.dims:
                 self.im = self.im.reset_coords(names=c, drop=True)
 
-        self.im.to_dataset().to_zarr(save_name)
+        if show_progress:
+            with ProgressBar() as pbar:
+                self.im.to_dataset().to_zarr(save_name)
+        else:
+            self.im.to_dataset().to_zarr(save_name)
+
 
         # save attributes
         f = open(path.join(save_path, self.im.name+'.attrs'),"w")
