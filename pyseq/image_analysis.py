@@ -930,20 +930,20 @@ class HiSeqImages():
 
 
 
-    def remove_overlap(self, overlap=0, overlap_direction = 'left'):
+    def remove_overlap(self, overlap=0, direction = 'left'):
         """Remove pixel overlap between tile."""
 
         try:
             overlap=int(overlap)
-            n_tiles = len(self.im.col)/(2048-overlap)
+            n_tiles = int(len(self.im.col)/2048)
         except:
             print('overlap must be an integer')
 
         try:
-            if overlap_direction.lower() in ['l','le','lef','left','lft','lt']:
-                overlap_direction = 'left'
-            elif overlap_direction.lower() in ['r','ri','riht','right','rht','rt']:
-                overlap_direction = 'right'
+            if direction.lower() in ['l','le','lef','left','lft','lt']:
+                direction = 'left'
+            elif direction.lower() in ['r','ri','riht','right','rht','rt']:
+                direction = 'right'
             else:
                 raise ValueError
         except:
@@ -953,10 +953,10 @@ class HiSeqImages():
             if n_tiles > 1 and overlap > 0:
                 tiles = []
                 for t in range(n_tiles):
-                    if overlap_direction == 'left':
+                    if direction == 'left':
                         cols = slice(2048*t+overlap,2048*(t+1))                 #initial columns are cropped from subsequent tiles
                         tiles.append(self.im.sel(col=cols))
-                    elif overlap_direction == 'right':
+                    elif direction == 'right':
                         cols = slice(2048*t,(2048-overlap)*(t+1))               #end columns are cropped from subsequent tiles
                         tiles.append(self.im.sel(col=cols))
                 im = xr.concat(tiles, dim = 'col')
