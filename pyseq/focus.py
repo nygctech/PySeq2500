@@ -8,8 +8,6 @@ from math import log2, ceil
 from . import image_analysis as IA
 from scipy import stats
 from scipy.optimize import least_squares
-from skimage.util import img_as_ubyte
-from skimage.transform import downscale_local_mean
 import imageio
 from io import BytesIO
 import time

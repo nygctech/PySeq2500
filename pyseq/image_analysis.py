@@ -8,14 +8,10 @@ import xarray as xr
 xr.set_options(keep_attrs=True)
 import zarr
 import napari
-import pandas as pd
 from math import log2, ceil, floor
 from os import listdir, stat, path, getcwd, mkdir
 from scipy import stats
 from scipy.spatial.distance import cdist
-from skimage.exposure import match_histograms
-from skimage.transform import downscale_local_mean
-from skimage.util import img_as_ubyte
 import imageio
 import glob
 import configparser
