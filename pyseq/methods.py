@@ -89,7 +89,7 @@ def print_method(method):
 
 def list_settings(instrument = 'HiSeq2500'):
     settings = configparser.ConfigParser()
-    with pkg_resources.path(recipes, 'settings.cfg') as settings_path:
+    with pkg_resources.path(resources, 'settings.cfg') as settings_path:
         settings.read(settings_path)
 
     settings = settings[instrument]
@@ -99,7 +99,7 @@ def list_settings(instrument = 'HiSeq2500'):
 
 def get_settings(instrument = 'HiSeq2500'):
     settings = configparser.ConfigParser()
-    with pkg_resources.path(recipes, 'settings.cfg') as settings_path:
+    with pkg_resources.path(resources, 'settings.cfg') as settings_path:
         settings.read(settings_path)
 
     settings = settings[instrument]
@@ -108,7 +108,7 @@ def get_settings(instrument = 'HiSeq2500'):
 
 def check_settings(input_settings, instrument = 'HiSeq2500'):
     settings = configparser.ConfigParser()
-    with pkg_resources.path(recipes, 'settings.cfg') as settings_path:
+    with pkg_resources.path(resources, 'settings.cfg') as settings_path:
         settings.read(settings_path)
 
     all_clear = True
@@ -122,7 +122,7 @@ def check_settings(input_settings, instrument = 'HiSeq2500'):
 def list_com_ports(instrument = 'HiSeq2500'):
 
     com_ports = configparser.ConfigParser()
-    with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
+    with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
         com_ports.read(config_path)
 
     com_ports = com_ports[instrument]
@@ -132,7 +132,7 @@ def list_com_ports(instrument = 'HiSeq2500'):
 def get_com_ports(instrument = 'HiSeq2500'):
 
     com_ports = configparser.ConfigParser()
-    with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
+    with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
         com_ports.read(config_path)
 
     com_ports = com_ports[instrument]
@@ -167,7 +167,7 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
 
             # Read default COM ports
             default_com_ports = configparser.ConfigParser()
-            with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
+            with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
                 default_com_ports.read(config_path)
 
             # Overide default COM port
@@ -175,7 +175,7 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
             default_com_ports.read_dict(updated_com_ports)
 
             # write new config file
-            with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
+            with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
                 f = open(config_path,mode='w')
                 default_com_ports.write(f)
         else:

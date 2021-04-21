@@ -1066,7 +1066,7 @@ def get_com_ports(machine = 'HiSeq2500'):
 
     # Read COM Names
     com_names = configparser.ConfigParser()
-    with pkg_resources.path(recipes, 'com_ports.cfg') as config_path:
+    with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
         com_names.read(config_path)
 
     # Get list of connected devices
