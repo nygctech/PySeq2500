@@ -8,8 +8,6 @@ from math import log2, ceil
 from . import image_analysis as IA
 from scipy import stats
 from scipy.optimize import least_squares
-from skimage.util import img_as_ubyte
-from skimage.transform import downscale_local_mean
 import imageio
 from io import BytesIO
 import time
@@ -292,7 +290,7 @@ class Autofocus():
 
         x_initial = hs.x.position
         y_initial = hs.y.position
-        n_tiles = ceil((pos_dict['x_final']-x_initial)/hs.x.spum/(hs.tile_width*1000))
+        #n_tiles = ceil((pos_dict['x_final']-x_initial)/hs.x.spum/(hs.tile_width*1000))
         # Move to rough focus position
         #hs.obj.move(hs.obj.focus_rough)
         #z_pos = [hs.z.focus_pos, hs.z.focus_pos, hs.z.focus_pos]
@@ -303,7 +301,7 @@ class Autofocus():
             im_path = path.join(self.image_path,'full')
         else:
             im_path = self.image_path
-            hs.scan(n_tiles, 1, pos_dict['n_frames'], image_name)
+            hs.scan(pos_dict['n_tiles'], 1, pos_dict['n_frames'], image_name)
         hs.y.move(y_initial)
         hs.x.move(x_initial)
 
@@ -311,6 +309,7 @@ class Autofocus():
         self.message(name_+'Stitching & Normalizing images')
         im = IA.HiSeqImages(image_path = im_path, RoughScan=True)
         im.correct_background()
+        im.remove_overlap(overlap=self.hs.overlap, direction=self.hs.overlap_dir)
         im.downscale()
         self.rough_ims = im
         self.scale = im.im.attrs['scale']

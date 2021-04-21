@@ -155,14 +155,14 @@ class Flowcell():
         if self.recipe is not None:
             self.recipe.close()
         self.recipe = open(self.recipe_path)
-        # Increase cycle counter
-        self.cycle += 1
         # Reset image counter (if mulitple images per cycle)
         if self.IMAG_counter is not None:
             self.IMAG_counter = 0
 
         msg = 'PySeq::'+self.position+'::'
-        if self.cycle > self.total_cycles:
+        if self.cycle == self.total_cycles:
+            # Increase cycle counter
+            self.cycle += 1
             # Flowcell completed all cycles
             hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
             hs.T.fc_off(fc.position)
@@ -171,12 +171,16 @@ class Flowcell():
             if self.temp_timer is not None:
                 self.temp_timer.cancel()
                 self.temp_timer = None
-
-        else:
+            self.thread = threading.Thread(target = time.sleep, args = (10,))
+        elif self.cycle < self.total_cycles:
+            # Increase cycle counter
+            self.cycle += 1
             # Start new cycle
             restart_message = msg+'Starting cycle '+str(self.cycle)
             self.thread = threading.Thread(target = hs.message,
                                            args = (restart_message,))
+        else:
+            self.thread = threading.Thread(target = time.sleep, args = (10,))
 
         thread_id = self.thread.start()
 
@@ -415,7 +419,10 @@ def configure_instrument(IMAG_counter, port_dict):
 
     variable_ports = method.get('variable reagents', fallback = None)
     hs.z.image_step = int(method.get('z position', fallback = 21500))
-    hs.overlap = int(method.get('overlap', fallback = 0))
+    hs.overlap = abs(int(method.get('overlap', fallback = 0)))
+    hs.overlap_dir = method.get('overlap direction', fallback = 'left').lower()
+    if hs.overlap_dir not in ['left', 'right']:
+        error('MethodFile:: overlap direction must be left or right')
 
     for fc in flowcells.values():
         AorB = fc.position
@@ -600,6 +607,8 @@ def confirm_settings(recipe_z_planes = []):
     print('Flush flowrate:',fc.pump_speed['flush'], 'μL/min')
     print('Prime flowrate:',fc.pump_speed['prime'], 'μL/min')
     print('Reagent flowrate:',fc.pump_speed['reagent'], 'μL/min')
+    print('Max volume:', hs.p[AorB].max_volume, 'μL')
+    print('Min flow:', hs.p[AorB].min_flow, 'μL/min')
     print()
     if not userYN('Confirm pump settings'):
         sys.exit()
@@ -680,7 +689,9 @@ def confirm_settings(recipe_z_planes = []):
                     focus_laser_power = laser_power[i]*10**(-float(filter))
                 print(colors[i+1], 'focus laser power ~', focus_laser_power, 'mW')
         print('z position when imaging:', hs.z.image_step)
-        print('pixel overlap:', hs.overlap)
+        if hs.overlap > 0:
+            print('pixel overlap:', hs.overlap)
+            print('overlap direction:', hs.overlap_dir)
         z_planes = int(method.get('z planes', fallback = 0))
         if z_planes > 0:
             print('z planes:', z_planes)
@@ -1385,7 +1396,7 @@ def do_recipe(fc):
                 hs.message('PySeq::'+AorB+'::Waiting for camera')
                 while hs.scan_flag:
                     pass
-            hs.scan_flag = True
+            #hs.scan_flag = True
             fc.events_since_IMAG = []
             log_message = 'Imaging flowcell'
             fc.thread = threading.Thread(target = IMAG,
@@ -1418,14 +1429,10 @@ def do_recipe(fc):
         elif fc.thread is not None and fc.cycle > fc.total_cycles:
             fc.thread =  threading.Thread(target = time.sleep, args = (10,))
 
-    elif fc.cycle <= fc.total_cycles:
+    else:
         # End of recipe
         fc.restart_recipe()
-    elif fc.cycle > fc.total_cycles:
-        #End of experiment
-        fc.temperature = None
-        fc.thread =  threading.Thread(target = time.sleep, args = (10,))
-        fc.thread.start()
+
 
 ##########################################################
 ## Image flowcell ########################################
@@ -1475,11 +1482,16 @@ def IMAG(fc, n_Zplanes):
                 for i, color in enumerate(hs.optics.colors):
                     hs.optics.move_ex(color,hs.optics.focus_filters[i])
                 hs.message(msg + 'Start Autofocus')
-                if hs.autofocus(pos):                                           # Moves to optimal objective position
-                    hs.message(msg + 'Autofocus complete')
-                    pos['obj_pos'] = hs.obj.position
-                else:                                                           # Moves to rough focus objective position
+                try:
+                    if hs.autofocus(pos):                                       # Moves to optimal objective position
+                        hs.message(msg + 'Autofocus complete')
+                        pos['obj_pos'] = hs.obj.position
+                    else:                                                       # Moves to rough focus objective position
+                        hs.message(msg + 'Autofocus failed')
+                        pos['obj_pos'] = None
+                except:
                     hs.message(msg + 'Autofocus failed')
+                    print(sys.exc_info()[0])
                     pos['obj_pos'] = None
             else:
                 hs.obj.move(obj_pos)
@@ -1519,7 +1531,7 @@ def IMAG(fc, n_Zplanes):
         hs.message(msg + 'Start Imaging')
 
         try:
-            scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name, hs.overlap)
+            scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name)
             scan_time = str(int(scan_time/60))
             hs.message(msg + 'Imaging completed in', scan_time, 'minutes')
         except:

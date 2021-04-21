@@ -8,14 +8,10 @@ import xarray as xr
 xr.set_options(keep_attrs=True)
 import zarr
 import napari
-import pandas as pd
 from math import log2, ceil, floor
 from os import listdir, stat, path, getcwd, mkdir
 from scipy import stats
 from scipy.spatial.distance import cdist
-from skimage.exposure import match_histograms
-from skimage.transform import downscale_local_mean
-from skimage.util import img_as_ubyte
 import imageio
 import glob
 import configparser
@@ -48,206 +44,6 @@ def message(logger, *args):
         logger.info(msg)
 
 
-def get_image_df(image_path = None, image_name = None, im_type = '.tiff'):
-    """Get dataframe of rough focus images.
-
-       **Parameters:**
-       image_path (path): Directory where images are stored.
-       image_name (str): Name common to all images.
-       im_type = (str): Image type suffix common to all images
-
-       **Returns:**
-       dataframe: Dataframe of image metadata with image names as index.
-
-    """
-
-    if image_path is None:
-        image_path = getcwd()
-
-    all_names = listdir(image_path)
-    if image_name is None:
-      image_names = [name for name in all_names if im_type in name]
-    else:
-      im_names = [name for name in all_names if image_name in name]
-      image_names = [name for name in im_names if im_type in name]
-
-    # Dataframe for metdata
-    cols = image_names[0][:-5].split('_')
-    col_int = []
-    col_names = []
-    i = 0
-    for c in cols:
-    # Get column names and test if it should be an integer
-        try:
-            int(c[0])
-            col_names.append('X' + str(i))
-            col_int.append(1)
-        except:
-            if c in col_names:
-                col_names.append(c[0]+str(i))
-            else:
-                col_names.append(c[0])
-
-            try:
-                int(c[1:])
-                col_int.append(2)
-            except:
-                col_int.append(0)
-
-        i += 1
-
-    metadata = pd.DataFrame(columns = (col_names))
-
-    # Extract metadata
-    for name in image_names:
-
-      meta = name[:-5].split('_')
-      for i in range(len(col_int)):
-          if col_int[i]:
-              try:
-                  meta[i] = int(meta[i][col_int[i]-1:])
-              except:
-                  print(name)
-
-      metadata.loc[name] = meta
-
-    return metadata
-
-def stitch(dir, df_x, overlap = 0, scaled = False):
-    """Stitch together scans.
-
-       # TODO: Implement overlap
-
-       **Parameters:**
-       dir (path): Directory where image scans are stored.
-       df_x (dataframe): Dataframe of metadata of image scans to stitch.
-       overlap (int): Number of pixels that overlap between adjacent tiles.
-       scaled (bool): True to autoscale images to ~256 Kb, False to not scale.
-
-       **Returns:**
-       array: Stitched and scaled image.
-       int: Downscale factor the images were scaled by.
-
-    """
-
-    df_x = df_x.sort_values(by=['x'])
-    scale_factor = 1
-    plane = None
-    for name in df_x.index:
-        im = imageio.imread(path.join(dir,name))
-        im = im[64:]                                                            # Remove whiteband artifact
-
-        if scaled:
-            # Scale images so they are ~ 512 kb
-            if scale_factor == 1:
-                size = stat(path.join(dir,name)).st_size
-                scale_factor = (2**(log2(size)-19))**0.5
-                scale_factor = round(log2(scale_factor))
-                scale_factor = 2**scale_factor
-
-            im = downscale_local_mean(im, (scale_factor, scale_factor))
-
-        # Append scans together
-        if plane is None:
-            plane = im
-        else:
-            plane = np.append(plane, im, axis = 1)
-
-    plane = plane.astype('uint16')
-
-    return plane, scale_factor
-
-def normalize(im, scale_factor):
-    """Normalize scans.
-
-       Images are normalized by matching histogram to strip with most contrast.
-
-
-       **Parameters:**
-       im (array): Image as array.
-       scale_factor (int): Downscale factor of image.
-
-       **Returns:**
-       image: Normalized image.
-
-    """
-
-    x_px = int(2048/scale_factor/8)
-    n_strips = int(im.shape[1]/x_px)
-    strip_contrast = np.empty(shape=(n_strips,))
-    #col_contrast = np.max(im, axis = 0) - np.min(im, axis = 0)
-
-    # Find reference strip with max contrast
-    for i in range(n_strips):
-        strip_contrast[i] = np.std(im[:,(i)*x_px:(i+1)*x_px])
-    ref_strip = np.argmax(strip_contrast)
-    ref = im[:,(ref_strip)*x_px:(ref_strip+1)*x_px]
-
-    plane = None
-    for i in range(n_strips):
-      sub_im = im[:,(i)*x_px:(i+1)*x_px]
-      sub_im = match_histograms(sub_im, ref)
-      if plane is None:
-        plane = sub_im
-      else:
-        plane = np.append(plane, sub_im, axis = 1)
-
-    plane = plane.astype('uint16')
-    #plane = img_as_ubyte(plane)
-
-    return plane
-
-
-def sum_images_old(images, logger = None):
-    """Sum pixel values over channel images.
-
-       The image with the largest signal to noise ratio is used as the
-       reference. Images without significant positive kurtosis, ie pixels that
-       deviate from mean value (assumed as background), are discarded. The
-       remaining image histograms are matched to the reference. Finally, the
-       images are summed together. The summed image is returned or if there is
-       no signal in all channels, False is returned.
-
-       Parameters:
-       - images (list): List of images to sum.
-       - thresh (float): Kurtosis threshold to call signal in channel.
-       - logger (logger): Logger object to record process.
-
-       Return:
-       - array: Numpy array of summed image or False if no signal
-
-    """
-
-    name_ = 'SumImages:'
-    sum_im = None
-    finished = False
-
-
-    thresh = 81.0
-    i = 0
-    while not finished:
-        message(logger, name_, 'kurtosis threshold (k) = ', thresh)
-        for c, im in enumerate(images):
-            #kurt_z, pvalue = stats.kurtosistest(im, axis = None)
-            #kurt_z = stats.kurtosis(im, axis=None)
-            k = kurt(im)
-            message(logger, name_, 'Channel',c, 'k = ', k)
-            if k > thresh:
-                # Add add image
-                if sum_im is None:
-                    sum_im = im.astype('int16')
-                    finished = True
-                else:
-                    sum_im = np.add(sum_im, im)
-
-        if sum_im is None:
-            if i <= 3:
-                thresh = 3**(3-i)
-                i+=1
-            else:
-                finished = True
-
-    return sum_im
 
 def sum_images(images, logger = None):
     """Sum pixel values over channel images.
@@ -299,15 +95,6 @@ def sum_images(images, logger = None):
 
     return im
 
-def kurt_old(im):
-    """Return kurtosis = mean((image-mode)/2)^4). """
-
-    im = im.astype('int16')
-    mode = stats.mode(im, axis = None)[0][0]
-    z_score = (im-mode)/2
-    k = np.mean(z_score**4)
-
-    return k
 
 def kurt(im):
     """Return kurtosis = mean((image-mode)/2)^4). """
@@ -541,213 +328,6 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
 
     return ord_points
 
-def make_image(im_path, df_x, comp=None):
-    """Make full scale, high quality, images.
-
-       Stitch and normalize images in *df_x*. If using color compensation
-       *comp*, include the linear model of the signal crosstalk from a lower
-       wavelength channel to a higher wavelength channel as such
-       {lower channel (nm, int): {'m': slope (float), 'b': constant (float),
-       upper channel (nm, int)}}.
-
-       # TODO: Implement overlap
-
-       **Parameters:**
-       im_path (path): Directory where image scans are stored.
-       df_x (dataframe): Dataframe of metadata of image scans to stitch.
-       comp (dict): Color compensation dictionary, optional.
-
-       **Returns:**
-       array: Stitched and scaled image.
-
-    """
-
-
-    df_x = df_x.sort_values(by=['x'])
-    x_px = int(2048/8)
-    n_strips = len(df_x)*8
-    strip_contrast = np.empty(shape=(n_strips,))
-    ref_strip_ = np.zeros_like(strip_contrast)
-    ref_x_ = np.zeros_like(strip_contrast)
-
-    # Strip with most constrast is reference
-    for x, name in enumerate(df_x.index):
-        im = imageio.imread(path.join(im_path,name))
-        im = im[64:]                                                            # Remove whiteband artifact
-
-        col_contrast = np.max(im, axis = 0) - np.min(im, axis = 0)
-        for i in range(8):
-            strip_contrast[i+x] = np.mean(col_contrast[(i)*x_px:(i+1)*x_px])
-            ref_strip_[i+x] = i
-            ref_x_[i+x] = x
-
-    ref_strip = np.argmax(strip_contrast)
-    ref_x = ref_x_[ref_strip]
-    ref_strip = ref_strip_[ref_strip]
-
-    name = df_x.index[ref_x]
-    print('Reference is image:', name, 'strip', ref_strip)
-    im = imageio.imread(path.join(im_path,name))
-    ref_start = int(ref_strip*x_px)
-    ref_stop = int((ref_strip+1)*x_px)
-    ref = im[:,ref_start:ref_stop]
-
-    # stitch images
-    plane = None
-    for name, row in df_x.iterrows():
-        print('Stitching', name)
-        im = imageio.imread(path.join(im_path,name))
-        im = im[64:]                                                            # Remove whiteband artifact
-
-        # color compensate
-        if comp:
-              if comp[row.c]:
-                  c = comp[row.c]['c']
-                  m = comp[row.c]['m']
-                  b = comp[row.c]['b']
-                  c_name = 'c' + str(c) + name[4:]
-                  c_im = imageio.imread(path.join(im_path,c_name))
-                  c_im = c_im[64:]
-                  bleed = m*c_im+b                                                  # Calculate bleed over
-                  #bleed = bleed.astype('int8')
-                  bleed = bleed.astype('int16')
-                  bg = np.zeros_like(c_im)
-                  for c_i in range(8):
-                      c_start = c_i*x_px
-                      c_stop = c_start+x_px
-                      bg[:,c_start:c_stop] = np.mean(c_im[:,c_start:c_stop])
-
-
-
-        for i in range(8):
-          if comp:
-              if comp[row.c]:
-                  sub_bleed = bleed[:,i*x_px:(i+1)*x_px]
-                  sub_bg = bg[:,i*x_px:(i+1)*x_px]
-                  sub_im = im[:,i*x_px:(i+1)*x_px]
-                  sub_im = sub_im - sub_bleed + sub_bg
-              else:
-                  sub_im = im[:,i*x_px:(i+1)*x_px]
-          else:
-              sub_im = im[:,i*x_px:(i+1)*x_px]
-
-
-          sub_im = match_histograms(sub_im, ref)
-          if plane is None:
-            #plane = sub_im.astype('int8')
-            plane = sub_im.astype('int16')
-          else:
-            #plane = np.append(plane, sub_im.astype('int8'), axis = 1)
-            plane = np.append(plane, sub_im.astype('int16'), axis = 1)
-
-
-    #plane = plane.astype('int8')
-
-    return plane
-
-def tiff2zarr(image_path):
-    """Convert HiSeq tiffs to zarr.
-
-       **Parameters:**
-       - im_path(path): Path to directory with tiff images
-
-       **Returns:**
-       - path: Path to zarr images
-
-    """
-
-    # Make tiffs into zarr
-    base_dir = path.dirname(image_path)
-    zarr_dir = path.join(base_dir, 'zarr')
-
-    df = ia.get_image_df(tiff_dir)
-
-    if len(df) > 0:
-        col_names = ['s','r','c','o','x']
-        extra_col = [col for col in df.columns if col not in col_names]
-        col_names = [col for col in col_names if col not in df.columns]
-
-        if len(df.columns) > 6:
-            print('Extra columns:', *extra_col)
-        elif len(col_name) == 0:
-            sections = set(df.s)
-            channels = set(df.c)
-            rounds = set(df.r)
-
-            for s in sections:
-                df_s = df[df.s == s]
-                (nrows, ncols) = imageio.imread(path.join(tiff_dir,df_s.index[0])).shape
-                obj_steps = [*set(df_s.o)]
-                obj_steps.sort()
-                nrows -= 64
-                ncols = 2048*len(set(df_s.x))
-                for r in rounds:
-                    df_r = df_s[df_s.r == r]
-                    for c in channels:
-                        df_c = df_r[df_r.c == c]
-                        print('Converting section', s, 'channel', c, 'round', r)
-                        for o in obj_steps:
-                            df_o = df_c[df_c.o == o]
-                            df_x = df_o.sort_values(by='x')
-                            stack = []
-                            for index, row in df_x.iterrows():
-                                im = da.delayed(imageio.imread(path.join(tiff_dir,index)))
-                                im = im[64:,]
-                                stack.append(da.array(im))
-                            im = da.concatenate(stack, axis=-1)
-                            im = zarr.create(im, chunks = (nrows, 256), dtype='int16')
-                            zarr_name = 'c'+str(c)+'_s'+str(s)+'_r'+str(r)+'_o'+str(o)+'.zarr'
-                            zarr.save(path.join(zarr_dir, zarr_name), im)
-
-        else:
-            print('Missing', *col, 'columns')
-
-    return zarr_dir
-
-def label_images(df, zarr_path):
-    """Label image dataset with section name, channel, cycle, and objective step.
-
-       **Parameters:**
-       - df(dataframe): Dataframe with image metadata
-
-       **Returns:**
-       - array: Labeled dataset
-
-    """
-
-    sections = [s[1:] for s in [*set(df.s)]]
-    channels = [*set(df.c)]
-    obj_steps = [*set(df.o)]
-    obj_steps.sort()
-    cycles = [*set(df.r)]
-    cycles.sort()
-
-    dim_names = ['section','channel', 'cycle', 'obj_step', 'row', 'col']
-    coord_values = {'section':sections,'channel':channels,
-                    'obj_step':obj_steps, 'cycle':cycles}
-
-    s_stack = []
-    for s in sections:
-        c_stack = []
-        for c in channels:
-            df_c = df[df.c==c]
-            r_stack = []
-            for r in cycles:
-                df_r = df_c[df_c.r==r]
-                o_stack = []
-                for o in obj_steps:
-                    im_ = df_r[df_r.o==o]
-                    if len(im_) == 1:
-                        im_name = df_r[df_r.o==o].index[0]
-                        o_stack.append(da.from_zarr(path.join(zarr_path,im_name)))
-                r_stack.append(da.stack(o_stack,axis = 0))
-            c_stack.append(da.stack(r_stack,axis = 0))
-        s_stack.append(da.stack(c_stack,axis = 0))
-    dataset = da.stack(s_stack, axis=0)
-    dataset = xr.DataArray(dataset, dims = dim_names,coords=coord_values)
-
-    return dataset.squeeze()
-
 
 def compute_background(im_path, save_path = None, machine=''):
 
@@ -779,6 +359,7 @@ def compute_background(im_path, save_path = None, machine=''):
     else:
         bg_path = path.join(save_path,machine+'.cfg')
     with open(bg_path, 'w') as configfile: config.write(configfile)
+
 
 def get_HiSeqImages(image_path=None, common_name='', logger = None):
 
@@ -832,6 +413,8 @@ class HiSeqImages():
         self.viewer = None
         self.logger = logger
         self.filenames = []
+        self.resolution = 0.375                                                 # um/px
+        self.x_spum = 0.4096                                                    #steps per um
 
         if len(common_name) > 0:
             common_name = '*'+common_name
@@ -880,31 +463,35 @@ class HiSeqImages():
 
     def correct_background(self):
 
-        # Open background config
-        config = configparser.ConfigParser()
-        if not self.im.machine:
-            config_path = pkg_resources.path(recipes, 'background.cfg')
-        else:
-            config_path = pkg_resources.path(recipes, machine+'.cfg')
-        with config_path as config_path_:
-            config.read(config_path_)
+        if not bool(self.im.fixed_bg):
+            # Open background config
+            config = configparser.ConfigParser()
+            if not self.im.machine:
+                config_path = pkg_resources.path(resources, 'background.cfg')
+            else:
+                config_path = pkg_resources.path(resources, machine+'.cfg')
+            with config_path as config_path_:
+                config.read(config_path_)
 
-        # Apply background correction
-        ch_list = []
-        ncols = len(self.im.col)
-        for ch in self.im.channel.values:
-            bg_ = np.zeros(ncols)
-            i = 0
-            for c in range(int(ncols/256)):
-                if c == 0:
-                    i = self.im.first_group
-                if i == 8:
-                    i = 0
-                bg = config.getint(str(ch),str(i))
-                bg_[c*256:(c+1)*256] = bg
-                i += 1
-            ch_list.append(self.im.sel(channel=ch)+bg_)
-        self.im = xr.concat(ch_list,dim='channel')
+            # Apply background correction
+            ch_list = []
+            ncols = len(self.im.col)
+            for ch in self.im.channel.values:
+                bg_ = np.zeros(ncols)
+                i = 0
+                for c in range(int(ncols/256)):
+                    if c == 0:
+                        i = self.im.first_group
+                    if i == 8:
+                        i = 0
+                    bg = config.getint(str(ch),str(i))
+                    bg_[c*256:(c+1)*256] = bg
+                    i += 1
+                ch_list.append(self.im.sel(channel=ch)+bg_)
+            self.im = xr.concat(ch_list,dim='channel')
+            self.im.attrs['fixed_bg'] = 1
+        else:
+            print('Image already background corrected.')
 
 
     def register_channels(self, im):
@@ -922,11 +509,53 @@ class HiSeqImages():
 
         return im
 
+
+
+    def remove_overlap(self, overlap=0, direction = 'left'):
+        """Remove pixel overlap between tile."""
+
+        try:
+            overlap=int(overlap)
+            n_tiles = int(len(self.im.col)/2048)
+        except:
+            print('overlap must be an integer')
+
+        try:
+            if direction.lower() in ['l','le','lef','left','lft','lt']:
+                direction = 'left'
+            elif direction.lower() in ['r','ri','riht','right','rht','rt']:
+                direction = 'right'
+            else:
+                raise ValueError
+        except:
+            print('overlap direction must be either left or right')
+
+        if not bool(self.im.overlap):
+            if n_tiles > 1 and overlap > 0:
+                tiles = []
+                for t in range(n_tiles):
+                    if direction == 'left':
+                        cols = slice(2048*t+overlap,2048*(t+1))                 #initial columns are cropped from subsequent tiles
+                        tiles.append(self.im.sel(col=cols))
+                    elif direction == 'right':
+                        cols = slice(2048*t,(2048-overlap)*(t+1))               #end columns are cropped from subsequent tiles
+                        tiles.append(self.im.sel(col=cols))
+                im = xr.concat(tiles, dim = 'col')
+                im.attrs['overlap'] = overlap
+
+                self.im = im
+        else:
+            print('Overlap already removed')
+
+
+
     def quit(self):
         if self.stop:
             self.app.quit()
             self.viewer.close()
             self.viewer = None
+
+
 
     def hs_napari(self, dataset):
 
@@ -993,7 +622,8 @@ class HiSeqImages():
 
         if scale > 0:
             self.im = self.im.coarsen(row=scale, col=scale, boundary='trim').mean()
-            self.im.attrs['scale']=scale
+            old_scale = self.im.attrs['scale']
+            self.im.attrs['scale']=scale*old_scale
 
 
     def crop_section(self, bound_box):
@@ -1068,7 +698,7 @@ class HiSeqImages():
                                          blending = 'additive')
 
 
-    def save_zarr(self, save_path):
+    def save_zarr(self, save_path, show_progress = True):
         """Save all sections in a zipped zarr store.
 
            Note that coordinates for unused dimensions are not saved.
@@ -1087,7 +717,12 @@ class HiSeqImages():
             if c not in self.im.dims:
                 self.im = self.im.reset_coords(names=c, drop=True)
 
-        self.im.to_dataset().to_zarr(save_name)
+        if show_progress:
+            with ProgressBar() as pbar:
+                self.im.to_dataset().to_zarr(save_name)
+        else:
+            self.im.to_dataset().to_zarr(save_name)
+
 
         # save attributes
         f = open(path.join(save_path, self.im.name+'.attrs'),"w")
@@ -1176,7 +811,8 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'RoughScan')
 
-        im = im.assign_attrs(first_group = 0, machine='', scale=1)
+        im = im.assign_attrs(first_group = 0, machine = '', scale=1, overlap=0,
+                             fixed_bg = 0)
         self.im = im.sel(row=slice(64,None))
 
         return len(fn_comp_sets[2])
@@ -1192,7 +828,8 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'Objective Stack')
 
-        im = im.assign_attrs(first_group = 0, machine = '', scale=1)
+        im = im.assign_attrs(first_group = 0, machine = '', scale=1,
+                             overlap=0, fixed_bg = 0)
         self.im = im
 
         return obj_stack.shape[0]
@@ -1253,8 +890,14 @@ class HiSeqImages():
                 fn_comp_sets[i] = [int(x) for x in fn_comp_sets[i]]
                 fn_comp_sets[i] = sorted(fn_comp_sets[i])
                 remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[4], fn_comp_sets[6], [1],  fn_comp_sets[5]]
+                # List of sorted x steps for calculating overlap
+                #x_steps = sorted(list(fn_comp_sets[5]), reverse=True)
+                x_steps = fn_comp_sets[5]
             else:
                 remap_comps = [fn_comp_sets[0], fn_comp_sets[3], fn_comp_sets[5], [1],  fn_comp_sets[4]]
+                # List of sorted x steps for calculating overlap
+                #x_steps = sorted(list(fn_comp_sets[4]), reverse=True)
+                x_steps = fn_comp_sets[4]
 
             a = np.empty(tuple(map(len, remap_comps)), dtype=object)
             for fn, x in zip(filenames, lazy_arrays):
@@ -1286,51 +929,9 @@ class HiSeqImages():
 
 
             im = self.register_channels(im.squeeze())
-            im = im.assign_attrs(first_group = 0, machine = '', scale=1)
+            im = im.assign_attrs(first_group = 0, machine = '', scale=1,
+                                 overlap=0, fixed_bg = 0)
             self.im.append(im)
             im_names.append(s[1:])
 
         return im_names
-
-class HiSeqImagesOLD():
-    """HiSeqImages
-
-       **Attributes:**
-        - sections (dict): Dictionary of sections
-        - channel_color (dict): Dictionary colors to display each channel as
-
-    """
-
-    def __init__(self, image_path):
-        """The constructor for HiSeq Image Datasets.
-
-           **Parameters:**
-            - image_path (path): Path to images with tiffs
-
-           **Returns:**
-            - HiSeqImages object: Object to manipulate and view HiSeq image data
-
-        """
-        self.sections = {}
-        self.channel_color = {558:'blue', 610:'green', 687:'magenta', 740:'red'}
-
-        # Get number of tiffs and zarrs
-        all_names = listdir(image_path)
-        n_tiffs = len([name for name in all_names if '.tiff' in name])
-        n_zarrs = len([name for name in all_names if '.zarr' in name])
-
-        # Convert tiffs to zarr
-        if n_tiffs > 0 & n_zarrs == 0:
-            zarr_path = tiff2zarr(image_path)
-            n_zarrs = 1
-            image_path = zarr_path
-        elif n_tiffs > 0 & n_zarrs > 0:
-            print('Detected both zarr and tiff images, using only zarr')
-
-        dataset = None
-        if n_zarrs > 0:
-            df = get_image_df(image_path, im_type = '.zarr')
-            if len(df) > 0:
-                sections = [*set(df.s)]
-                for s in sections:
-                    self.sections[s[1:]] = label_images(df[df.s == s], image_path)

@@ -120,6 +120,7 @@ class HiSeq():
           partial once, or None, the default is partial once.
         - focus_tol: Focus tolerance, distance in microns.
         - overlap: Pixel overlap, the default is 0.
+        - overlap_dir: Pixel overlap direction (left/right), the default is left.
         - virtual: Flag for using virtual HiSeq
         - fc_origin: Upper right X and Y stage step position for flowcell slots.
         - scan_flag: True if HiSeq is currently scanning
@@ -168,6 +169,7 @@ class HiSeq():
         self.AF = 'partial'                                                     # autofocus routine
         self.focus_tol = 0                                                      # um, focus tolerance
         self.overlap = 0
+        self.overlap_dir = 'left'
         self.virtual = False                                                    # virtual flag
         self.scan_flag = False                                                  # imaging/scanning flag
         self.current_view = None                                                # latest images
@@ -786,7 +788,7 @@ class HiSeq():
 
         return stop-start
 
-    def scan(self, n_tiles, n_Zplanes, n_frames, image_name=None, overlap=0):
+    def scan(self, n_tiles, n_Zplanes, n_frames, image_name=None):
         """Image a volume.
 
            Images a zstack at incremental x positions.
@@ -799,7 +801,6 @@ class HiSeq():
             - n_frames (int): Number of frames to image.
             - image_name (str): Common name for images, the default is a time
               stamp.
-            - overlap (int): Number of column pixels to overlap between tiles.
 
            **Returns:**
             - int: Time it took to do scan in seconds.
@@ -807,7 +808,7 @@ class HiSeq():
         """
 
         self.scan_flag = True
-        dx = self.tile_width*1000-self.resolution*overlap                       # x stage delta in in microns
+        dx = self.tile_width*1000-self.resolution*self.overlap                       # x stage delta in in microns
         dx = round(dx*self.x.spum)                                              # x stage delta in steps
 
         if image_name is None:
@@ -895,7 +896,10 @@ class HiSeq():
         x_center = int(x_center)
 
         # initial X of scan
-        x_initial = int(x_center - n_tiles*dx*1000*self.x.spum/2)
+        x_initial = n_tiles*dx*1000/2                                           #1/2 fov width in microns
+        if self.overlap_dir == 'left':
+            x_initial -= self.resolution*self.overlap                           #Move stage to compensate for discarded initial px
+        x_initial = int(x_center - x_initial*self.x.spum)
         pos['x_initial'] = x_initial
 
         # initial Y of scan
@@ -944,6 +948,8 @@ class HiSeq():
         y_init = pos_dict['y_initial']
 
         x_step = col*scale*self.x.spum
+        if self.overlap_dir == 'left':
+            x_step += self.overlap*scale
         x_step = int(x_init + x_step - 315/2)
 
         trigger_offset = -80000

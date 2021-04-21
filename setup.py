@@ -28,19 +28,14 @@ setup(
     python_requires='>=3.5',
     install_requires=['pyserial>=3', #add version numbers
                       'numpy',
-                      'pandas',
                       'scipy',
                       'imageio',
-                      'scikit-image',
-                      'dask',
-                      'xarray',
-                      'zarr',
-                      'napari',
-                      'qtpy',
-                      'glob'],
+                      'tabulate',
+                      'dask', 'xarray', 'zarr', 'glob', 'napari'],
     package_data={
         'pyseq': ['recipes/*', 'focus_data/*',
-                  'focus_data/full/*', 'focus_data/partial/*']
+                  'focus_data/full/*', 'focus_data/partial/*',
+                  'resources/*']
         },
 
     #package_data={  # Optional
