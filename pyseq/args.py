@@ -68,8 +68,8 @@ parser.add_argument('-settings',
 
 # Flag to perform a diagnostic run
 parser.add_argument('-ports',
-                    help='view/set com ports',
-                    metavar = 'PORT',
+                    help='view com ports',
+                    action = 'store_true',
                     )
 
 # Flag to perform a diagnostic run
@@ -103,20 +103,8 @@ def get_arguments():
         from . import check_system
         sys.exit()
 
-    if args['ports']:
-        instrument = args['ports'].lower()
-        if instrument in ['all', 'a']:
-            methods.list_com_ports()
-            instrument = False
-        else:
-            com_ports = methods.get_com_ports()
-            if instrument in com_ports:
-                print(instrument,'=', com_ports[instrument])
-            else:
-                print(port, 'is not valid')
-                instrument = False
-
-        methods.assign_com_ports(instrument)
+    if args['ports'] is True:
+        methods.list_com_ports()
 
         sys.exit()
 
