@@ -467,9 +467,9 @@ class HiSeqImages():
             # Open background config
             config = configparser.ConfigParser()
             if not self.im.machine:
-                config_path = pkg_resources.path(recipes, 'background.cfg')
+                config_path = pkg_resources.path(resources, 'background.cfg')
             else:
-                config_path = pkg_resources.path(recipes, machine+'.cfg')
+                config_path = pkg_resources.path(resources, machine+'.cfg')
             with config_path as config_path_:
                 config.read(config_path_)
 
