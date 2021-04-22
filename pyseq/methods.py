@@ -87,7 +87,11 @@ def print_method(method):
         for line in f:
             print(line[0:-1])
 
+
+
 def list_settings(instrument = 'HiSeq2500'):
+    """Print all possible setting keywords and descriptions."""
+
     settings = configparser.ConfigParser()
     with pkg_resources.path(resources, 'settings.cfg') as settings_path:
         settings.read(settings_path)
@@ -97,7 +101,11 @@ def list_settings(instrument = 'HiSeq2500'):
         print(s,':', settings[s])
         print()
 
+
+
 def get_settings(instrument = 'HiSeq2500'):
+    """Return all possible setting keywords."""
+
     settings = configparser.ConfigParser()
     with pkg_resources.path(resources, 'settings.cfg') as settings_path:
         settings.read(settings_path)
@@ -106,20 +114,25 @@ def get_settings(instrument = 'HiSeq2500'):
 
     return settings
 
+
+
 def check_settings(input_settings, instrument = 'HiSeq2500'):
-    settings = configparser.ConfigParser()
-    with pkg_resources.path(resources, 'settings.cfg') as settings_path:
-        settings.read(settings_path)
+    """Check setting keywords in config file are valid."""
+
+    settings = get_settings(instrument)
 
     all_clear = True
     for s in input_settings:
-        if s not in [*settings[instrument].keys()]:
+        if s not in [*settings.keys()]:
             print(s, 'is not a valid setting')
             all_clear = False
 
     return all_clear
 
+
+
 def list_com_ports(instrument = 'HiSeq2500'):
+    """Print and return COM Ports of instruments."""
 
     com_ports = configparser.ConfigParser()
     with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
@@ -129,18 +142,14 @@ def list_com_ports(instrument = 'HiSeq2500'):
     for port_name in com_ports:
         print(port_name,':', com_ports[port_name])
 
-def get_com_ports(instrument = 'HiSeq2500'):
-
-    com_ports = configparser.ConfigParser()
-    with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
-        com_ports.read(config_path)
-
-    com_ports = com_ports[instrument]
-
     return com_ports
 
+
+
 def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
-    com_ports = get_com_ports()
+    """Change COM ports of instruments."""
+
+    com_ports = list_com_ports()
 
     if userYN('Assign new COM ports?'):
         keep_assigning = True
@@ -180,6 +189,42 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
                 default_com_ports.write(f)
         else:
             instrument = False
+
+
+
+def get_machine_info(virtual=False):
+    """Specify machine model and name."""
+
+    config = configparser.ConfigParser()
+    with pkg_resources.path(resources, 'machine_info.cfg') as config_path:
+        config.read(config_path)
+    model = config['DEFAULT']['model']
+    name = config['DEFAULT']['name']
+
+    # Get machine model from user
+    while model == 'None' and not virtual:
+        if userYN('Is this a HiSeq2500'):
+            model = 'HiSeq2500'
+            if model not in ['HiSeq2500']:
+                model = 'None'
+
+    # Get machine name from user
+    while name == 'virtual' and not virtual:
+        name = input('Name of '+model+' = ')
+        if not userYN('Name this '+model+' '+name):
+            name = 'virtual'
+
+    if virtual:
+        name = 'virtual'
+        model = 'HiSeq2500'
+    else:
+        config['DEFAULT'] = {'model':model,'name':name}
+        with pkg_resources.path(resources, 'machine_info.cfg') as config_path:
+            f = open(config_path,mode='w')
+            config.write(f)
+
+    return model, name
+
 
 
 def userYN(*args):

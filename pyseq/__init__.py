@@ -129,7 +129,7 @@ class HiSeq():
     """
 
 
-    def __init__(self, Logger = None):
+    def __init__(self, name = 'HiSeq2500', Logger = None):
         """Constructor for the HiSeq."""
 
         com_ports = get_com_ports('HiSeq2500')
@@ -173,7 +173,7 @@ class HiSeq():
         self.virtual = False                                                    # virtual flag
         self.scan_flag = False                                                  # imaging/scanning flag
         self.current_view = None                                                # latest images
-
+        self.name = name
         self.check_COM()
 
 

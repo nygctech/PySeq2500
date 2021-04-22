@@ -377,6 +377,9 @@ def configure_instrument(IMAG_counter, port_dict):
 
     global n_errors
 
+
+    model, name = methods.get_machine_info(args_['virtual'])
+    config['experiment']['machine'] = model+'::'+name
     experiment = config['experiment']
     method = experiment['method']
     method = config[method]
@@ -387,14 +390,15 @@ def configure_instrument(IMAG_counter, port_dict):
         error('ConfigFile:: Cycles not specified')
 
     # Creat HiSeq Object
-    if args_['virtual']:
-        from . import virtualHiSeq
-        hs = virtualHiSeq.HiSeq(logger)
-        hs.speed_up = int(method.get('speed up', fallback = 5000))
-    else:
-        import pyseq
-        com_ports = pyseq.get_com_ports()
-        hs = pyseq.HiSeq(logger)
+    if model == 'HiSeq2500':
+        if args_['virtual']:
+            from . import virtualHiSeq
+            hs = virtualHiSeq.HiSeq(name, logger)
+            hs.speed_up = int(method.get('speed up', fallback = 5000))
+        else:
+            import pyseq
+            com_ports = pyseq.get_com_ports()
+            hs = pyseq.HiSeq(name, logger)
 
     # Check side ports
     try:
@@ -500,6 +504,8 @@ def configure_instrument(IMAG_counter, port_dict):
     image_path = join(save_path, experiment['image path'])
     if not os.path.exists(image_path):
         os.mkdir(image_path)
+    with open(join(image_path,'machine_name.txt'),'w') as file:
+        file.write(hs.name)
     hs.image_path = image_path
     # Assign log directory
     log_path = join(save_path, experiment['log path'])
@@ -545,6 +551,7 @@ def confirm_settings(recipe_z_planes = []):
         print('first_port:', first_port)
     print('save path:', experiment['save path'])
     print('enable z stage:', hs.z.active)
+    print('machine:', experiment['machine'])
     print()
     if not userYN('Confirm experiment'):
         sys.exit()

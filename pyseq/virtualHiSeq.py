@@ -945,7 +945,7 @@ import warnings
 import pandas as pd
 
 class HiSeq():
-    def __init__(self, Logger = None):
+    def __init__(self, name = 'HiSeq2500', Logger = None):
         self.x = Xstage()
         self.y = Ystage()
         self.z = Zstage()
@@ -984,6 +984,7 @@ class HiSeq():
         self.scan_flag = False
         self.speed_up = 10
         self.current_view = None
+        self.name = name
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
