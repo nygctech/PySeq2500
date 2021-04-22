@@ -11,3 +11,6 @@ recursive-include pyseq/recipes *.txt *.cfg
 recursive-include pyseq/focus_data *.txt
 recursive-include pyseq/focus_data/full *.tiff
 recursive-include pyseq/focus_data/partial *.tiff
+
+# Include Resources
+recursive-include pyseq/resources *.cfg
