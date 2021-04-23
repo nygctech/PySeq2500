@@ -24,6 +24,7 @@ except ImportError:
     # Try backported to PY<37 `importlib_resources`.
     import importlib_resources as pkg_resources
 from . import resources
+from .methods import userYN
 
 def message(logger, *args):
     """Print output text to logger or console.
@@ -328,36 +329,52 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
     return ord_points
 
 
-def compute_background(im_path, save_path = None, machine=''):
-
-    ims = HiSeqImages(im_path)
-    name = [*ims.sections.keys()][0]
-    dataset = ims.sections[name]
+def compute_background(image_path, common_name = ''):
     sensor_size = 256 # pixels
-    background = {}
 
-    # Loop over channels then sensor group and find mode
-    for ch in dataset.channel.values:
-        for i in range(8):
-            sensor = dataset.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
-            background.setdefault(ch, dict())
-            background[ch][i] = stats.mode(sensor, axis=None)[0][0]
-        avg_background = int(round(np.mean([*background[ch].values()])))
-        print('Channel', ch,'::Average background', avg_background)
-        # Calculate background correction
-        for i in range(8):
-            background[ch][i] = avg_background-background[ch][i]
-
-    # Save background correction values in config file
+    # Open background.cfg save in USERHOME/PySeq2500
     config = configparser.ConfigParser()
-    config.read_dict(background)
-    if save_path is None:
-        save_path = im_path
-    if not machine:
-        bg_path = path.join(save_path,'background.cfg')
+    homedir = expanduser('~')
+    config_path = join(homedir,'PySeq2500','background.cfg')
+    if isfile(config_path):
+        with open(config_path,'r') as f:
+            config.read(f)
     else:
-        bg_path = path.join(save_path,machine+'.cfg')
-    with open(bg_path, 'w') as configfile: config.write(configfile)
+        raise RuntimeError('Can not find /USERHOME/PySeq2500/background.cfg.')
+
+    im = get_HiSeqImages(image_path, common_name)
+    try:
+        im = im[0]                                                              # In case there are multiple sections in image_path
+    except:
+        pass
+
+    proceed = True
+    if config.has_section(im.machine):
+        if not userYN('Overide existing background data for '+im.machine):
+            if not userYN('Confirm overide of '+im.machine+' background data'):
+                proceed = False
+
+    if proceed:
+        print('Analyzing ', im.im.name)
+
+        # Loop over channels then sensor group and find mode
+        background = {}
+        for ch in im.channel.values:
+            background.setdefault(ch, [])
+            for i in range(8):
+                sensor = im.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
+                background[ch].append(stats.mode(sensor, axis=None)[0][0])
+            avg_background = int(round(np.mean(background[ch])))
+            print('Channel', ch,'::Average background', avg_background)
+
+            for i in range(8):
+                background[ch][i] = avg_background-background[ch][i]            # Calculate background correction
+
+        # Save background correction values in config file
+        config.read_dict({im.machine:background})
+        with open(config_path,'w') as f:
+                config.write(f)
+
 
 
 def get_HiSeqImages(image_path=None, common_name='', logger = None):

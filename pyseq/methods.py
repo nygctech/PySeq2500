@@ -5,6 +5,7 @@ Kunal Pandit 3/15/2020
 '''
 
 import configparser
+from os.path import expanduser, join, isfile, isdir
 
 try:
     import importlib.resources as pkg_resources
@@ -195,11 +196,31 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
 def get_machine_info(virtual=False):
     """Specify machine model and name."""
 
+    # Open machine_info.cfg save in USERHOME/PySeq2500
+    homedir = expanduser('~')
+    if not isdir(join(homedir,'PySeq2500')):
+        mkdir(join(homedir,'PySeq2500'))
+
+    config_path = join(homedir,'PySeq2500','machine_info.cfg')
     config = configparser.ConfigParser()
-    with pkg_resources.path(resources, 'machine_info.cfg') as config_path:
-        config.read(config_path)
-    model = config['DEFAULT']['model']
-    name = config['DEFAULT']['name']
+    if isfile(config_path):
+        with open(config_path,'r') as f:
+            config.read(f)
+        model = config['DEFAULT']['model']
+        name = config['DEFAULT']['name']
+    else:
+        model = 'None'
+        name = 'virtual'
+
+    # Open background.cfg save in USERHOME/PySeq2500
+    background = configparser.ConfigParser()
+    background_path = join(homedir,'PySeq2500','background.cfg')
+    if isfile(background_path):
+        with open(background_path,'r') as f:
+            background.read(f)
+        other_machines = list(background.sections())
+    else:
+        other_machines = []
 
     # Get machine model from user
     while model == 'None' and not virtual:
@@ -209,18 +230,24 @@ def get_machine_info(virtual=False):
                 model = 'None'
 
     # Get machine name from user
+    proceed = False
     while name == 'virtual' and not virtual:
         name = input('Name of '+model+' = ')
-        if not userYN('Name this '+model+' '+name):
-            name = 'virtual'
+        if name in other_machines:
+            if userYN(name +' has been used. Still want to use'):
+                proceed = True
+        else:
+            proceed = True
+        if proceed:
+            if not userYN('Name this '+model+' '+name):
+                name = 'virtual'
 
     if virtual:
         name = 'virtual'
         model = 'HiSeq2500'
-    else:
-        config['DEFAULT'] = {'model':model,'name':name}
-        with pkg_resources.path(resources, 'machine_info.cfg') as config_path:
-            f = open(config_path,mode='w')
+    elif proceed:
+        config.read_dict({'DEFAULT':{'model':model,'name':name}})
+        with open(config_path,'w') as f:
             config.write(f)
 
     return model, name
