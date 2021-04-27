@@ -12,7 +12,6 @@ import configparser
 import threading
 import argparse
 
-
 from . import methods
 from . import args
 from . import focus
@@ -1284,10 +1283,43 @@ def do_prime(flush_YorN):
                         for fc in flowcells.values():
                             alive_.append(fc.thread.is_alive())
                             alive = any(alive_)
-            LED('all', 'user')
             break
 
+        # Rinse flowcells
+        method = config.get('experiment', 'method')                             # Read method specific info
+        method = config[method]
+        rinse_port = method.get('rinse', fallback = None)
+        rinse = rinse_port in hs.v24[AorB].port_dict
+        if rinse_port == port:                                                  # Option to skip rinse if last reagent pump was rinse reagent
+            rinse = False
 
+        # Get rinse reagents
+        if not rinse:
+            LED('all', 'user')
+            print('Last reagent pumped was', port)
+            if userYN('Rinse flowcell'):
+                while not rinse:
+                    if rinse_port not in hs.v24[AorB].port_dict:
+                        rinse_port = input('Specify rinse reagent: ')
+                    rinse = rinse_port in hs.v24[AorB].port_dict
+                    if not rinse:
+                        print('ERROR::Invalid rinse reagent')
+                        print('Choose from:', *list(hs.v24[AorB].port_dict.keys()))
+        if rinse:
+            # Simultaneously Rinse Flowcells
+            for fc in flowcells.values():
+                fc.thread = threading.Thread(target=do_rinse,
+                                             args=(fc,rinse_port,))
+                fc.thread.start()
+                alive = True
+            # Wait for rinsing to complete
+            while alive:
+                alive_ = []
+                for fc in flowcells.values():
+                    alive_.append(fc.thread.is_alive())
+                    alive = any(alive_)
+
+        LED('all', 'user')
         while not userYN('Temporary flowcell(s) removed'): pass
 
     while not userYN('Experiment flowcell(s) locked on to stage'): pass
@@ -1571,7 +1603,7 @@ def WAIT(AorB, event):
     stop = time.time()
     return stop-start
 
-def do_rinse(fc):
+def do_rinse(fc, port=None):
     """Rinse flowcell with reagent specified in config file.
 
        **Parameters:**
@@ -1581,7 +1613,8 @@ def do_rinse(fc):
 
     method = config.get('experiment', 'method')                                 # Read method specific info
     method = config[method]
-    port = method.get('rinse', fallback = None)
+    if port is None:
+        port = method.get('rinse', fallback = None)
     AorB  = fc.position
     rinse = port in hs.v24[AorB].port_dict
 
