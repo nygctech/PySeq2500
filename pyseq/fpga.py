@@ -81,6 +81,7 @@ class FPGA():
         self.suffix = '\n'
         self.y_offset = 7000000
         self.logger = logger
+        self.busy = False
         self.led_dict = {'off':'0', 'yellow':'1', 'green':'3', 'pulse green':'4',
                          'blue':'5', 'pulse blue':'6', 'sweep blue': '7'}
 
@@ -106,7 +107,11 @@ class FPGA():
             - str: The response from the FPGA.
 
         """
+        # Block communication if busy
+        while self.busy:
+            pass
 
+        self.busy = True
         text = text + self.suffix
         self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
@@ -114,6 +119,10 @@ class FPGA():
         if self.logger is not None:
             self.logger.info('FPGA::txmt::'+text)
             self.logger.info('FPGA::rcvd::'+response)
+        else:
+            print(response)
+
+        self.busy = False
 
         return  response
 
