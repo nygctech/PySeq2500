@@ -166,18 +166,18 @@ class Ystage():
             if mode in self.configurations.keys():
                 gains = str(self.configurations[mode]['g'])
                 _gains = [float(g) for g in gains.split(',')]
-                velocity = str(self.configurations[mode]['v'])
+                velocity = self.configurations[mode]['v']
                 all_true = False
                 while all_true:
                     self.command('GAINS('+gains+')')
                     gains_ = self.command('GAINS').strip()[1:].split(' ')       # format reponse
                     all_true = all([float(g[2:]) == _gains[i] for i, g in enumerate(gains_)])
                 velocity_ = None
-                while velocity_ != velocity:
-                    self.command('V'+velocity+)
-                    velocity_ = float(self.command('V').strip()[1:])            
+                while velocity_ != float(velocity):
+                    self.command('V'+str(velocity))
+                    velocity_ = float(self.command('V').strip()[1:])
                 self.mode = mode
-                self.velocity = v
+                self.velocity = velocity_
                 self.gains = gains
             else:
                 gains = None
