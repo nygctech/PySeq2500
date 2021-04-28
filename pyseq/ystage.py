@@ -8,7 +8,7 @@
    front, and positive step positions are to the back. Each ystage step = 10 nm.
 
    **Example:**
-   
+
 .. code-block:: python
 
     #Create ystage
@@ -124,11 +124,12 @@ class Ystage():
         """
 
         if self.min_y <= position <= self.max_y:
-            self.command('D' + str(position))                                   # Set distance
-            self.command('G')                                                   # Go
-            while not self.check_position():                                    # Wait till y stage is in position
+            while not self.position != position:
+                self.command('D' + str(position))                               # Set distance
+                self.command('G')                                               # Go
+                self.check_position()                                           # Wait till y stage is in position
                 time.sleep(1)
-            self.read_position()                                                # Update stage position
+                self.read_position()                                            # Update stage position
             return True                                                         # Return True that stage is in position
         else:
             print("YSTAGE can only between " + str(self.min_y) + ' and ' +
