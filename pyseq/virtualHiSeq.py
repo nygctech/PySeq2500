@@ -196,6 +196,9 @@ class Ystage():
         self.min_y = -7000000
         self.max_y = 7500000
         self.spum = 100     # steps per um
+        self.mode = None
+        self.velocity = None
+        self.gains = None
         self.position = 0
 
     def move(self, position):
@@ -223,6 +226,26 @@ class Ystage():
 
     def command(self, text):
         return text
+
+    def set_mode(self, mode):
+        "Change between imaging and moving configurations."
+
+        if self.mode != mode:
+            if mode in self.configurations.keys():
+                gains = str(self.configurations[mode]['g'])
+                velocity = str(self.configurations[mode]['v'])
+                self.mode = mode
+                self.velocity = v
+                self.gains = gains
+            else:
+                gains = None
+                message = 'Ystage::ERROR::Invalid configuration::'+str(mode)
+                if self.logger is not None:
+                    self.logger.info(message)
+                else:
+                    print(message)
+
+        return True
 
 
 class Zstage():
@@ -1127,8 +1150,9 @@ class HiSeq():
 
         #TO DO, double check gains and velocity are set
         #Set gains and velocity of image scanning for ystage
-        response = y.command('GAINS(5,10,5,2,0)')
-        response = y.command('V0.15400')
+        y.set_mode('imaging')
+        # response = y.command('GAINS(5,10,5,2,0)')
+        # response = y.command('V0.15400')
 
 
         # Make sure cameras are ready (status = 3)
@@ -1224,8 +1248,9 @@ class HiSeq():
         cam2.freeFrames()
 
         # Reset gains & velocity for ystage
-        y.command('GAINS(5,10,7,1.5,0)')
-        y.command('V1')
+        y.set_mode('moving')
+        # y.command('GAINS(5,10,7,1.5,0)')
+        # y.command('V1')
 
         meta_f.close()
 

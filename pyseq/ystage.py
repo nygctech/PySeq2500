@@ -75,8 +75,13 @@ class Ystage():
         self.on = False
         self.position = 0
         self.home = 0
+        self.mode = None
+        self.velocity = None
+        self.gains = None
+        self.configurations = {'imaging':{'g':'5,10,5,2,0'  ,'v':0.15400},
+                               'moving': {'g':'5,10,7,1.5,0','v':1}
+                               }
         self.logger = logger
-
 
     def initialize(self):
         """Initialize the ystage."""
@@ -88,6 +93,7 @@ class Ystage():
         response = self.command('ON')                                           # Turn Motor ON
         self.on = True
         response = self.command('GH')                                           # Home Stage
+        self.set_mode('moving')
 
 
     def command(self, text):
@@ -152,3 +158,33 @@ class Ystage():
         self.position = int(self.command('R(PA)')[1:])                          # Read and store position
 
         return self.position
+
+    def set_mode(self, mode):
+        "Change between imaging and moving configurations."
+
+        if self.mode != mode:
+            if mode in self.configurations.keys():
+                gains = str(self.configurations[mode]['g'])
+                _gains = [float(g) for g in gains.split(',')]
+                velocity = str(self.configurations[mode]['v'])
+                all_true = False
+                while all_true:
+                    self.command('GAINS('+gains+')')
+                    gains_ = self.command('GAINS').strip()[1:].split(' ')       # format reponse
+                    all_true = all([float(g[2:]) == _gains[i] for i, g in enumerate(gains_)])
+                velocity_ = None
+                while velocity_ != velocity:
+                    self.command('V'+velocity+)
+                    velocity_ = float(self.command('V').strip()[1:])            
+                self.mode = mode
+                self.velocity = v
+                self.gains = gains
+            else:
+                gains = None
+                message = 'Ystage::ERROR::Invalid configuration::'+str(mode)
+                if self.logger is not None:
+                    self.logger.info(message)
+                else:
+                    print(message)
+
+        return True

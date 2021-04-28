@@ -347,8 +347,9 @@ class HiSeq():
 
         #TO DO, double check gains and velocity are set
         #Set gains and velocity of image scanning for ystage
-        response = y.command('GAINS(5,10,5,2,0)')
-        response = y.command('V0.15400')
+        y.set_mode('imaging')
+        # response = y.command('GAINS(5,10,5,2,0)')
+        # response = y.command('V0.15400')
 
 
         # Make sure cameras are ready (status = 3)
@@ -445,8 +446,9 @@ class HiSeq():
         cam2.freeFrames()
 
         # Reset gains & velocity for ystage
-        y.command('GAINS(5,10,7,1.5,0)')
-        y.command('V1')
+        y.set_mode('moving')
+        # y.command('GAINS(5,10,7,1.5,0)')
+        # y.command('V1')
 
         meta_f.close()
 
@@ -606,7 +608,8 @@ class HiSeq():
         self.message('HiSeq::Moving stage out')
         self.z.move([0,0,0])
         self.x.move(self.x.home)
-        self.y.command('GAINS(5,10,7,1.5,0)')
+        self.y.set_mode('moving')
+        #self.y.command('GAINS(5,10,7,1.5,0)')
         self.y.command('V1')
         self.y.move(self.y.min_y)
 
