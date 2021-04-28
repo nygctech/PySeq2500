@@ -162,6 +162,7 @@ class Ystage():
     def set_mode(self, mode):
         "Change between imaging and moving configurations."
 
+        mode_changed = True
         if self.mode != mode:
             if mode in self.configurations.keys():
                 gains = str(self.configurations[mode]['g'])
@@ -180,11 +181,11 @@ class Ystage():
                 self.velocity = velocity_
                 self.gains = gains
             else:
-                gains = None
+                mode_change = False
                 message = 'Ystage::ERROR::Invalid configuration::'+str(mode)
                 if self.logger is not None:
                     self.logger.info(message)
                 else:
                     print(message)
 
-        return True
+        return mode_changed
