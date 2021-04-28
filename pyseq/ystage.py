@@ -171,12 +171,20 @@ class Ystage():
                 all_true = False
                 while all_true:
                     self.command('GAINS('+gains+')')
-                    gains_ = self.command('cGAINS').strip()[1:].split(' ')       # format reponse
-                    all_true = all([float(g[2:]) == _gains[i] for i, g in enumerate(gains_)])
+                    time.sleep(1)
+                    try:
+                        gains_ = self.command('cGAINS').strip()[1:].split(' ')       # format reponse
+                        all_true = all([float(g[2:]) == _gains[i] for i, g in enumerate(gains_)])
+                    except:
+                        all_true = False
                 velocity_ = None
                 while velocity_ != float(velocity):
                     self.command('V'+str(velocity))
-                    velocity_ = float(self.command('V').strip()[1:])
+                    time.sleep(1)
+                    try:
+                        velocity_ = float(self.command('V').strip()[1:])
+                    except:
+                        velocity_ = False
                 self.mode = mode
                 self.velocity = velocity_
                 self.gains = gains
