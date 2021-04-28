@@ -130,7 +130,7 @@ class Ystage():
         """
 
         if self.min_y <= position <= self.max_y:
-            while not self.position != position:
+            while self.position != position:
                 self.command('D' + str(position))                               # Set distance
                 self.command('G')                                               # Go
                 self.check_position()                                           # Wait till y stage is in position
@@ -170,7 +170,7 @@ class Ystage():
                 all_true = False
                 while all_true:
                     self.command('GAINS('+gains+')')
-                    gains_ = self.command('GAINS').strip()[1:].split(' ')       # format reponse
+                    gains_ = self.command('cGAINS').strip()[1:].split(' ')       # format reponse
                     all_true = all([float(g[2:]) == _gains[i] for i, g in enumerate(gains_)])
                 velocity_ = None
                 while velocity_ != float(velocity):
