@@ -227,6 +227,7 @@ def setup_flowcells(first_line, IMAG_counter):
 
     flowcells = {}
     for sect_name in config['sections']:
+        f_sect_name = sect_name.replace('_','')                                 #remove underscores
         position = config['sections'][sect_name]
         AorB, coord  = position.split(':')
         # Create flowcell if it doesn't exist
@@ -260,15 +261,15 @@ def setup_flowcells(first_line, IMAG_counter):
             error(err_msg, sect_name, 'duplicated on flowcell', AorB)
         else:
             coord = coord.split(',')
-            flowcells[AorB].sections[sect_name] = []                            # List to store coordinates of section on flowcell
-            flowcells[AorB].stage[sect_name] = {}                               # Dictionary to store stage position of section on flowcell
+            flowcells[AorB].sections[f_sect_name] = []                          # List to store coordinates of section on flowcell
+            flowcells[AorB].stage[f_sect_name] = {}                             # Dictionary to store stage position of section on flowcell
             if float(coord[0]) <  float(coord[2]):
                 error(err_msg,'Invalid x coordinates for', sect_name)
             if float(coord[1]) <  float(coord[3]):
                 error(err_msg, 'Invalid y coordinates for', sect_name)
             for i in range(4):
                 try:
-                    flowcells[AorB].sections[sect_name].append(float(coord[i]))
+                    flowcells[AorB].sections[f_sect_name].append(float(coord[i]))
                 except:
                     error(err_msg,' No position for', sect_name)
 
