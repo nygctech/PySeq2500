@@ -365,12 +365,15 @@ def get_HiSeqImages(image_path=None, common_name='', logger = None):
 
 
     ims = HiSeqImages(image_path, common_name, logger)
-    n_images = len(ims.im)
+    ims_ = [im for im in ims.im if im is not None]
+    n_images = len(ims_)
     if n_images > 1:
-        return [HiSeqImages(im=i) for i in ims.im]
+        return [HiSeqImages(im=i) for i in ims_]
     elif n_images == 1:
-        ims.im = ims.im[0]
+        ims.im = ims_[0]
         return ims
+    else:
+        return None
 
 
 
@@ -922,16 +925,19 @@ class HiSeqImages():
             else:
                 dim_names = ['channel', 'cycle', 'obj_step', 'row', 'col']
                 coord_values = {'channel':fn_comp_sets[0], 'cycle':fn_comp_sets[3], 'obj_step':fn_comp_sets[5]}
-            im = xr.DataArray(da.block(a.tolist()),
-                                   dims = dim_names,
-                                   coords = coord_values,
-                                   name = s[1:])
+            try:
+                im = xr.DataArray(da.block(a.tolist()),
+                                       dims = dim_names,
+                                       coords = coord_values,
+                                       name = s[1:])
 
 
-            im = self.register_channels(im.squeeze())
-            im = im.assign_attrs(first_group = 0, machine = '', scale=1,
-                                 overlap=0, fixed_bg = 0)
+                im = self.register_channels(im.squeeze())
+                im = im.assign_attrs(first_group = 0, machine = '', scale=1,
+                                     overlap=0, fixed_bg = 0)
+                im_names.append(s[1:])
+            except:
+                im = None
             self.im.append(im)
-            im_names.append(s[1:])
 
         return im_names
