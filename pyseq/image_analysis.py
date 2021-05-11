@@ -398,15 +398,15 @@ def get_machine_config(machine):
     #config_path = pkg_resources.path(resources, 'background.cfg')
     config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
 
-    if os.path.exists(config_path):
-        with config_path as config_path_:
-            config.read(config_path_)
+    if path.exists(config_path):
+        with open(config_path,'r') as config_path_:
+            config.read_file(config_path_)
 
-        if machine not in config['machines'].options():
-            message('Settings for', machine, 'do not exist')
+        if machine not in config.options('machines'):
+            print('Settings for', machine, 'do not exist')
             config = None
     else:
-        message(config_path, 'not found')
+        print(config_path, 'not found')
         config = None
 
     return config
@@ -429,7 +429,7 @@ class HiSeqImages():
 
     """
 
-    def __init__(self, image_path=None, common_name='',  im=None, machine=None,
+    def __init__(self, image_path=None, common_name='',  im=None,
                        obj_stack=None, RoughScan = False, logger = None):
         """The constructor for HiSeq Image Datasets.
 
@@ -457,54 +457,48 @@ class HiSeqImages():
         self.config  = None
         self.machine = None
 
-        # Get machine config
-        if machine is not None:
-            self.config = get_machine_config(machine)
-            if self.config is not None:
-                self.machine = str(machine)
-
-        if len(common_name) > 0:
-            common_name = '*'+common_name
-
-        section_names = []
         if im is None:
+
             if image_path is None:
                 image_path = getcwd()
+
+            # Get machine config
+            name_path = path.join(image_path,'machine_name.txt')
+            if path.exists(name_path):
+                with open(name_path,'r') as f:
+                    machine = f.readline().strip()
+                    self.config = get_machine_config(machine)
+            if self.config is not None:
+                self.machine = machine
+
+            if len(common_name) > 0:
+                common_name = '*'+common_name
+
+            section_names = []
 
             # Open zarr
             if image_path[-4:] == 'zarr':
                 self.filenames = [image_path]
                 section_names = self.open_zarr()
-            else:
-                name_path = path.join(image_path,'machine_name.txt')
-                if path.exists(name_path):
-                    with open(name_path,'r') as f:
-                        machine_name = f.readline().strip()
-                else:
-                    print('WARNING')
-                    print('Can not find machine name.')
-                    print('Using HiSeq2500 as name.')
-                    print('Add machine_name.txt to image path if not correct')
-                    machine_name = 'HiSeq2500'
 
-            if obj_stack is not None:
+            elif obj_stack is not None:
                 # Open obj stack (jpegs)
                 #filenames = glob.glob(path.join(image_path, common_name+'*.jpeg'))
-                n_frames = self.open_objstack(obj_stack, machine_name)
+                n_frames = self.open_objstack(obj_stack)
 
             elif RoughScan:
                 # RoughScans
                 filenames = glob.glob(path.join(image_path,'*RoughScan*.tiff'))
                 if len(filenames) > 0:
                     self.filenames = filenames
-                    n_tiles = self.open_RoughScan(machine_name)
+                    n_tiles = self.open_RoughScan()
 
             else:
                 # Open tiffs
                 filenames = glob.glob(path.join(image_path, common_name+'*.tiff'))
                 if len(filenames) > 0:
                     self.filenames = filenames
-                    section_names += self.open_tiffs(machine_name)
+                    section_names += self.open_tiffs()
 
                 # Open zarrs
                 filenames = glob.glob(path.join(image_path, common_name+'*.zarr'))
@@ -524,7 +518,7 @@ class HiSeqImages():
         machine = self.im.machine
         if not bool(self.im.fixed_bg) and machine is not None:
             bg_dict = {}
-            for ch, values in config.items(str(machine)+'background'):
+            for ch, values in self.config.items(str(machine)+'background'):
                 values = list(map(int,values.split(',')))
                 bg_dict[int(ch)]=values
 
@@ -549,42 +543,50 @@ class HiSeqImages():
             if bool(self.im.fixed_bg):
                 print('Image already background corrected.')
             elif machine is None:
-                print('No machine specified.')
+                print('Unknown machine')
 
 
     def register_channels(self, image=None):
         """Register image channels."""
 
-        if image is None
+        if image is None:
             img = self.im
+            machine = self.im.machine
+        else:
+            img = image
+            machine = image.machine
 
-        machine = self.im.machine
-        if not bool(self.im.fixed_bg) and machine is not None:
-            bg_dict = {}
+        reg_dict = {}
+        if machine is not None:
             # Format values from config
-            for ch, values in config.items(str(machine)+'registration'):
-                values =[]
+            for ch, values in self.config.items(str(machine)+'registration'):
+                pxs = []
                 for v in values.split(','):
                     try:
-                        values.append(int(v))
+                        pxs.append(int(v))
                     except:
-                        values.append(None)
-                bg_dict[int(ch)]=values
+                        pxs.append(None)
+                reg_dict[int(ch)]=pxs
 
-        shifted=[]
-        for ch in self.channel_shift.keys():
-            shift = self.channel_shift[ch]
-            shifted.append(img.sel(channel = ch,
-                                   row=slice(shift[0],shift[1]),
-                                   col=slice(shift[2],shift[3])
-                                   ))
-        img = xr.concat(shifted, dim = 'channel')
-        img = img.sel(row=slice(64,None))                                       # Top 64 rows have white noise
 
-        if image is not None:
-            self.im = img
+            shifted=[]
+            for ch in reg_dict.keys():
+                shift = reg_dict[ch]
+                shifted.append(img.sel(channel = ch,
+                                       row=slice(shift[0],shift[1]),
+                                       col=slice(shift[2],shift[3])
+                                       ))
+
+            img = xr.concat(shifted, dim = 'channel')
+            img = img.sel(row=slice(64,None))                                   # Top 64 rows have white noise
+
+            if image is None:
+                self.im = img
+        else:
+            print('Unknown machine')
 
         return img
+
 
 
 
@@ -843,11 +845,12 @@ class HiSeqImages():
                         im.attrs[items[0]] = value
 
             if im.machine in ['', 'None']:
-                im.attrs['machine'] = 'HiSeq2500'
+                im.attrs['machine'] = None
                 self.machine = None
-            else.
-                self.machine = im.machine
-
+            else:
+                self.config = get_machine_config(im.machine)
+                if self.config is not None:
+                    self.machine = im.machine
 
             self.im.append(im)
 
@@ -1011,10 +1014,11 @@ class HiSeqImages():
                                    dims = dim_names,
                                    coords = coord_values,
                                    name = s[1:])
-
-            im = self.register_channels(im.squeeze())
             im = im.assign_attrs(first_group = 0, machine = self.machine, scale=1,
                                  overlap=0, fixed_bg = 0)
+
+            im = self.register_channels(im.squeeze())
+
             self.im.append(im)
             im_names.append(s[1:])
 
