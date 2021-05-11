@@ -389,6 +389,29 @@ def get_HiSeqImages(image_path=None, common_name='', logger = None):
         return ims
 
 
+def get_machine_config(machine):
+
+
+    machine = str(machine)
+
+    config = configparser.ConfigParser()
+    #config_path = pkg_resources.path(resources, 'background.cfg')
+    config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
+
+    if os.path.exists(config_path):
+        with config_path as config_path_:
+            config.read(config_path_)
+
+        if machine not in config['machines'].options():
+            message('Settings for', machine, 'do not exist')
+            config = None
+    else:
+        message(config_path, 'not found')
+        config = None
+
+    return config
+
+
 
 class HiSeqImages():
     """HiSeqImages
@@ -406,7 +429,7 @@ class HiSeqImages():
 
     """
 
-    def __init__(self, image_path=None, common_name='',  im=None,
+    def __init__(self, image_path=None, common_name='',  im=None, machine=None,
                        obj_stack=None, RoughScan = False, logger = None):
         """The constructor for HiSeq Image Datasets.
 
@@ -431,6 +454,14 @@ class HiSeqImages():
         self.filenames = []
         self.resolution = 0.375                                                 # um/px
         self.x_spum = 0.4096                                                    #steps per um
+        self.config  = None
+        self.machine = None
+
+        # Get machine config
+        if machine is not None:
+            self.config = get_machine_config(machine)
+            if self.config is not None:
+                self.machine = str(machine)
 
         if len(common_name) > 0:
             common_name = '*'+common_name
@@ -491,55 +522,58 @@ class HiSeqImages():
     def correct_background(self):
 
         machine = self.im.machine
-        if not bool(self.im.fixed_bg):
-            # Open background config
-            config = configparser.ConfigParser()
-            config_path = pkg_resources.path(resources, 'background.cfg')
-            with config_path as config_path_:
-                config.read(config_path_)
-
+        if not bool(self.im.fixed_bg) and machine is not None:
             bg_dict = {}
-            if config.has_section(machine):
-                for ch, values in config.items(machine):
-                    values = list(map(int,values.split(',')))
-                    bg_dict[int(ch)]=values
+            for ch, values in config.items(str(machine)+'background'):
+                values = list(map(int,values.split(',')))
+                bg_dict[int(ch)]=values
 
-            # Apply background correction
-            if len(bg_dict) > 0:
-                ch_list = []
-                ncols = len(self.im.col)
-                for ch in self.im.channel.values:
-                    bg_ = np.zeros(ncols)
-                    i = 0
-                    for c in range(int(ncols/256)):
-                        if c == 0:
-                            i = self.im.first_group
-                        if i == 8:
-                            i = 0
-                        bg = bg_dict[ch][i]
-                        bg_[c*256:(c+1)*256] = bg
-                        i += 1
-                    ch_list.append(self.im.sel(channel=ch)+bg_)
-                self.im = xr.concat(ch_list,dim='channel')
-                self.im.attrs['fixed_bg'] = 1
-            else:
-                print('No background values for', machine)
+            ch_list = []
+            ncols = len(self.im.col)
+            for ch in self.im.channel.values:
+                bg_ = np.zeros(ncols)
+                i = 0
+                for c in range(int(ncols/256)):
+                    if c == 0:
+                        i = self.im.first_group
+                    if i == 8:
+                        i = 0
+                    bg = bg_dict[ch][i]
+                    bg_[c*256:(c+1)*256] = bg
+                    i += 1
+                ch_list.append(self.im.sel(channel=ch)+bg_)
+            self.im = xr.concat(ch_list,dim='channel')
+            self.im.attrs['fixed_bg'] = 1
+
         else:
             print('Image already background corrected.')
 
 
-    def register_channels(self, im):
+    def register_channels(self, image=None):
         """Register image channels."""
+
+        if image is None
+            image = self.im
+
+        machine = self.im.machine
+        if not bool(self.im.fixed_bg) and machine is not None:
+            bg_dict = {}
+            for ch, values in config.items(str(machine)+'background'):
+                values = list(map(int,values.split(',')))
+                bg_dict[int(ch)]=values
 
         shifted=[]
         for ch in self.channel_shift.keys():
             shift = self.channel_shift[ch]
-            shifted.append(im.sel(channel = ch,
-                                  row=slice(shift[0],shift[1]),
-                                  col=slice(shift[2],shift[3])
-                                   ))
-        im = xr.concat(shifted, dim = 'channel')
-        im = im.sel(row=slice(64,None))                                         # Top 64 rows have white noise
+            shifted.append(image.sel(channel = ch,
+                                     row=slice(shift[0],shift[1]),
+                                     col=slice(shift[2],shift[3])
+                                    ))
+        image = xr.concat(shifted, dim = 'channel')
+        image = image.sel(row=slice(64,None))                                   # Top 64 rows have white noise
+
+        if image i
+        self.im = im
 
         return im
 
@@ -799,8 +833,11 @@ class HiSeqImages():
                             value = ''
                         im.attrs[items[0]] = value
 
-            if im.machine == '':
+            if im.machine in ['', 'None']:
                 im.attrs['machine'] = 'HiSeq2500'
+                self.machine = None
+            else.
+                self.machine = im.machine
 
 
             self.im.append(im)
@@ -808,7 +845,7 @@ class HiSeqImages():
         return im_names
 
 
-    def open_RoughScan(self, machine_name):
+    def open_RoughScan(self):
 
         # Open RoughScan tiffs
         filenames = self.filenames
@@ -850,13 +887,13 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'RoughScan')
 
-        im = im.assign_attrs(first_group = 0, machine = machine_name, scale=1,
+        im = im.assign_attrs(first_group = 0, machine = self.machine, scale=1,
                              overlap=0, fixed_bg = 0)
         self.im = im.sel(row=slice(64,None))
 
         return len(fn_comp_sets[2])
 
-    def open_objstack(self, obj_stack, machine_name):
+    def open_objstack(self, obj_stack):
 
         dim_names = ['frame', 'channel', 'row', 'col']
         channels = [687, 558, 610, 740]
@@ -867,14 +904,14 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'Objective Stack')
 
-        im = im.assign_attrs(first_group = 0, machine = machine_name, scale=1,
+        im = im.assign_attrs(first_group = 0, machine = self.machine_name, scale=1,
                              overlap=0, fixed_bg = 0)
         self.im = im
 
         return obj_stack.shape[0]
 
 
-    def open_tiffs(self, machine_name):
+    def open_tiffs(self):
         """Create labeled dataset from tiffs.
 
            **Parameters:**
@@ -966,9 +1003,8 @@ class HiSeqImages():
                                    coords = coord_values,
                                    name = s[1:])
 
-
             im = self.register_channels(im.squeeze())
-            im = im.assign_attrs(first_group = 0, machine = machine_name, scale=1,
+            im = im.assign_attrs(first_group = 0, machine = self.machine, scale=1,
                                  overlap=0, fixed_bg = 0)
             self.im.append(im)
             im_names.append(s[1:])
