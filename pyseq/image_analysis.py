@@ -546,36 +546,45 @@ class HiSeqImages():
             self.im.attrs['fixed_bg'] = 1
 
         else:
-            print('Image already background corrected.')
+            if bool(self.im.fixed_bg):
+                print('Image already background corrected.')
+            elif machine is None:
+                print('No machine specified.')
 
 
     def register_channels(self, image=None):
         """Register image channels."""
 
         if image is None
-            image = self.im
+            img = self.im
 
         machine = self.im.machine
         if not bool(self.im.fixed_bg) and machine is not None:
             bg_dict = {}
-            for ch, values in config.items(str(machine)+'background'):
-                values = list(map(int,values.split(',')))
+            # Format values from config
+            for ch, values in config.items(str(machine)+'registration'):
+                values =[]
+                for v in values.split(','):
+                    try:
+                        values.append(int(v))
+                    except:
+                        values.append(None)
                 bg_dict[int(ch)]=values
 
         shifted=[]
         for ch in self.channel_shift.keys():
             shift = self.channel_shift[ch]
-            shifted.append(image.sel(channel = ch,
-                                     row=slice(shift[0],shift[1]),
-                                     col=slice(shift[2],shift[3])
-                                    ))
-        image = xr.concat(shifted, dim = 'channel')
-        image = image.sel(row=slice(64,None))                                   # Top 64 rows have white noise
+            shifted.append(img.sel(channel = ch,
+                                   row=slice(shift[0],shift[1]),
+                                   col=slice(shift[2],shift[3])
+                                   ))
+        img = xr.concat(shifted, dim = 'channel')
+        img = img.sel(row=slice(64,None))                                       # Top 64 rows have white noise
 
-        if image i
-        self.im = im
+        if image is not None:
+            self.im = img
 
-        return im
+        return img
 
 
 
