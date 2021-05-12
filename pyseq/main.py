@@ -379,7 +379,8 @@ def configure_instrument(IMAG_counter, port_dict):
 
 
     model, name = methods.get_machine_info(args_['virtual'])
-    config['experiment']['machine'] = model+'::'+name
+    if model is not None:
+        config['experiment']['machine'] = model+'::'+name
     experiment = config['experiment']
     method = experiment['method']
     method = config[method]
@@ -399,6 +400,8 @@ def configure_instrument(IMAG_counter, port_dict):
             import pyseq
             com_ports = pyseq.get_com_ports()
             hs = pyseq.HiSeq(name, logger)
+    else:
+        sys.exit()
 
     # Check side ports
     try:

@@ -203,49 +203,48 @@ def get_machine_info(virtual=False):
 
     config_path = join(homedir,'PySeq2500','machine_info.cfg')
     config = configparser.ConfigParser()
-    if isfile(config_path):
+    NAME_EXISTS = isfile(config_path)
+    if NAME_EXISTS:
         with open(config_path,'r') as f:
-            config.read(f)
+            config.read_file(f)
         model = config['DEFAULT']['model']
         name = config['DEFAULT']['name']
     else:
-        model = 'None'
-        name = 'virtual'
+        model = None
+        name = None
 
-    # Open background.cfg save in USERHOME/PySeq2500
-    background = configparser.ConfigParser()
-    background_path = join(homedir,'PySeq2500','background.cfg')
-    if isfile(background_path):
-        with open(background_path,'r') as f:
-            background.read(f)
-        other_machines = list(background.sections())
-    else:
-        other_machines = []
+    # Open machine_settings.cfg saved in USERHOME/PySeq2500
+    machine_settings = configparser.ConfigParser()
+    ms_path = join(homedir,'PySeq2500','machine_settings.cfg')
+    if isfile(ms_path):
+        with open(ms_path,'r') as f:
+            machine_settings.read_file(f)
 
     # Get machine model from user
-    while model == 'None' and not virtual:
+    while model is None:
         if userYN('Is this a HiSeq2500'):
             model = 'HiSeq2500'
             if model not in ['HiSeq2500']:
-                model = 'None'
+                model = None
 
     # Get machine name from user
-    proceed = False
-    while name == 'virtual' and not virtual:
+    while name is None and not virtual:
         name = input('Name of '+model+' = ')
-        if name in other_machines:
-            if userYN(name +' has been used. Still want to use'):
-                proceed = True
-        else:
-            proceed = True
-        if proceed:
-            if not userYN('Name this '+model+' '+name):
-                name = 'virtual'
+        if not userYN('Name this '+model+' '+name):
+            name = None
 
     if virtual:
         name = 'virtual'
-        model = 'HiSeq2500'
-    elif proceed:
+
+    # Check if background and registration data exists
+    if not machine_settings.has_section(name+'background'):
+        if not userYN('Continue experiment without background data for',name):
+            model = None
+    if not machine_settings.has_section(name+'registration') and model is not None:
+        if not userYN('Continue experiment without registration data for',name):
+            model = None
+
+    elif not NAME_EXISTS and model is not None and name is not None:
         config.read_dict({'DEFAULT':{'model':model,'name':name}})
         with open(config_path,'w') as f:
             config.write(f)
@@ -265,10 +264,10 @@ def userYN(*args):
     while response:
         answer = input(question + '? Y/N = ')
         answer = answer.upper().strip()
-        if answer == 'Y':
+        if answer in ['Y','YES','TRUE']:
             response = False
             answer = True
-        elif answer == 'N':
+        elif answer in ['N', 'NO','FALSE']:
             response = False
             answer = False
 
