@@ -1003,6 +1003,7 @@ def get_jpeg_size(obj_stack):
     for ci, ch in enumerate(obj_stack.channel.values):
         size_ = np.empty(shape=(n_frames,))
         ch_stack = obj_stack.sel(channel = ch)
+        # map px values from background value - max px to 0-255
         ch_stack = np.interp(ch_stack, (ch_bg[ci],ch_max_px.sel(channel=ch)), (0,255)).astype('uint8')
         for i in obj_stack.frame.values:
             im = ch_stack[i,:,:]

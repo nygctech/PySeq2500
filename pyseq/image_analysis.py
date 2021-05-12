@@ -515,7 +515,7 @@ class HiSeqImages():
 
     def correct_background(self):
 
-        machine = self.im.machine
+        machine = self.machine
         if not bool(self.im.fixed_bg) and machine is not None:
             bg_dict = {}
             for ch, values in self.config.items(str(machine)+'background'):
@@ -541,9 +541,9 @@ class HiSeqImages():
 
         else:
             if bool(self.im.fixed_bg):
-                print('Image already background corrected.')
+                message(self.logger, 'Image already background corrected.')
             elif machine is None:
-                print('Unknown machine')
+                message(self.logger, 'Unknown machine')
 
 
     def register_channels(self, image=None):
@@ -551,10 +551,9 @@ class HiSeqImages():
 
         if image is None:
             img = self.im
-            machine = self.im.machine
         else:
             img = image
-            machine = image.machine
+        machine = self.machine
 
         reg_dict = {}
         if machine is not None:
@@ -583,7 +582,7 @@ class HiSeqImages():
             if image is None:
                 self.im = img
         else:
-            print('Unknown machine')
+            message(self.logger, 'Unknown machine')
 
         return img
 
@@ -597,7 +596,7 @@ class HiSeqImages():
             overlap=int(overlap)
             n_tiles = int(len(self.im.col)/2048)
         except:
-            print('overlap must be an integer')
+            message(self.logger, 'overlap must be an integer')
 
         try:
             if direction.lower() in ['l','le','lef','left','lft','lt']:
@@ -607,7 +606,7 @@ class HiSeqImages():
             else:
                 raise ValueError
         except:
-            print('overlap direction must be either left or right')
+            message(self.logger, 'overlap direction must be either left or right')
 
         if not bool(self.im.overlap):
             if n_tiles > 1 and overlap > 0:
@@ -624,7 +623,7 @@ class HiSeqImages():
 
                 self.im = im
         else:
-            print('Overlap already removed')
+            message(self.logger, 'Overlap already removed')
 
 
 
