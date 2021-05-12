@@ -17,6 +17,7 @@ import glob
 import configparser
 import time
 from qtpy.QtCore import QTimer
+from skimage.registration import phase_cross_correlation
 
 try:
     import importlib.resources as pkg_resources
@@ -410,6 +411,108 @@ def get_machine_config(machine):
         config = None
 
     return config
+
+
+def detect_channel_shift(im, ref_ch = 610):
+
+    try:
+        nch, nrow, ncol = im.shape
+        if nch != 4:
+            print('Missing a channel')
+            raise RuntimeError
+    except:
+        print('im should be a DataArray object with only 3 dimensions')
+        raise RuntimeError
+
+
+    channels = list(im.channel.values)
+    if ref_ch in channels:
+        channels.pop(channels.index(ref_ch))
+    else:
+        print('Invalid reference channel')
+        raise ValueError
+
+    # detect shift
+    shift = []
+    for ch in channels:
+        detected_shift = phase_cross_correlation(im.sel(channel=ref_ch),im.sel(channel=ch))
+        row_shift = int(detected_shift[0][0])
+        col_shift = int(detected_shift[0][1])
+
+        print(ch, 'row shift =', row_shift, 'px')
+        print(ch, 'col shift =', col_shift, 'px')
+
+        if row_shift > 0:
+            shift += [0, -row_shift]
+        elif row_shift < 0:
+            shift += [-row_shift, 0]
+        else:
+            shift += [0, 0]
+        if col_shift > 0:
+            shift += [0, -col_shift]
+        elif col_shift < 0:
+            shift += [-col_shift, 0]
+        else:
+            shift += [0, 0]
+
+    shift = np.reshape(shift, (nch-1, 4))
+
+    # adjust for global pixel shifts
+    max_row_top = np.max(shift[:,0])
+    min_row_bot = abs(np.min(shift[:,1]))
+    max_col_l = np.max(shift[:,2])
+    min_col_r = abs(np.min(shift[:,3]))
+
+
+    ch_shift = {}
+    ch_list = []
+    for i, ch in enumerate(channels):
+        # adjust row shift
+        if shift[i,0] != 0 and shift[i,1] == 0:
+            shift[i,0] = shift[i,0] + min_row_bot
+        elif shift[i,1] != 0 and shift[i,0] == 0:
+            shift[i,1] = shift[i,1] - max_row_top
+
+        #adjust col shift (hopefully none)
+        if shift[i,2] != 0 and shift[i,3] == 0:
+            shift[i,2] = shift[i,2] + min_col_r
+        elif shift[i,3] != 0 and shift[i,2] == 0:
+            shift[i,3] = shift[i,3] - max_col_l
+
+        #Replace 0 with None
+        ch_shift[ch] = [None if s == 0 else s for s in shift[i,:]]
+        #Shift image
+        s = ch_shift[ch]
+        ch_list.append(im.sel(channel=ch, row=slice(s[0],s[1]), col=slice(s[2],s[3])))
+
+    # Shift reference
+    ch_shift[ref_ch] = [min_row_bot, -max_row_top, min_col_r, max_col_l]
+    ch_shift[ref_ch] = [None if s == 0 else s for s in ch_shift[ref_ch]]
+    s = ch_shift[ref_ch]
+    ch_list.append(im.sel(channel=ref_ch, row=slice(s[0],s[1]), col=slice(s[2],s[3])))
+
+
+    # Show resulting shift
+    shifted = xr.concat(ch_list, dim='channel')
+    both = xr.concat([im.sel(row=slice(s[0],s[1]),col=slice(s[2],s[3])), shifted], dim='shifted')
+    both = ia.HiSeqImages(im = both)
+    both.show()
+
+    # save shift
+    if userYN('Save channel shift to machine settings'):
+        reg_dict = {}
+        for ch in ch_shift.keys():
+            reg_dict[str(ch)] = ','.join(map(str, ch_shift[ch]))
+
+        config = ia.get_machine_config(im.machine)
+        config.read_dict({im.machine+'registration':reg_dict})
+
+        config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
+        if path.exists(config_path):
+            with open(config_path,'w') as config_path_:
+                config.write(config_path_)
+
+    return ch_shift
 
 
 

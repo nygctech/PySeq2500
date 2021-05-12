@@ -8,3 +8,4 @@ zarr
 qtpy
 napari
 tabulate
+scikit-image>=0.17
