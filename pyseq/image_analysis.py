@@ -333,22 +333,15 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
 def compute_background(image_path, common_name = ''):
     sensor_size = 256 # pixels
 
-    # Open background.cfg save in USERHOME/PySeq2500
-    config = configparser.ConfigParser()
-    homedir = expanduser('~')
-    config_path = join(homedir,'PySeq2500','background.cfg')
-    if isfile(config_path):
-        with open(config_path,'r') as f:
-            config.read(f)
-    else:
-        raise RuntimeError('Can not find /USERHOME/PySeq2500/background.cfg.')
-
     im = get_HiSeqImages(image_path, common_name)
+    config = get_machine_config(im.machine)
+
     try:
         im = im[0]                                                              # In case there are multiple sections in image_path
     except:
         pass
 
+    # Check if background data exists and check with user to overwrite
     proceed = True
     if config.has_section(im.machine):
         if not userYN('Overide existing background data for '+im.machine):
@@ -357,24 +350,29 @@ def compute_background(image_path, common_name = ''):
 
     if proceed:
         print('Analyzing ', im.im.name)
-
+        bg_dict = {}
         # Loop over channels then sensor group and find mode
-        background = {}
         for ch in im.channel.values:
-            background.setdefault(ch, [])
+            background = []
             for i in range(8):
                 sensor = im.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
-                background[ch].append(stats.mode(sensor, axis=None)[0][0])
-            avg_background = int(round(np.mean(background[ch])))
+                background.append(stats.mode(sensor, axis=None)[0][0])
+            avg_background = int(round(np.mean(background)))
             print('Channel', ch,'::Average background', avg_background)
 
             for i in range(8):
-                background[ch][i] = avg_background-background[ch][i]            # Calculate background correction
+                background[i] = avg_background-background[i]                    # Calculate background correction
+            bg_dict[ch] = ','.join(map(str, background))                        # Format backround correction
 
-        # Save background correction values in config file
-        config.read_dict({im.machine:background})
-        with open(config_path,'w') as f:
-                config.write(f)
+        if not userYN('Save new background data for '+im.machine):
+            # Save background correction values in config file
+            config.read_dict({im.machine+'background':bg_dict})
+            config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
+            with open(config_path,'w') as f:
+                    config.write(f)
+
+    return bg_dict
+
 
 
 
@@ -413,19 +411,30 @@ def get_machine_config(machine):
     return config
 
 
-def detect_channel_shift(im, ref_ch = 610):
+def detect_channel_shift(image_path, common_name = '', ref_ch = 610):
+
+    im = get_HiSeqImages(image_path, common_name)
+    im = im.im
+    config = get_machine_config(im.machine)
 
     try:
-        nch, nrow, ncol = im.shape
-        if nch != 4:
-            print('Missing a channel')
-            raise RuntimeError
+        im = im[0]                                                              # In case there are multiple sections in image_path
     except:
-        print('im should be a DataArray object with only 3 dimensions')
-        raise RuntimeError
+        pass
 
+    if 'obj_step' in im.dims:
+        im = im.max(dim='obj_step')
+    if 'cycle' in im.dims:
+        if len(im.cycle.values) > 1:
+            im = im.sel(cycle=1)
+    if 'image' in im.dims:
+        if len(im.image.values) > 1:
+            im = im.sel(image=1)
 
     channels = list(im.channel.values)
+    if len(channels) != 4:
+        raise ValueError('Need 4 channels.')
+
     if ref_ch in channels:
         channels.pop(channels.index(ref_ch))
     else:
@@ -485,14 +494,14 @@ def detect_channel_shift(im, ref_ch = 610):
         s = ch_shift[ch]
         ch_list.append(im.sel(channel=ch, row=slice(s[0],s[1]), col=slice(s[2],s[3])))
 
-    # Shift reference
+    # Shift reference channel
     ch_shift[ref_ch] = [min_row_bot, -max_row_top, min_col_r, max_col_l]
     ch_shift[ref_ch] = [None if s == 0 else s for s in ch_shift[ref_ch]]
     s = ch_shift[ref_ch]
     ch_list.append(im.sel(channel=ref_ch, row=slice(s[0],s[1]), col=slice(s[2],s[3])))
 
 
-    # Show resulting shift
+    # Show resulting shift with original image
     shifted = xr.concat(ch_list, dim='channel')
     both = xr.concat([im.sel(row=slice(s[0],s[1]),col=slice(s[2],s[3])), shifted], dim='shifted')
     both = ia.HiSeqImages(im = both)

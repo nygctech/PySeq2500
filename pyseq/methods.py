@@ -256,7 +256,7 @@ def get_machine_info(virtual=False):
         #Add to list in machine settings
         if not machine_settings.has_section('machines'):
             machine_settings.add_section('machines')
-        machine_settings.set('machines', name, time.strftimes('%m %d %y'))
+        machine_settings.set('machines', name, time.strftime('%m %d %y'))
         with open(ms_path,'w') as f:
             machine_settings.write(f)
 
