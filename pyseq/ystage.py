@@ -87,13 +87,15 @@ class Ystage():
         """Initialize the ystage."""
 
         response = self.command('Z')                                            # Initialize Stage
+        time.sleep(2)
         response = self.command('W(EX,0)')                                      # Turn off echo
-        response = self.command('GAINS(5,10,7,1.5,0)')                          # Set gains
+        self.set_mode('moving')
+        #response = self.command('GAINS(5,10,7,1.5,0)')                          # Set gains
         response = self.command('MA')                                           # Set to absolute position mode
         response = self.command('ON')                                           # Turn Motor ON
         self.on = True
         response = self.command('GH')                                           # Home Stage
-        self.set_mode('moving')
+
 
 
     def command(self, text):
