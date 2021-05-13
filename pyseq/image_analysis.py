@@ -335,7 +335,7 @@ def compute_background(image_path, common_name = ''):
 
     im = get_HiSeqImages(image_path, common_name)
     config = get_machine_config(im.machine)
-
+    config_secion = im.machine+'background'
     try:
         im = im[0]                                                              # In case there are multiple sections in image_path
     except:
@@ -343,7 +343,7 @@ def compute_background(image_path, common_name = ''):
 
     # Check if background data exists and check with user to overwrite
     proceed = True
-    if config.has_section(im.machine):
+    if config.has_section(config_section):
         if not userYN('Overide existing background data for '+im.machine):
             if not userYN('Confirm overide of '+im.machine+' background data'):
                 proceed = False
@@ -352,10 +352,10 @@ def compute_background(image_path, common_name = ''):
         print('Analyzing ', im.im.name)
         bg_dict = {}
         # Loop over channels then sensor group and find mode
-        for ch in im.channel.values:
+        for ch in im.im.channel.values:
             background = []
             for i in range(8):
-                sensor = im.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
+                sensor = im.im.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
                 background.append(stats.mode(sensor, axis=None)[0][0])
             avg_background = int(round(np.mean(background)))
             print('Channel', ch,'::Average background', avg_background)
@@ -364,9 +364,9 @@ def compute_background(image_path, common_name = ''):
                 background[i] = avg_background-background[i]                    # Calculate background correction
             bg_dict[ch] = ','.join(map(str, background))                        # Format backround correction
 
-        if not userYN('Save new background data for '+im.machine):
+        if userYN('Save new background data for '+im.machine):
             # Save background correction values in config file
-            config.read_dict({im.machine+'background':bg_dict})
+            config.read_dict({config_section:bg_dict})
             config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
             with open(config_path,'w') as f:
                     config.write(f)
@@ -666,11 +666,11 @@ class HiSeqImages():
         else:
             img = image
         machine = self.machine
-
+        config_section = str(machine)+'registration'
         reg_dict = {}
-        if machine is not None:
+        if self.config.has_section(config_section):
             # Format values from config
-            for ch, values in self.config.items(str(machine)+'registration'):
+            for ch, values in self.config.items(config_section):
                 pxs = []
                 for v in values.split(','):
                     try:
