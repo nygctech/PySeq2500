@@ -20,10 +20,6 @@
     ystage.move(3000000)
     True
 
-TODO:
-    * Set gains function
-    * Set velocity function
-
 """
 
 
@@ -135,8 +131,8 @@ class Ystage():
             while self.position != position:
                 self.command('D' + str(position))                               # Set distance
                 self.command('G')                                               # Go
-                self.check_position()                                           # Wait till y stage is in position
-                time.sleep(1)
+                while not self.check_position():                                # Wait till y stage is in position
+                    time.sleep(1)
                 self.read_position()                                            # Update stage position
             return True                                                         # Return True that stage is in position
         else:
@@ -151,13 +147,22 @@ class Ystage():
             - int: 1 if ystage is in position, 0 if it is not in position.
 
         """
-        return int(self.command('R(IP)')[1:])
+        
+        try:
+            ip = int(self.command('R(IP)')[1:])
+        except:
+            ip = 0
+
+        return
 
 
     def read_position(self):
         """Return the absolute step position of the ystage (int)."""
 
-        self.position = int(self.command('R(PA)')[1:])                          # Read and store position
+        try:
+            self.position = int(self.command('R(PA)')[1:])                      # Read and store position
+        except:
+            pass
 
         return self.position
 
@@ -171,11 +176,11 @@ class Ystage():
                 _gains = [float(g) for g in gains.split(',')]
                 velocity = self.configurations[mode]['v']
                 all_true = False
-                while all_true:
+                while not all_true:
                     self.command('GAINS('+gains+')')
                     time.sleep(1)
                     try:
-                        gains_ = self.command('cGAINS').strip()[1:].split(' ')       # format reponse
+                        gains_ = self.command('GAINS').strip()[1:].split(' ')       # format reponse
                         all_true = all([float(g[2:]) == _gains[i] for i, g in enumerate(gains_)])
                     except:
                         all_true = False

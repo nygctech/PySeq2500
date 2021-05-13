@@ -610,7 +610,7 @@ class HiSeq():
         self.x.move(self.x.home)
         self.y.set_mode('moving')
         #self.y.command('GAINS(5,10,7,1.5,0)')
-        self.y.command('V1')
+        #self.y.command('V1')
         self.y.move(self.y.min_y)
 
     def move_inlet(self, n_ports):
