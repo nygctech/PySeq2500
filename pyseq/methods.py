@@ -7,6 +7,7 @@ Kunal Pandit 3/15/2020
 import configparser
 from os.path import expanduser, join, isfile, isdir
 from os import mkdir
+import time
 
 try:
     import importlib.resources as pkg_resources
@@ -214,12 +215,6 @@ def get_machine_info(virtual=False):
         model = None
         name = None
 
-    # Open machine_settings.cfg saved in USERHOME/PySeq2500
-    machine_settings = configparser.ConfigParser()
-    ms_path = join(homedir,'PySeq2500','machine_settings.cfg')
-    if isfile(ms_path):
-        with open(ms_path,'r') as f:
-            machine_settings.read_file(f)
 
     # Get machine model from user
     while model is None:
@@ -237,7 +232,15 @@ def get_machine_info(virtual=False):
     if virtual:
         name = 'virtual'
 
+
     # Check if background and registration data exists
+    # Open machine_settings.cfg saved in USERHOME/PySeq2500
+    machine_settings = configparser.ConfigParser()
+    ms_path = join(homedir,'PySeq2500','machine_settings.cfg')
+    if isfile(ms_path):
+        with open(ms_path,'r') as f:
+            machine_settings.read_file(f)
+
     if not machine_settings.has_section(name+'background'):
         if not userYN('Continue experiment without background data for',name):
             model = None
@@ -245,10 +248,15 @@ def get_machine_info(virtual=False):
         if not userYN('Continue experiment without registration data for',name):
             model = None
 
-    elif not NAME_EXISTS and model is not None and name is not None:
+    if not NAME_EXISTS and model is not None and name is not None:
+        # Save machine info
         config.read_dict({'DEFAULT':{'model':model,'name':name}})
         with open(config_path,'w') as f:
             config.write(f)
+        #Add to list in machine settings
+        machine_settings.set('machines', name, time.strftimes('%m %d %y'))
+        with open(ms_path,'w') as f:
+            machine_settings.write(f)
 
     return model, name
 
