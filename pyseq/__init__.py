@@ -66,14 +66,21 @@ from . import focus
 from . import temperature
 
 import time
-from os.path import getsize
-from os.path import join
+from os.path import getsize, join, isfile
 from os import getcwd
 import threading
 import numpy as np
 import imageio
 from scipy.optimize import curve_fit
 from math import ceil
+import configparser
+
+try:
+    import importlib.resources as pkg_resources
+except ImportError:
+    # Try backported to PY<37 `importlib_resources`.
+    import importlib_resources as pkg_resources
+from . import resources
 
 
 class HiSeq():
@@ -122,43 +129,33 @@ class HiSeq():
     """
 
 
-    def __init__(self, Logger = None,
-                       yCOM = 'COM10',
-                       xCOM = 'COM9',
-                       pumpACOM = 'COM20',
-                       pumpBCOM = 'COM21',
-                       valveA24COM = 'COM22',
-                       valveB24COM = 'COM23',
-                       valveA10COM = 'COM18',
-                       valveB10COM = 'COM19',
-                       fpgaCOM = ['COM12','COM15'],
-                       laser1COM = 'COM13',
-                       laser2COM = 'COM14',
-                       tempCOM = 'COM8'):
+    def __init__(self, name = 'HiSeq2500', Logger = None):
         """Constructor for the HiSeq."""
 
-        self.y = ystage.Ystage(yCOM, logger = Logger)
-        self.f = fpga.FPGA(fpgaCOM[0], fpgaCOM[1], logger = Logger)
-        self.x = xstage.Xstage(xCOM, logger = Logger)
-        self.lasers = {'green': laser.Laser(laser1COM, color = 'green',
+        com_ports = get_com_ports('HiSeq2500')
+
+        self.y = ystage.Ystage(com_ports['ystage'], logger = Logger)
+        self.f = fpga.FPGA(com_ports['fpgacommand'], com_ports['fpgaresponse'], logger = Logger)
+        self.x = xstage.Xstage(com_ports['xstage'], logger = Logger)
+        self.lasers = {'green': laser.Laser(com_ports['laser1'], color = 'green',
                                             logger = Logger),
-                      'red': laser.Laser(laser2COM, color = 'red',
+                      'red': laser.Laser(com_ports['laser2'], color = 'red',
                                          logger = Logger)}
         self.z = zstage.Zstage(self.f.serial_port, logger = Logger)
         self.obj = objstage.OBJstage(self.f.serial_port, logger = Logger)
         self.optics = optics.Optics(self.f.serial_port, logger = Logger)
         self.cam1 = None
         self.cam2 = None
-        self.p = {'A': pump.Pump(pumpACOM, 'pumpA', logger = Logger),
-                  'B': pump.Pump(pumpBCOM, 'pumpB', logger = Logger)
+        self.p = {'A': pump.Pump(com_ports['pumpa'], 'pumpA', logger = Logger),
+                  'B': pump.Pump(com_ports['pumpb'], 'pumpB', logger = Logger)
                   }
-        self.v10 = {'A': valve.Valve(valveA10COM, 'valveA10', logger = Logger),
-                    'B': valve.Valve(valveB10COM, 'valveB10', logger = Logger)
+        self.v10 = {'A': valve.Valve(com_ports['valvea10'], 'valveA10', logger = Logger),
+                    'B': valve.Valve(com_ports['valveb10'], 'valveB10', logger = Logger)
                     }
-        self.v24 = {'A': valve.Valve(valveA24COM, 'valveA24', logger = Logger),
-                    'B': valve.Valve(valveB24COM, 'valveB24', logger = Logger)
+        self.v24 = {'A': valve.Valve(com_ports['valvea24'], 'valveA24', logger = Logger),
+                    'B': valve.Valve(com_ports['valveb24'], 'valveB24', logger = Logger)
                     }
-        self.T = temperature.Temperature(tempCOM, logger = Logger)
+        self.T = temperature.Temperature(com_ports['arm9chem'], logger = Logger)
         self.image_path = getcwd()                                                  # path to save images in
         self.log_path = getcwd()                                                  # path to save logs in
         self.fc_origin = {'A':[17571,-180000],
@@ -176,6 +173,42 @@ class HiSeq():
         self.virtual = False                                                    # virtual flag
         self.scan_flag = False                                                  # imaging/scanning flag
         self.current_view = None                                                # latest images
+        self.name = name
+        self.check_COM()
+
+
+    def check_COM(self):
+        """Check to see COM Ports setup sucessfully."""
+
+        com_ports = ['X Stage', 'Y Stage', 'FPGA', 'Laser1', 'Laser2',
+                     'Kloehn A', 'Kloehn B', 'VICI A1', 'VICI B1', 'VICI A2',
+                     'VICI B2', 'ARM9 CHEM']
+        success = []
+        success.append(False) if self.x.serial_port is None else success.append(True)
+        success.append(False) if self.y.serial_port is None else success.append(True)
+        success.append(False) if self.f.serial_port is None else success.append(True)
+        success.append(False) if self.lasers['green'].serial_port is None else success.append(True)
+        success.append(False) if self.lasers['red'].serial_port is None else success.append(True)
+        success.append(False) if self.p['A'].serial_port is None else success.append(True)
+        success.append(False) if self.p['B'].serial_port is None else success.append(True)
+        success.append(False) if self.v10['A'].serial_port is None else success.append(True)
+        success.append(False) if self.v10['B'].serial_port is None else success.append(True)
+        success.append(False) if self.v24['A'].serial_port is None else success.append(True)
+        success.append(False) if self.v24['B'].serial_port is None else success.append(True)
+        success.append(False) if self.T.serial_port is None else success.append(True)
+
+        if not all(success):
+            for i, go in enumerate(success):
+                if not go:
+                    print(com_ports[i],'Offline')
+            response = None
+            while response is None:
+                response = input('Proceed with out all instruments? ').lower()
+                if response not in ['y', 'yes', 'proceed', 'true']:
+                    raise ValueError
+                else:
+                    return True
+
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
@@ -1031,3 +1064,46 @@ class HiSeq():
 def _1gaussian(x, amp1,cen1,sigma1):
     """Gaussian function for curve fitting."""
     return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
+
+def get_com_ports(machine = 'HiSeq2500'):
+
+    # Read COM Names
+    com_names = configparser.ConfigParser()
+    with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
+        com_names.read(config_path)
+
+    # Get list of connected devices
+    import wmi
+    conn = wmi.WMI()
+    devices = conn.CIM_LogicalDevice()
+    # Get lists of valid COM ports
+    ids = []
+    com_ports = []
+    for d in devices:
+        if 'USB Serial Port' in d.caption:
+            try:
+                ids.append(d.deviceid)
+                caption = d.caption
+                id_start = caption.find('(')+1
+                id_end = caption.find(')')
+                caption = caption[id_start:id_end]
+                com_ports.append(caption)
+            except:
+                pass
+
+    # Match instruments to ports
+    matched_ports = {}
+    for instrument, com_name in com_names.items(machine):
+        try:
+            ind = [i for i, id in enumerate(ids) if com_name in id]
+            if len(ind) == 1:
+                ind = ind[0]
+            else:
+                print('Multiple COM Port matches for', instrument)
+                raise ValueError
+            matched_ports[instrument] = com_ports[ind]
+        except ValueError:
+            matched_ports[instrument] = None
+            print('Could not find port for', instrument)
+
+    return matched_ports

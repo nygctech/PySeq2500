@@ -1,6 +1,11 @@
 pyserial>=3
 numpy
-pandas
 scipy
 imageio
-scikit-image
+dask
+xarray
+zarr
+qtpy
+napari
+tabulate
+scikit-image>=0.17

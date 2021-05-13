@@ -34,7 +34,9 @@ def manual_focus(hs, flowcells):
             # Take objective stack
             focus_stack = hs.obj_stack()
             if not hs.virtual:
-                focus_stack = IA.HiSeqImages(obj_stack=focus_stack, logger = hs.logger)
+                focus_stack = IA.HiSeqImages(image_path = hs.image_path,
+                                             obj_stack=focus_stack,
+                                             logger = hs.logger)
             #Correct background
             focus_stack.correct_background()
 
@@ -356,7 +358,8 @@ class Autofocus():
             hs.x.move(x_pos)
             focus_stack = hs.obj_stack()
             if not hs.virtual:
-                focus_stack = IA.HiSeqImages(obj_stack=focus_stack)
+                focus_stack = IA.HiSeqImages(image_path = self.image_path, 
+                                             obj_stack=focus_stack)
 
             focus_stack.correct_background()
 
@@ -1003,6 +1006,7 @@ def get_jpeg_size(obj_stack):
     for ci, ch in enumerate(obj_stack.channel.values):
         size_ = np.empty(shape=(n_frames,))
         ch_stack = obj_stack.sel(channel = ch)
+        # map px values from background value - max px to 0-255
         ch_stack = np.interp(ch_stack, (ch_bg[ci],ch_max_px.sel(channel=ch)), (0,255)).astype('uint8')
         for i in obj_stack.frame.values:
             im = ch_stack[i,:,:]

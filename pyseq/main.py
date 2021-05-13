@@ -372,11 +372,15 @@ def setup_logger():
     return logger
 
 
-def configure_instrument(virtual, IMAG_counter, port_dict):
+def configure_instrument(IMAG_counter, port_dict):
     """Configure and check HiSeq settings."""
 
     global n_errors
 
+
+    model, name = methods.get_machine_info(args_['virtual'])
+    if model is not None:
+        config['experiment']['machine'] = model+'::'+name
     experiment = config['experiment']
     method = experiment['method']
     method = config[method]
@@ -387,13 +391,17 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
         error('ConfigFile:: Cycles not specified')
 
     # Creat HiSeq Object
-    if virtual:
-        from . import virtualHiSeq
-        hs = virtualHiSeq.HiSeq(logger)
-        hs.speed_up = int(method.get('speed up', fallback = 5000))
+    if model == 'HiSeq2500':
+        if args_['virtual']:
+            from . import virtualHiSeq
+            hs = virtualHiSeq.HiSeq(name, logger)
+            hs.speed_up = int(method.get('speed up', fallback = 5000))
+        else:
+            import pyseq
+            com_ports = pyseq.get_com_ports()
+            hs = pyseq.HiSeq(name, logger)
     else:
-        import pyseq
-        hs = pyseq.HiSeq(logger)
+        sys.exit()
 
     # Check side ports
     try:
@@ -499,6 +507,8 @@ def configure_instrument(virtual, IMAG_counter, port_dict):
     image_path = join(save_path, experiment['image path'])
     if not os.path.exists(image_path):
         os.mkdir(image_path)
+    with open(join(image_path,'machine_name.txt'),'w') as file:
+        file.write(hs.name)
     hs.image_path = image_path
     # Assign log directory
     log_path = join(save_path, experiment['log path'])
@@ -544,6 +554,7 @@ def confirm_settings(recipe_z_planes = []):
         print('first_port:', first_port)
     print('save path:', experiment['save path'])
     print('enable z stage:', hs.z.active)
+    print('machine:', experiment['machine'])
     print()
     if not userYN('Confirm experiment'):
         sys.exit()
@@ -744,7 +755,7 @@ def confirm_settings(recipe_z_planes = []):
 ##########################################################
 ## Setup HiSeq ###########################################
 ##########################################################
-def initialize_hs(virtual, IMAG_counter):
+def initialize_hs(IMAG_counter):
     """Initialize the HiSeq and return the handle."""
 
     global n_errors
@@ -1805,6 +1816,7 @@ def get_config(args):
 
     config['experiment']['recipe path'] = recipe_path
 
+
     # Don't override user defined valve
     user_config = configparser.ConfigParser()
     user_config.read(args['config'])
@@ -1849,9 +1861,9 @@ if __name__ == 'pyseq.main':
     port_dict = check_ports()                                                   # Check ports in configuration file
     first_line, IMAG_counter, z_planes = check_instructions()                   # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, IMAG_counter)                       # Create flowcells
-    hs = configure_instrument(args_['virtual'], IMAG_counter, port_dict)
+    hs = configure_instrument(IMAG_counter, port_dict)
     confirm_settings(z_planes)
-    hs = initialize_hs(args_['virtual'], IMAG_counter)                          # Initialize HiSeq, takes a few minutes
+    hs = initialize_hs(IMAG_counter)                                            # Initialize HiSeq, takes a few minutes
 
     if n_errors is 0:
         flush_YorN = do_flush()                                                 # Ask to flush out lines

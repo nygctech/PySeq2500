@@ -56,13 +56,20 @@ class Ystage():
 
         """
 
-        # Open Serial Port
-        s = serial.Serial(com_port, baudrate, timeout = 1)
+        if isinstance(com_port, int):
+            com_port = 'COM'+str(com_port)
 
-        # Text wrapper around serial port
-        self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
-                                            encoding = 'ascii',
-                                            errors = 'ignore')
+        try:
+            # Open Serial Port
+            s  = serial.Serial(com_port, baudrate, timeout = 1)
+            # Text wrapper around serial port
+            self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
+                                                encoding = 'ascii',
+                                                errors = 'ignore')
+        except:
+            print('ERROR::Check Y Stage Port')
+            self.serial_port = None
+
         self.min_y = -7000000
         self.max_y = 7500000
         self.spum = 100     # steps per um
