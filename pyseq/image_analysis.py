@@ -1027,7 +1027,7 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'Objective Stack')
 
-        im = im.assign_attrs(first_group = 0, machine = self.machine_name, scale=1,
+        im = im.assign_attrs(first_group = 0, machine = self.machine, scale=1,
                              overlap=0, fixed_bg = 0)
         self.im = im
 

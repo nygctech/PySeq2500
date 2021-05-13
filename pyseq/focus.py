@@ -34,7 +34,9 @@ def manual_focus(hs, flowcells):
             # Take objective stack
             focus_stack = hs.obj_stack()
             if not hs.virtual:
-                focus_stack = IA.HiSeqImages(obj_stack=focus_stack, logger = hs.logger)
+                focus_stack = IA.HiSeqImages(image_path = hs.image_path,
+                                             obj_stack=focus_stack,
+                                             logger = hs.logger)
             #Correct background
             focus_stack.correct_background()
 
@@ -356,7 +358,8 @@ class Autofocus():
             hs.x.move(x_pos)
             focus_stack = hs.obj_stack()
             if not hs.virtual:
-                focus_stack = IA.HiSeqImages(obj_stack=focus_stack)
+                focus_stack = IA.HiSeqImages(image_path = self.image_path, 
+                                             obj_stack=focus_stack)
 
             focus_stack.correct_background()
 
