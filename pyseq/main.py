@@ -481,6 +481,7 @@ def configure_instrument(IMAG_counter, port_dict):
 
     # Check Autofocus Settings
     hs.AF = method.get('autofocus', fallback = 'partial once')
+    if hs.AF in ['', 'None']: hs.AF = None
     if hs.AF not in ['partial', 'partial once', 'full', 'full once', 'manual', None]:
         error('ConfigFile:: Auto focus method not valid.')
     #Enable/Disable z stage
