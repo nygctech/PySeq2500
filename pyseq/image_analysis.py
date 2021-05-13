@@ -393,7 +393,7 @@ def get_HiSeqImages(image_path=None, common_name='', logger = None):
 def get_machine_config(machine):
 
 
-    machine = str(machine)
+    machine = str(machine).lower()
 
     config = configparser.ConfigParser()
     #config_path = pkg_resources.path(resources, 'background.cfg')
