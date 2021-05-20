@@ -335,7 +335,7 @@ def compute_background(image_path=None, common_name = ''):
 
     im = get_HiSeqImages(image_path, common_name)
     config = get_machine_config(im.machine)
-
+    config_secion = im.machine+'background'
     try:
         im = im[0] # In case there are multiple sections in image_path
     except:
@@ -343,7 +343,7 @@ def compute_background(image_path=None, common_name = ''):
     
     # Check if background data exists and check with user to overwrite
     proceed = True
-    if config.has_section(im.machine):
+    if config.has_section(config_section):
         if not userYN('Overide existing background data for '+im.machine):
             if not userYN('Confirm overide of '+im.machine+' background data'):
                 proceed = False
@@ -366,7 +366,7 @@ def compute_background(image_path=None, common_name = ''):
 
         if userYN('Save new background data for '+im.machine):
             # Save background correction values in config file
-            config.read_dict({im.machine+'background':bg_dict})
+            config.read_dict({config_section:bg_dict})
             config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
             with open(config_path,'w') as f:
                     config.write(f)
