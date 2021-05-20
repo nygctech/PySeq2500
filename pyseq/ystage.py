@@ -153,7 +153,7 @@ class Ystage():
         except:
             ip = 0
 
-        return
+        return ip
 
 
     def read_position(self):
