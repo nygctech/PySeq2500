@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import pandas as pd
+#import pandas as pd
 import numpy as np
 from numpy.linalg import svd
 from os import path, listdir, stat, remove
