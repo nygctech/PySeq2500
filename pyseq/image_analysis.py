@@ -891,7 +891,7 @@ class HiSeqImages():
                                          blending = 'additive')
 
 
-    def save_zarr(self, save_path, show_progress = True):
+    def save_zarr(self, save_path, show_progress = True, name=None):
         """Save all sections in a zipped zarr store.
 
            Note that coordinates for unused dimensions are not saved.
@@ -904,7 +904,10 @@ class HiSeqImages():
         if not path.isdir(save_path):
             mkdir(save_path)
 
-        save_name = path.join(save_path,self.im.name+'.zarr')
+        if name is None:
+            save_name = path.join(save_path,self.im.name+'.zarr')
+        else:
+            save_name = path.join(save_path,str(name)+'.zarr')
         # Remove coordinate for unused dimensions
         for c in self.im.coords.keys():
             if c not in self.im.dims:
