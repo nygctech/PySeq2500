@@ -2,7 +2,7 @@ chemistry
 =========
 .. currentmodule:: pyseq
 
-.. automodule:: pyseq.chemistry
+.. automodule:: pyseq.temperature
    :members:
 
    .. rubric:: Classes
