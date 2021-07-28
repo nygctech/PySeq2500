@@ -9,3 +9,5 @@ xarray
 napari
 qtpy
 zarr
+pyqt5
+PySide2
