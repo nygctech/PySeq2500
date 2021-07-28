@@ -1,5 +1,5 @@
-chemistry
-=========
+temperature
+===========
 .. currentmodule:: pyseq
 
 .. automodule:: pyseq.temperature
@@ -9,4 +9,4 @@ chemistry
 
    .. autosummary::
 
-      Chemistry
+      Temperature

@@ -47,7 +47,7 @@ class Temperature():
         - tec_PIDSF0: Chiller 0 Temperature servo-loop parameters
         - tec_PIDSF1: Chiller 1 Temperature servo-loop parameters
         - tec_PIDSF2: Chiller 2 Temperature servo-loop parameters
-        - p_ = servo-loop parameters: Servo_Proportional, Servo_Integral, Servo_Derivative, Feed_Frw_StepSize, Feed_frw_Threshold
+        - p_: servo-loop parameters = Servo_Proportional, Servo_Integral, Servo_Derivative, Feed_Frw_StepSize, Feed_frw_Threshold
         - delay (int): Delay time in querying temperature.
 
     """
