@@ -142,6 +142,7 @@ class Xstage():
         return homed
                  
     def check_home(self):
+        """Return True if in correct home position."""
 
         homed = False
         self.move(29000)
