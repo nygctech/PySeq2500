@@ -31,7 +31,7 @@ setup(
                       'scipy',
                       'imageio',
                       'tabulate',
-                      'dask', 'xarray', 'zarr', 'glob', 'napari'],
+                      'dask', 'xarray', 'zarr', 'napari'],
     package_data={
         'pyseq': ['recipes/*', 'focus_data/*',
                   'focus_data/full/*', 'focus_data/partial/*',
