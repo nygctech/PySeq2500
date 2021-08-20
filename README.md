@@ -3,6 +3,30 @@ Control an Illumina HiSeq 2500 System Interactively
 
 [Read the Docs](https://pyseq2500.readthedocs.io/en/latest/)
 
+# HiSeq Modifications
+## Remove front panel (optional)
+It may be easier to remove the front panel of the HiSeq for easier access to all the screws of the stage and the all the valves. 
+To remove the front pannel, first open the stage door and disconnect the wires to the stage door sensors/lock (located to the right of the stage).
+Then unscrew 2 philips head screws behind the pump door and 2 philips head screws behind chiller door.
+Also remove any additional screws on the left side of the HiSeq. 
+Pry off the front panel slowly and set aside until ready to reattach.
+Reattach front planel by sliding into place. 
+Reconnect wires to door sensors/lock and then secure panel with screws. 
+
+## Remove stage plate (required)
+It may be easier to access the stage if the front panel of the HiSeq is removed.
+Unscrew 3 philips head screws located on top of stage. Pry off and remove the plate.
+
+## Remove notches on stage plate (optional)
+Remove the stage plate.
+Grind or hammer off chamfered corners at the back left of each flow cell slot on the stage plate.
+Resecure the stage plate.
+
+## Tie pump lines (optional)
+Our flowcell design only uses the outlets 4 and 5 of each flow cell slot. To maximize the capacity of the pump, inlets 1-4 and 5-8 of the pump are tied to outlets 4 and 5 of the flow cell respectivly with 5 port port PEEK manifold (VICI, C5M1PK), ¼-28 flanged tube fittings with washers (VICI, CF-1A and CF-W1), and 1/16 in. OD PTFE tubing.
+
+## Additional reagent lines (optional)
+Ports 9, 21, 22, 23, and 24 are not used on HiSeq 2500 reagent valves. Additional reagent lines can be added to these ports with 1/16 in. outer diameter PTFE tubing and 6-40 one-piece nuts/bushings (VICI, CNNF1PK). A 1 cm diameter hole was drilled into the left side of the HiSeq front panel which was used to direct additional reagent lines through to external reagent reservoirs. 
 
 # Initializing HiSeq
 
