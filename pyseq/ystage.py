@@ -147,13 +147,14 @@ class Ystage():
             - int: 1 if ystage is in position, 0 if it is not in position.
 
         """
+        # TODO: could instead use self.command('TR(IP,=,1)') to wait for move to finish
         
         try:
             ip = int(self.command('R(IP)')[1:])
         except:
             ip = 0
 
-        return
+        return ip
 
 
     def read_position(self):
