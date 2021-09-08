@@ -5,13 +5,13 @@ Control an Illumina HiSeq 2500 System Interactively
 
 # HiSeq Modifications
 ## Remove front panel (optional)
-It may be easier to remove the front panel of the HiSeq for easier access to all the screws of the stage and the all the valves. 
+It may be easier to remove the front panel of the HiSeq for easier access to all the screws of the stage and the all the valves.
 To remove the front pannel, first open the stage door and disconnect the wires to the stage door sensors/lock (located to the right of the stage).
 Then unscrew 2 philips head screws behind the pump door and 2 philips head screws behind chiller door.
-Also remove any additional screws on the left side of the HiSeq. 
+Also remove any additional screws on the left side of the HiSeq.
 Pry off the front panel slowly and set aside until ready to reattach.
-Reattach front planel by sliding into place. 
-Reconnect wires to door sensors/lock and then secure panel with screws. 
+Reattach front planel by sliding into place.
+Reconnect wires to door sensors/lock and then secure panel with screws.
 
 ## Remove stage plate (required)
 It may be easier to access the stage if the front panel of the HiSeq is removed.
@@ -26,7 +26,7 @@ Resecure the stage plate.
 Our flowcell design only uses the outlets 4 and 5 of each flow cell slot. To maximize the capacity of the pump, inlets 1-4 and 5-8 of the pump are tied to outlets 4 and 5 of the flow cell respectivly with 5 port port PEEK manifold (VICI, C5M1PK), ¼-28 flanged tube fittings with washers (VICI, CF-1A and CF-W1), and 1/16 in. OD PTFE tubing.
 
 ## Additional reagent lines (optional)
-Ports 9, 21, 22, 23, and 24 are not used on HiSeq 2500 reagent valves. Additional reagent lines can be added to these ports with 1/16 in. outer diameter PTFE tubing and 6-40 one-piece nuts/bushings (VICI, CNNF1PK). A 1 cm diameter hole was drilled into the left side of the HiSeq front panel which was used to direct additional reagent lines through to external reagent reservoirs. 
+Ports 9, 21, 22, 23, and 24 are not used on HiSeq 2500 reagent valves. Additional reagent lines can be added to these ports with 1/16 in. outer diameter PTFE tubing and 6-40 one-piece nuts/bushings (VICI, CNNF1PK). A 1 cm diameter hole was drilled into the left side of the HiSeq front panel which was used to direct additional reagent lines through to external reagent reservoirs.
 
 # Initializing HiSeq
 
@@ -56,8 +56,8 @@ hs.z.move([21250, 21250, 21250])    #Raise z stage
 
 hs.obj.move(30000)                  #Move objective to middle-ish
 
-hs.move_ex(1,'open')                #Move excitation filter 1 to open position
-hs.move_ex(2,'open')                #Move excitation filter 2 to open position
+hs.move_ex('green','open')                #Move excitation filter 1 to open position
+hs.move_ex('red','open')                #Move excitation filter 2 to open position
 
 hs.lasers['green'].get_power()      #Get green laser power (mW i think)
 hs.lasers['red'].get_power()        #Get red laser power   (mW i think)
@@ -125,7 +125,7 @@ During `hs.initializeInstruments()`, both lasers are set to 10 mW
 During `hs.initializeInstruments()`, the excitation filters are homed to the block position and the emission filter is moved into the light path.
 
 ```python
-hs.optics.move_ex(N, filter)		 #  moves the excitation filter wheel in the N (1 or 2) light path to the filter.
+hs.optics.move_ex(color, filter)		 #  moves the excitation filter wheel in the color ('green' or 'red') light path to the filter.
 hs.optics.ex_dict 					      # stores the positions and names of the filters in a dictionary
 hs.optics.move_em_in(True/False) 	# "True" moves the emission filter into the light path, False moves it out.
 ```
@@ -352,6 +352,8 @@ usage: pyseq [-h] [-config PATH] [-name NAME] [-output PATH] [-list]
 - **method**: **See an installed method config and method recipe**
 - **virtual**: **Run a virtual experiment**
 - **settings**: **See available configuration options**
+- **ports**: **List COM port identifier of instruments**
+- **diagnostics**: **Perform a simple diagnostics run**
 
 ## Run an experiment
 Assumes an experiment file, config.cfg, is in the current working directory.
