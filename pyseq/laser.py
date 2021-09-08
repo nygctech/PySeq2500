@@ -56,13 +56,21 @@ class Laser():
 
         """
 
-        # Open Serial Port
-        s = serial.Serial(com_port, baudrate, timeout = 1)
+        if isinstance(com_port, int):
+            com_port = 'COM'+str(com_port)
 
-        # Text wrapper around serial port
-        self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
-                                            encoding = 'ascii',
-                                            errors = 'ignore')
+        try:
+            # Open Serial Port
+            s  = serial.Serial(com_port, baudrate, timeout = 1)
+            # Text wrapper around serial port
+            self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
+                                                encoding = 'ascii',
+                                                errors = 'ignore')
+
+        except:
+            print('ERROR::Check Laser ('+color+') Port')
+            self.serial_port = None
+
         self.on = False
         self.power = 0
         self.set_point = 0
@@ -71,11 +79,13 @@ class Laser():
         self.suffix = '\r'
         self.logger = logger
         self.color = color
-        self.version = self.command('VERSION?')[0:-1]
+        self.version = None
 
 
     def initialize(self):
         """Turn the laser on and set the power to the default 10 mW level."""
+        
+        self.version = self.command('VERSION?')[0:-1]
         self.turn_on(True)
         self.set_power(10)
 

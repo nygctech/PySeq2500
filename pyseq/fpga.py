@@ -69,15 +69,24 @@ class FPGA():
             - fpga object: A fpga object to control the FPGA.
 
         """
+        if isinstance(com_port_command, int):
+            com_port_command = 'COM'+str(com_port)
+        if isinstance(com_port_response, int):
+            com_port_response = 'COM'+str(com_port)
 
-        # Open Serial Port
-        s_command = serial.Serial(com_port_command, baudrate, timeout = 1)
-        s_response = serial.Serial(com_port_response, baudrate, timeout = 1)
+        try:
+            # Open Serial Port
+            s_command = serial.Serial(com_port_command, baudrate, timeout = 1)
+            s_response = serial.Serial(com_port_response, baudrate, timeout = 1)
 
-        # Text wrapper around serial port
-        self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s_response,s_command),
-                                            encoding = 'ascii',
-                                            errors = 'ignore')
+            # Text wrapper around serial port
+            self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s_response,s_command),
+                                                encoding = 'ascii',
+                                                errors = 'ignore')
+        except:
+            print('ERROR::Check FPGA Ports')
+            self.serial_port = None
+
         self.suffix = '\n'
         self.y_offset = 7000000
         self.logger = logger

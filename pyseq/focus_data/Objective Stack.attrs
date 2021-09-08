@@ -1,5 +1,5 @@
 first_group 0
-machine
+machine virtual
 scale 1
 fixed_bg 0
 overlap 0

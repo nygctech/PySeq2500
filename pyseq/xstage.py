@@ -59,14 +59,23 @@ class Xstage():
 
         """
 
-        # Open Serial Port
-        s = serial.Serial(com_port, baudrate, timeout = 1)
+        if isinstance(com_port, int):
+            com_port = 'COM'+str(com_port)
 
-        # Text wrapper around serial port
-        self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
-                                            encoding = 'ascii',
-                                            errors = 'ignore')
+        try:
+            # Open Serial Port
+            s  = serial.Serial(com_port, baudrate, timeout = 1)
+            # Text wrapper around serial port
+            self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
+                                                encoding = 'ascii',
+                                                errors = 'ignore')
+        except:
+            print('ERROR::Check X Stage Port')
+            self.serial_port = None
+
+
         self.min_x = 1000
+        # Need to update too large
         self.max_x = 50000
         self.home = 30000
         self.spum = 0.4096     #steps per um
@@ -136,12 +145,13 @@ class Xstage():
             self.move(40000)
             self.command('EX 1')
             self.position = 30000
-            self.check_position(self.position)    
+            self.check_position(self.position)
             homed = self.check_home()
 
         return homed
-                 
+
     def check_home(self):
+        """Return True if in correct home position."""
 
         homed = False
         self.move(29000)
@@ -153,7 +163,7 @@ class Xstage():
                 homed = True
 
         self.move(30000)
-        
+
         return homed
 
     def command(self, text):

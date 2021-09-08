@@ -2,7 +2,7 @@
 """Arguments for Pyseq
 
 usage: pyseq [-h] [-config PATH] [-name NAME] [-output PATH] [-list]
-             [-method METHOD]
+             [-method METHOD] [-diagnostics]
 
 optional arguments:
   -h, --help      show this help message and exit
@@ -11,6 +11,7 @@ optional arguments:
   -output PATH    directory to save data, default = current directory
   -list           list installed methods
   -method METHOD  print method details
+  -diagnostics    diagnostic run
 
 Kunal Pandit 3/15/2020
 """
@@ -65,6 +66,18 @@ parser.add_argument('-settings',
                     action = 'store_true',
                     )
 
+# Flag to perform a diagnostic run
+parser.add_argument('-ports',
+                    help='view com ports',
+                    action = 'store_true',
+                    )
+
+# Flag to perform a diagnostic run
+parser.add_argument('-diagnostics',
+                    help='perform a diagnostics run',
+                    action = 'store_true',
+                    )
+
 def get_arguments():
     """Return arguments from command line"""
 
@@ -84,6 +97,15 @@ def get_arguments():
         for s in settings:
             print(s, '=', settings[s])
             print()
+        sys.exit()
+
+    if args['diagnostics']:
+        from . import check_system
+        sys.exit()
+
+    if args['ports'] is True:
+        methods.list_com_ports()
+
         sys.exit()
 
     return args

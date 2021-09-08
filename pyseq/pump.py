@@ -56,7 +56,7 @@ class Pump():
     """
 
 
-    def __init__(self, com_port, name=None, logger=None, n_barrels = 8):
+    def __init__(self, com_port, name=None, logger=None, baudrate = 9600):
         """The constructor for the pump.
 
            **Parameters:**
@@ -72,15 +72,22 @@ class Pump():
 
         """
 
-        baudrate = 9600
 
-        # Open Serial Port
-        s = serial.Serial(com_port, baudrate, timeout = 1)
 
-        # Text wrapper around serial port
-        self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
-                                            encoding = 'ascii',
-                                            errors = 'ignore')
+        if isinstance(com_port, int):
+            com_port = 'COM'+str(com_port)
+
+        try:
+            # Open Serial Port
+            s  = serial.Serial(com_port, baudrate, timeout = 1)
+            # Text wrapper around serial port
+            self.serial_port = io.TextIOWrapper(io.BufferedRWPair(s,s,),
+                                                encoding = 'ascii',
+                                                errors = 'ignore')
+        except:
+            print('ERROR::Check Pump Stage Port')
+            self.serial_port = None
+
         self.n_barrels = 1
         self.barrel_volume = 250.0 # uL
         self.steps = 48000.0

@@ -9,7 +9,7 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 
 setup(
     name='pyseq2500',
-    version='0.5',
+    version='0.61',
     description='Control an Illumina HiSeq 2500 System',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -31,7 +31,8 @@ setup(
                       'scipy',
                       'imageio',
                       'tabulate',
-                      'dask', 'xarray', 'zarr', 'glob', 'napari'],
+                      'dask', 'xarray', 'zarr', 'qtpy','napari',
+                      'scikit-image >= 0.17'],
     package_data={
         'pyseq': ['recipes/*', 'focus_data/*',
                   'focus_data/full/*', 'focus_data/partial/*',

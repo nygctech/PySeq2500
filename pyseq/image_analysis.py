@@ -17,6 +17,7 @@ import glob
 import configparser
 import time
 from qtpy.QtCore import QTimer
+from skimage.registration import phase_cross_correlation
 
 try:
     import importlib.resources as pkg_resources
@@ -24,7 +25,7 @@ except ImportError:
     # Try backported to PY<37 `importlib_resources`.
     import importlib_resources as pkg_resources
 from . import resources
-from . import recipes
+from .methods import userYN
 
 def message(logger, *args):
     """Print output text to logger or console.
@@ -329,36 +330,50 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
     return ord_points
 
 
-def compute_background(im_path, save_path = None, machine=''):
-
-    ims = HiSeqImages(im_path)
-    name = [*ims.sections.keys()][0]
-    dataset = ims.sections[name]
+def compute_background(image_path, common_name = ''):
     sensor_size = 256 # pixels
-    background = {}
 
-    # Loop over channels then sensor group and find mode
-    for ch in dataset.channel.values:
-        for i in range(8):
-            sensor = dataset.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
-            background.setdefault(ch, dict())
-            background[ch][i] = stats.mode(sensor, axis=None)[0][0]
-        avg_background = int(round(np.mean([*background[ch].values()])))
-        print('Channel', ch,'::Average background', avg_background)
-        # Calculate background correction
-        for i in range(8):
-            background[ch][i] = avg_background-background[ch][i]
+    im = get_HiSeqImages(image_path, common_name)
+    config = get_machine_config(im.machine)
 
-    # Save background correction values in config file
-    config = configparser.ConfigParser()
-    config.read_dict(background)
-    if save_path is None:
-        save_path = im_path
-    if not machine:
-        bg_path = path.join(save_path,'background.cfg')
-    else:
-        bg_path = path.join(save_path,machine+'.cfg')
-    with open(bg_path, 'w') as configfile: config.write(configfile)
+    try:
+        im = im[0]                                                              # In case there are multiple sections in image_path
+    except:
+        pass
+
+    # Check if background data exists and check with user to overwrite
+    proceed = True
+    if config.has_section(im.machine):
+        if not userYN('Overide existing background data for '+im.machine):
+            if not userYN('Confirm overide of '+im.machine+' background data'):
+                proceed = False
+
+    if proceed:
+        print('Analyzing ', im.im.name)
+        bg_dict = {}
+        # Loop over channels then sensor group and find mode
+        for ch in im.channel.values:
+            background = []
+            for i in range(8):
+                sensor = im.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
+                background.append(stats.mode(sensor, axis=None)[0][0])
+            avg_background = int(round(np.mean(background)))
+            print('Channel', ch,'::Average background', avg_background)
+
+            for i in range(8):
+                background[i] = avg_background-background[i]                    # Calculate background correction
+            bg_dict[ch] = ','.join(map(str, background))                        # Format backround correction
+
+        if not userYN('Save new background data for '+im.machine):
+            # Save background correction values in config file
+            config.read_dict({im.machine+'background':bg_dict})
+            config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
+            with open(config_path,'w') as f:
+                    config.write(f)
+
+    return bg_dict
+
+
 
 
 def get_HiSeqImages(image_path=None, common_name='', logger = None):
@@ -374,6 +389,142 @@ def get_HiSeqImages(image_path=None, common_name='', logger = None):
         return ims
     else:
         return None
+
+
+def get_machine_config(machine):
+
+
+    machine = str(machine).lower()
+
+    config = configparser.ConfigParser()
+    #config_path = pkg_resources.path(resources, 'background.cfg')
+    config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
+
+    if path.exists(config_path):
+        with open(config_path,'r') as config_path_:
+            config.read_file(config_path_)
+
+        if machine not in config.options('machines'):
+            print('Settings for', machine, 'do not exist')
+            config = None
+    else:
+        print(config_path, 'not found')
+        config = None
+
+    return config
+
+
+def detect_channel_shift(image_path, common_name = '', ref_ch = 610):
+
+    im = get_HiSeqImages(image_path, common_name)
+    im = im.im
+    config = get_machine_config(im.machine)
+
+    try:
+        im = im[0]                                                              # In case there are multiple sections in image_path
+    except:
+        pass
+
+    if 'obj_step' in im.dims:
+        im = im.max(dim='obj_step')
+    if 'cycle' in im.dims:
+        if len(im.cycle.values) > 1:
+            im = im.sel(cycle=1)
+    if 'image' in im.dims:
+        if len(im.image.values) > 1:
+            im = im.sel(image=1)
+
+    channels = list(im.channel.values)
+    if len(channels) != 4:
+        raise ValueError('Need 4 channels.')
+
+    if ref_ch in channels:
+        channels.pop(channels.index(ref_ch))
+    else:
+        print('Invalid reference channel')
+        raise ValueError
+
+    # detect shift
+    shift = []
+    for ch in channels:
+        detected_shift = phase_cross_correlation(im.sel(channel=ref_ch),im.sel(channel=ch))
+        row_shift = int(detected_shift[0][0])
+        col_shift = int(detected_shift[0][1])
+
+        print(ch, 'row shift =', row_shift, 'px')
+        print(ch, 'col shift =', col_shift, 'px')
+
+        if row_shift > 0:
+            shift += [0, -row_shift]
+        elif row_shift < 0:
+            shift += [-row_shift, 0]
+        else:
+            shift += [0, 0]
+        if col_shift > 0:
+            shift += [0, -col_shift]
+        elif col_shift < 0:
+            shift += [-col_shift, 0]
+        else:
+            shift += [0, 0]
+
+    shift = np.reshape(shift, (nch-1, 4))
+
+    # adjust for global pixel shifts
+    max_row_top = np.max(shift[:,0])
+    min_row_bot = abs(np.min(shift[:,1]))
+    max_col_l = np.max(shift[:,2])
+    min_col_r = abs(np.min(shift[:,3]))
+
+
+    ch_shift = {}
+    ch_list = []
+    for i, ch in enumerate(channels):
+        # adjust row shift
+        if shift[i,0] != 0 and shift[i,1] == 0:
+            shift[i,0] = shift[i,0] + min_row_bot
+        elif shift[i,1] != 0 and shift[i,0] == 0:
+            shift[i,1] = shift[i,1] - max_row_top
+
+        #adjust col shift (hopefully none)
+        if shift[i,2] != 0 and shift[i,3] == 0:
+            shift[i,2] = shift[i,2] + min_col_r
+        elif shift[i,3] != 0 and shift[i,2] == 0:
+            shift[i,3] = shift[i,3] - max_col_l
+
+        #Replace 0 with None
+        ch_shift[ch] = [None if s == 0 else s for s in shift[i,:]]
+        #Shift image
+        s = ch_shift[ch]
+        ch_list.append(im.sel(channel=ch, row=slice(s[0],s[1]), col=slice(s[2],s[3])))
+
+    # Shift reference channel
+    ch_shift[ref_ch] = [min_row_bot, -max_row_top, min_col_r, max_col_l]
+    ch_shift[ref_ch] = [None if s == 0 else s for s in ch_shift[ref_ch]]
+    s = ch_shift[ref_ch]
+    ch_list.append(im.sel(channel=ref_ch, row=slice(s[0],s[1]), col=slice(s[2],s[3])))
+
+
+    # Show resulting shift with original image
+    shifted = xr.concat(ch_list, dim='channel')
+    both = xr.concat([im.sel(row=slice(s[0],s[1]),col=slice(s[2],s[3])), shifted], dim='shifted')
+    both = ia.HiSeqImages(im = both)
+    both.show()
+
+    # save shift
+    if userYN('Save channel shift to machine settings'):
+        reg_dict = {}
+        for ch in ch_shift.keys():
+            reg_dict[str(ch)] = ','.join(map(str, ch_shift[ch]))
+
+        config = ia.get_machine_config(im.machine)
+        config.read_dict({im.machine+'registration':reg_dict})
+
+        config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
+        if path.exists(config_path):
+            with open(config_path,'w') as config_path_:
+                config.write(config_path_)
+
+    return ch_shift
 
 
 
@@ -418,21 +569,34 @@ class HiSeqImages():
         self.filenames = []
         self.resolution = 0.375                                                 # um/px
         self.x_spum = 0.4096                                                    #steps per um
+        self.config  = None
+        self.machine = None
 
-        if len(common_name) > 0:
-            common_name = '*'+common_name
-
-        section_names = []
         if im is None:
+
             if image_path is None:
                 image_path = getcwd()
+
+            # Get machine config
+            name_path = path.join(image_path,'machine_name.txt')
+            if path.exists(name_path):
+                with open(name_path,'r') as f:
+                    machine = f.readline().strip()
+                    self.config = get_machine_config(machine)
+            if self.config is not None:
+                self.machine = machine
+
+            if len(common_name) > 0:
+                common_name = '*'+common_name
+
+            section_names = []
 
             # Open zarr
             if image_path[-4:] == 'zarr':
                 self.filenames = [image_path]
                 section_names = self.open_zarr()
 
-            if obj_stack is not None:
+            elif obj_stack is not None:
                 # Open obj stack (jpegs)
                 #filenames = glob.glob(path.join(image_path, common_name+'*.jpeg'))
                 n_frames = self.open_objstack(obj_stack)
@@ -466,17 +630,13 @@ class HiSeqImages():
 
     def correct_background(self):
 
-        if not bool(self.im.fixed_bg):
-            # Open background config
-            config = configparser.ConfigParser()
-            if not self.im.machine:
-                config_path = pkg_resources.path(resources, 'background.cfg')
-            else:
-                config_path = pkg_resources.path(resources, machine+'.cfg')
-            with config_path as config_path_:
-                config.read(config_path_)
+        machine = self.machine
+        if not bool(self.im.fixed_bg) and machine is not None:
+            bg_dict = {}
+            for ch, values in self.config.items(str(machine)+'background'):
+                values = list(map(int,values.split(',')))
+                bg_dict[int(ch)]=values
 
-            # Apply background correction
             ch_list = []
             ncols = len(self.im.col)
             for ch in self.im.channel.values:
@@ -487,30 +647,60 @@ class HiSeqImages():
                         i = self.im.first_group
                     if i == 8:
                         i = 0
-                    bg = config.getint(str(ch),str(i))
+                    bg = bg_dict[ch][i]
                     bg_[c*256:(c+1)*256] = bg
                     i += 1
                 ch_list.append(self.im.sel(channel=ch)+bg_)
             self.im = xr.concat(ch_list,dim='channel')
             self.im.attrs['fixed_bg'] = 1
+
         else:
-            print('Image already background corrected.')
+            if bool(self.im.fixed_bg):
+                message(self.logger, 'Image already background corrected.')
+            elif machine is None:
+                message(self.logger, 'Unknown machine')
 
 
-    def register_channels(self, im):
+    def register_channels(self, image=None):
         """Register image channels."""
 
-        shifted=[]
-        for ch in self.channel_shift.keys():
-            shift = self.channel_shift[ch]
-            shifted.append(im.sel(channel = ch,
-                                  row=slice(shift[0],shift[1]),
-                                  col=slice(shift[2],shift[3])
-                                   ))
-        im = xr.concat(shifted, dim = 'channel')
-        im = im.sel(row=slice(64,None))                                         # Top 64 rows have white noise
+        if image is None:
+            img = self.im
+        else:
+            img = image
+        machine = self.machine
 
-        return im
+        reg_dict = {}
+        if machine is not None:
+            # Format values from config
+            for ch, values in self.config.items(str(machine)+'registration'):
+                pxs = []
+                for v in values.split(','):
+                    try:
+                        pxs.append(int(v))
+                    except:
+                        pxs.append(None)
+                reg_dict[int(ch)]=pxs
+
+
+            shifted=[]
+            for ch in reg_dict.keys():
+                shift = reg_dict[ch]
+                shifted.append(img.sel(channel = ch,
+                                       row=slice(shift[0],shift[1]),
+                                       col=slice(shift[2],shift[3])
+                                       ))
+
+            img = xr.concat(shifted, dim = 'channel')
+            img = img.sel(row=slice(64,None))                                   # Top 64 rows have white noise
+
+            if image is None:
+                self.im = img
+        else:
+            message(self.logger, 'Unknown machine')
+
+        return img
+
 
 
 
@@ -521,7 +711,7 @@ class HiSeqImages():
             overlap=int(overlap)
             n_tiles = int(len(self.im.col)/2048)
         except:
-            print('overlap must be an integer')
+            message(self.logger, 'overlap must be an integer')
 
         try:
             if direction.lower() in ['l','le','lef','left','lft','lt']:
@@ -531,7 +721,7 @@ class HiSeqImages():
             else:
                 raise ValueError
         except:
-            print('overlap direction must be either left or right')
+            message(self.logger, 'overlap direction must be either left or right')
 
         if not bool(self.im.overlap):
             if n_tiles > 1 and overlap > 0:
@@ -548,7 +738,7 @@ class HiSeqImages():
 
                 self.im = im
         else:
-            print('Overlap already removed')
+            message(self.logger, 'Overlap already removed')
 
 
 
@@ -701,7 +891,7 @@ class HiSeqImages():
                                          blending = 'additive')
 
 
-    def save_zarr(self, save_path, show_progress = True):
+    def save_zarr(self, save_path, show_progress = True, name=None):
         """Save all sections in a zipped zarr store.
 
            Note that coordinates for unused dimensions are not saved.
@@ -714,7 +904,10 @@ class HiSeqImages():
         if not path.isdir(save_path):
             mkdir(save_path)
 
-        save_name = path.join(save_path,self.im.name+'.zarr')
+        if name is None:
+            save_name = path.join(save_path,self.im.name+'.zarr')
+        else:
+            save_name = path.join(save_path,str(name)+'.zarr')
         # Remove coordinate for unused dimensions
         for c in self.im.coords.keys():
             if c not in self.im.dims:
@@ -737,7 +930,7 @@ class HiSeqImages():
         """Create labeled dataset from zarrs.
 
            **Parameters:**
-           - filename(list): List of full file path names to images
+           - machine_name(str): Name of machine that took images
 
            **Returns:**
            - array: Labeled dataset
@@ -768,12 +961,21 @@ class HiSeqImages():
                             value = ''
                         im.attrs[items[0]] = value
 
+            if im.machine in ['', 'None']:
+                im.attrs['machine'] = None
+                self.machine = None
+            else:
+                self.config = get_machine_config(im.machine)
+                if self.config is not None:
+                    self.machine = im.machine
+
             self.im.append(im)
 
         return im_names
 
 
     def open_RoughScan(self):
+
         # Open RoughScan tiffs
         filenames = self.filenames
 
@@ -814,8 +1016,8 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'RoughScan')
 
-        im = im.assign_attrs(first_group = 0, machine = '', scale=1, overlap=0,
-                             fixed_bg = 0)
+        im = im.assign_attrs(first_group = 0, machine = self.machine, scale=1,
+                             overlap=0, fixed_bg = 0)
         self.im = im.sel(row=slice(64,None))
 
         return len(fn_comp_sets[2])
@@ -831,7 +1033,7 @@ class HiSeqImages():
                                coords = coord_values,
                                name = 'Objective Stack')
 
-        im = im.assign_attrs(first_group = 0, machine = '', scale=1,
+        im = im.assign_attrs(first_group = 0, machine = self.machine, scale=1,
                              overlap=0, fixed_bg = 0)
         self.im = im
 
