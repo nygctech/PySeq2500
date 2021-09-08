@@ -248,7 +248,7 @@ def get_machine_info(virtual=False):
         if not userYN('Continue experiment without registration data for',name):
             model = None
 
-    if not NAME_EXISTS and model is not None and name is not None:
+    if not NAME_EXISTS and model is not None and name not in [None,'virtual']:
         # Save machine info
         config.read_dict({'DEFAULT':{'model':model,'name':name}})
         with open(config_path,'w') as f:
