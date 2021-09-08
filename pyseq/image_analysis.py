@@ -334,13 +334,13 @@ def compute_background(image_path=None, common_name = ''):
     sensor_size = 256 # pixels
 
     im = get_HiSeqImages(image_path, common_name)
-    config = get_machine_config(im.machine)
+    config, config_path = get_machine_config(im.machine)
     config_secion = im.machine+'background'
     try:
         im = im[0] # In case there are multiple sections in image_path
     except:
         pass
-    
+
     # Check if background data exists and check with user to overwrite
     proceed = True
     if config.has_section(config_section):
@@ -367,7 +367,6 @@ def compute_background(image_path=None, common_name = ''):
         if userYN('Save new background data for '+im.machine):
             # Save background correction values in config file
             config.read_dict({config_section:bg_dict})
-            config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
             with open(config_path,'w') as f:
                     config.write(f)
 
@@ -398,7 +397,8 @@ def get_machine_config(machine):
 
     config = configparser.ConfigParser()
     #config_path = pkg_resources.path(resources, 'background.cfg')
-    config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
+    homedir = path.expanduser('~')
+    config_path = path.join(homdir,'.pyseq2500','machine_settings.cfg')
 
     if path.exists(config_path):
         with open(config_path,'r') as config_path_:
@@ -411,7 +411,7 @@ def get_machine_config(machine):
         print(config_path, 'not found')
         config = None
 
-    return config
+    return config, congfig_path
 
 
 def detect_channel_shift(image_path, common_name = '', ref_ch = 610):
@@ -516,10 +516,9 @@ def detect_channel_shift(image_path, common_name = '', ref_ch = 610):
         for ch in ch_shift.keys():
             reg_dict[str(ch)] = ','.join(map(str, ch_shift[ch]))
 
-        config = ia.get_machine_config(im.machine)
+        config, config_path = get_machine_config(im.machine)
         config.read_dict({im.machine+'registration':reg_dict})
 
-        config_path = path.expanduser('~/PySeq2500/machine_settings.cfg')
         if path.exists(config_path):
             with open(config_path,'w') as config_path_:
                 config.write(config_path_)

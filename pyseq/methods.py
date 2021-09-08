@@ -198,12 +198,12 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
 def get_machine_info(virtual=False):
     """Specify machine model and name."""
 
-    # Open machine_info.cfg save in USERHOME/PySeq2500
+    # Open machine_info.cfg save in USERHOME/.pyseq2500
     homedir = expanduser('~')
-    if not isdir(join(homedir,'PySeq2500')):
-        mkdir(join(homedir,'PySeq2500'))
+    if not isdir(join(homedir,'.pyseq2500')):
+        mkdir(join(homedir,'.pyseq2500'))
 
-    config_path = join(homedir,'PySeq2500','machine_info.cfg')
+    config_path = join(homedir,'.pyseq2500','machine_info.cfg')
     config = configparser.ConfigParser()
     NAME_EXISTS = isfile(config_path)
     if NAME_EXISTS:
@@ -234,9 +234,9 @@ def get_machine_info(virtual=False):
 
 
     # Check if background and registration data exists
-    # Open machine_settings.cfg saved in USERHOME/PySeq2500
+    # Open machine_settings.cfg saved in USERHOME/.pyseq2500
     machine_settings = configparser.ConfigParser()
-    ms_path = join(homedir,'PySeq2500','machine_settings.cfg')
+    ms_path = join(homedir,'.pyseq2500','machine_settings.cfg')
     if isfile(ms_path):
         with open(ms_path,'r') as f:
             machine_settings.read_file(f)
