@@ -663,7 +663,11 @@ class HiSeq():
     def autofocus(self, pos_dict):
         """Find optimal objective position for imaging, True if found."""
 
-        opt_obj_pos = focus.autofocus(self, pos_dict)
+        try:
+            opt_obj_pos = focus.autofocus(self, pos_dict)
+        except:
+            opt_obj_pos = False
+
         if opt_obj_pos:
             self.obj.move(opt_obj_pos)
             self.message('HiSeq::Autofocus complete')

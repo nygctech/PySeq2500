@@ -1,7 +1,6 @@
 #!/usr/bin/python
-#import pandas as pd
 import numpy as np
-from numpy.linalg import svd
+#from numpy.linalg import svd
 from os import path, listdir, stat, remove
 from os import name as os_name
 from math import log2, ceil
@@ -358,7 +357,7 @@ class Autofocus():
             hs.x.move(x_pos)
             focus_stack = hs.obj_stack()
             if not hs.virtual:
-                focus_stack = IA.HiSeqImages(image_path = self.image_path, 
+                focus_stack = IA.HiSeqImages(image_path = self.image_path,
                                              obj_stack=focus_stack)
 
             focus_stack.correct_background()
