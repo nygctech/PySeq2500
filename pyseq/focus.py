@@ -1,7 +1,6 @@
 #!/usr/bin/python
-import pandas as pd
 import numpy as np
-from numpy.linalg import svd
+#from numpy.linalg import svd
 from os import path, listdir, stat, remove
 from os import name as os_name
 from math import log2, ceil
