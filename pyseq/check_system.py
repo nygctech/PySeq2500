@@ -72,8 +72,9 @@ def test_x_stage():
         message('Testing X Stage')
         homed = hs.x.initialize()
         if homed:
-            hs.x.move(hs.x.min_x)
-            hs.x.move(hs.x.max_x)
+            delta_x = int((hs.x.max_x-hs.x.min_x)*0.25)
+            hs.x.move(hs.x.home-delta_x)
+            hs.x.move(hs.x.home+delta_x)
             hs.x.move(hs.x.home)
             message('X Stage Nominal')
             status = True
@@ -381,7 +382,7 @@ try:
     # Creat HiSeq Object
     import pyseq
     com_ports = pyseq.get_com_ports()
-    hs = pyseq.HiSeq(logger, com_ports)
+    hs = pyseq.HiSeq(Logger=logger)
     # Exception for ValueError of port, must be string or None, not int)
     # Exception for SerialException, could not open port
     hs.image_path = image_path
