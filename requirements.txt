@@ -2,10 +2,11 @@ pyserial>=3
 numpy
 scipy
 imageio
+scikit-image
 dask
 xarray
-zarr
-qtpy
 napari
-tabulate
-scikit-image>=0.17
+qtpy
+zarr
+pyqt5
+PySide2

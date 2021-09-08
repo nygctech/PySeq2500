@@ -174,7 +174,7 @@ class Ystage():
         return self.position
 
     def set_mode(self, mode):
-        "Change between imaging and moving configurations."
+        """Change between imaging and moving configurations."""
 
         mode_changed = True
         if self.mode != mode:

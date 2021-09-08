@@ -9,15 +9,15 @@
 
         #Create ARM9 Chemistry object
         import pyseq
-        chem = pyseq.chemistry.CHEM('COM8')
+        temp = pyseq.temperature.Temperature('COM8')
         #Initialize ARM Chemistry
-        chem.initialize()
+        temperature.initialize()
         # Get temperature of flowcell A
-        chem.get_fc_T('A')
+        temp.get_fc_T('A')
         # Set temperature of flowcell A
-        chem.set_fc_T('A', 55.0)
+        temp.set_fc_T('A', 55.0)
         # Set temperature of flowcell A and block until temperature is reached
-        chem.wait_fc_T('A'), 55.0
+        temp.wait_fc_T('A'), 55.0
 
     Temperatures of flowcells A and B can be independently controlled. The
     min temperature is 20 °C and the max temperature is 60 °C.
@@ -47,7 +47,7 @@ class Temperature():
         - tec_PIDSF0: Chiller 0 Temperature servo-loop parameters
         - tec_PIDSF1: Chiller 1 Temperature servo-loop parameters
         - tec_PIDSF2: Chiller 2 Temperature servo-loop parameters
-        - p_ = servo-loop parameters: Servo_Proportional, Servo_Integral, Servo_Derivative, Feed_Frw_StepSize, Feed_frw_Threshold
+        - p_: servo-loop parameters = Servo_Proportional, Servo_Integral, Servo_Derivative, Feed_Frw_StepSize, Feed_frw_Threshold
         - delay (int): Delay time in querying temperature.
 
     """

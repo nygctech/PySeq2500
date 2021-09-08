@@ -1,12 +1,12 @@
-chemistry
-=========
+temperature
+===========
 .. currentmodule:: pyseq
 
-.. automodule:: pyseq.chemistry
+.. automodule:: pyseq.temperature
    :members:
 
    .. rubric:: Classes
 
    .. autosummary::
 
-      Chemistry
+      Temperature

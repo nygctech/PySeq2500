@@ -810,7 +810,7 @@ class HiSeq():
 
         """
 
-        self.scan_flag = True
+
         dx = self.tile_width*1000-self.resolution*self.overlap                       # x stage delta in in microns
         dx = round(dx*self.x.spum)                                              # x stage delta in steps
 
@@ -826,7 +826,7 @@ class HiSeq():
             self.x.move(self.x.position + dx)                                   # Move to next x position
 
         stop = time.time()
-        self.scan_flag = False
+
         return stop - start
 
 
