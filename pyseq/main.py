@@ -1376,7 +1376,8 @@ def do_recipe(fc):
             log_message = 'Move to ' + command
             fc.thread = threading.Thread(target = hs.v24[AorB].move,
                 args = (command,))
-            LED(AorB, 'awake')
+            if fc.cycle <= fc.total_cycles:
+                LED(AorB, 'awake')
 
         # Pump reagent into flowcell
         elif instrument == 'PUMP':
@@ -1385,7 +1386,8 @@ def do_recipe(fc):
             log_message = 'Pumping ' + str(volume) + ' uL'
             fc.thread = threading.Thread(target = hs.p[AorB].pump,
                 args = (volume, speed,))
-            LED(AorB, 'awake')
+            if fc.cycle <= fc.total_cycles:
+                LED(AorB, 'awake')
         # Incubate flowcell in reagent for set time
         elif instrument == 'HOLD':
             if command.isdigit():
@@ -1402,8 +1404,8 @@ def do_recipe(fc):
                 input("Press enter to continue...")
                 log_message = ('Continuing...')
                 fc.thread = threading.Thread(target = do_nothing)
-
-            LED(AorB, 'sleep')
+            if fc.cycle <= fc.total_cycles:
+                LED(AorB, 'sleep')
         # Wait for other flowcell to finish event before continuing with current flowcell
         elif instrument == 'WAIT':
             if command == 'TEMP':
@@ -1421,7 +1423,8 @@ def do_recipe(fc):
             else:
                 log_message = 'Skip waiting for ' + command
                 fc.thread = threading.Thread(target = do_nothing)
-            LED(AorB, 'sleep')
+            if fc.cycle <= fc.total_cycles:
+                LED(AorB, 'sleep')
         # Image the flowcell
         elif instrument == 'IMAG':
             if hs.scan_flag and fc.cycle <= fc.total_cycles:
@@ -1433,7 +1436,8 @@ def do_recipe(fc):
             log_message = 'Imaging flowcell'
             fc.thread = threading.Thread(target = IMAG,
                 args = (fc,int(command),))
-            LED(AorB, 'imaging')
+            if fc.cycle <= fc.total_cycles:
+                LED(AorB, 'imaging')
         elif instrument == 'TEMP':
             log_message = 'Setting temperature to ' + command + ' °C'
             command  = float(command)
@@ -1567,9 +1571,7 @@ def IMAG(fc, n_Zplanes):
             scan_time = str(int(scan_time/60))
             hs.message(msg + 'Imaging completed in', scan_time, 'minutes')
         except:
-            hs.scan_flag = False
             error('Imaging failed.')
-
 
     # Reset filters
     for color in hs.optics.cycle_dict.keys():
@@ -1581,6 +1583,8 @@ def IMAG(fc, n_Zplanes):
     if fc.IMAG_counter is not None:
         fc.IMAG_counter += 1
 
+    hs.scan_flag = False
+        
 
 
 def WAIT(AorB, event):

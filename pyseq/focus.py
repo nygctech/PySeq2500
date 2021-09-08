@@ -254,7 +254,7 @@ class Autofocus():
             im_path = path.join(self.image_path, 'partial')
         else:
             im_path = self.image_path
-            hs.scan(1, 1, pos_dict['n_frames'], image_name)
+        hs.scan(1, 1, pos_dict['n_frames'], image_name)
         hs.y.move(y_initial)
         hs.x.move(x_initial)
 
@@ -301,7 +301,7 @@ class Autofocus():
             im_path = path.join(self.image_path,'full')
         else:
             im_path = self.image_path
-            hs.scan(pos_dict['n_tiles'], 1, pos_dict['n_frames'], image_name)
+        hs.scan(pos_dict['n_tiles'], 1, pos_dict['n_frames'], image_name)
         hs.y.move(y_initial)
         hs.x.move(x_initial)
 

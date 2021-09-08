@@ -1,27 +1,38 @@
+PORT:	water    	#Move valve to water(port 2)
+PUMP:	2000		#Pump 500 uL
 PORT:	elution    	#Move valve to elution (port 3)
 PUMP:	500		#Pump 500 uL
 HOLD:	10		#Hold for 10 minutes
+PORT:	elution    	#Move valve to elution (port 3)
 PUMP:	500		#Pump 500 uL
 HOLD:	10		#Hold for 10 minutes
+PORT:	elution    	#Move valve to elution (port 3)
 PUMP:	500		#Pump 500 uL
 HOLD:	10		#Hold for 10 minutes
+PORT:	elution    	#Move valve to elution (port 3)
 PUMP:	500		#Pump 500 uL
 HOLD:	10		#Hold for 10 minutes
+PORT:	elution    	#Move valve to elution (port 3)
 PUMP:	500		#Pump 500 uL
 HOLD:	10		#Hold for 10 minutes
+PORT:	water    	#Move valve to water(port 2)
+PUMP:	2000		#Pump 500 uL
 PORT:	blocking	#Move valve to blocking buffer (port 4)
 PUMP:	800		#Pump 800 uL
 HOLD:	60		#Hold for 60 min
+PORT:	elution    	#Move valve to elution (port 3)
 PORT:	PBS		#Move valve to PBS wash (port 1)
 PUMP:	2000		#Pump 2000 uL
 PORT:	1stab		#Move valve to primary antibody (variable)
 PUMP:	500		#Pump 500 uL
 HOLD:	120		#Hold for 120 min
+PORT:	elution    	#Move valve to elution (port 3)
 PORT:	PBS		#Move valve to PBS wash (port 1)
 PUMP:	2000		#Pump 2000 uL
 PORT:	2ndab		#Move valve to secondary antibody (variable)
 PUMP:	1000		#Pump 500 uL
 HOLD:	120		#Hold for 120 min
+PORT:	elution    	#Move valve to elution (port 3)
 PORT:	PBS		#Move valve to PBS wash (port 1)
 PUMP:	2000		#Pump 2000 uL
 WAIT:	elution		#Wait till other flowcell is eluting with elution buffer

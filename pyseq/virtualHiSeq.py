@@ -200,6 +200,9 @@ class Ystage():
         self.velocity = None
         self.gains = None
         self.position = 0
+        self.configurations = {'imaging':{'g':'5,10,5,2,0'  ,'v':0.15400},
+                               'moving': {'g':'5,10,7,1.5,0','v':1}
+                              }
 
     def move(self, position):
         """Move ystage to absolute step position.
@@ -235,7 +238,7 @@ class Ystage():
                 gains = str(self.configurations[mode]['g'])
                 velocity = str(self.configurations[mode]['v'])
                 self.mode = mode
-                self.velocity = v
+                self.velocity = velocity
                 self.gains = gains
             else:
                 gains = None
@@ -1377,7 +1380,6 @@ class HiSeq():
 
         """
 
-        self.scan_flag = True
         dx = self.tile_width*1000-self.resolution*overlap                  # x stage delta in in microns
         dx = round(dx*self.x.spum)
 
@@ -1394,7 +1396,6 @@ class HiSeq():
             self.x.move(self.x.position + dx)                                   # Move to next x position
 
         stop = time.time()
-        self.scan_flag = False
 
         return stop - start
 
