@@ -115,13 +115,14 @@ class Zstage():
 
         """
 
-        text = text + self.suffix
-        self.serial_port.write(text)                                            # Write to serial port
-        self.serial_port.flush()                                                # Flush serial port
-        response = self.serial_port.readline()
-        if self.logger is not None:
-            self.logger.info('Zstage::txmt::'+text)
-            self.logger.info('Zstage::rcvd::'+response)
+        response = self.serial_port.command(text)
+        #text = text + self.suffix
+        #self.serial_port.write(text)                                            # Write to serial port
+        #self.serial_port.flush()                                                # Flush serial port
+        #response = self.serial_port.readline()
+        # if self.logger is not None:
+        #     self.logger.info('Zstage::txmt::'+text)
+        #     self.logger.info('Zstage::rcvd::'+response)
 
         return  response
 
