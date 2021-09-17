@@ -335,7 +335,7 @@ def compute_background(image_path=None, common_name = ''):
 
     im = get_HiSeqImages(image_path, common_name)
     config, config_path = get_machine_config(im.machine)
-    config_secion = im.machine+'background'
+    config_section = im.machine+'background'
     try:
         im = im[0] # In case there are multiple sections in image_path
     except:
@@ -411,7 +411,7 @@ def get_machine_config(machine):
         print(config_path, 'not found')
         config = None
 
-    return config, congfig_path
+    return config, config_path
 
 
 def detect_channel_shift(image_path, common_name = '', ref_ch = 610):
@@ -1134,7 +1134,7 @@ class HiSeqImages():
                                        name = s[1:])
 
 
-                im = self.register_channels(im.squeeze())
+                #im = self.register_channels(im.squeeze())
                 im = im.assign_attrs(first_group = 0, machine = '', scale=1,
                                      overlap=0, fixed_bg = 0)
                 im_names.append(s[1:])
