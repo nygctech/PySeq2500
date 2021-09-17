@@ -124,12 +124,14 @@ class FPGA():
         text = text + self.suffix
         self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
-        response = self.serial_port.readline()
-        if self.logger is not None:
-            self.logger.info('FPGA::txmt::'+text)
-            self.logger.info('FPGA::rcvd::'+response)
-        else:
-            print(response)
+        reponse = True
+        while reponse != '':
+            response = self.serial_port.readline()
+            if self.logger is not None:
+                self.logger.info('FPGA::txmt::'+text)
+                self.logger.info('FPGA::rcvd::'+response)
+            else:
+                print(response)
 
         self.busy = False
 

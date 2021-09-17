@@ -99,10 +99,9 @@ class Zstage():
 
         # Update position
         for i in range(3):
-            response = None
-            while response is None:
-                response = self.command('T' + self.motors[i] + 'RD')[5:]
-            self.position[i] = int(response)                                    # Set position
+            response = self.command('T' + self.motors[i] + 'RD')[5:]
+            print(response)
+            self.position[i] = int(response[5:])                                    # Set position
 
 
     def command(self, text):
