@@ -98,7 +98,12 @@ class FPGA():
     def initialize(self):
         """Initialize the FPGA."""
 
-        response = self.command('RESET')                                        # Initialize FPGA
+        response = self.command('RESET')
+        response = self.serial_port.readline()                                    # Initialize FPGA
+        if self.logger is not None:
+            self.logger.info('FPGA::rcvd::'+response)
+        else:
+            print(response)
         self.command('EX1HM')                                                   # Home excitation filter on laser line 1
         self.command('EX2HM')                                                   # Home excitation filter on laser line 2
         self.command('EM2I')                                                    # Move emission filter into light path
@@ -124,14 +129,12 @@ class FPGA():
         text = text + self.suffix
         self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
-        reponse = True
-        while reponse != '':
-            response = self.serial_port.readline()
-            if self.logger is not None:
-                self.logger.info('FPGA::txmt::'+text)
-                self.logger.info('FPGA::rcvd::'+response)
-            else:
-                print(response)
+        response = self.serial_port.readline()
+        if self.logger is not None:
+            self.logger.info('FPGA::txmt::'+text)
+            self.logger.info('FPGA::rcvd::'+response)
+        else:
+            print(response)
 
         self.busy = False
 
