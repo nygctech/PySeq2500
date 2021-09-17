@@ -398,7 +398,7 @@ def get_machine_config(machine):
     config = configparser.ConfigParser()
     #config_path = pkg_resources.path(resources, 'background.cfg')
     homedir = path.expanduser('~')
-    config_path = path.join(homdir,'.pyseq2500','machine_settings.cfg')
+    config_path = path.join(homedir,'.pyseq2500','machine_settings.cfg')
 
     if path.exists(config_path):
         with open(config_path,'r') as config_path_:
@@ -418,7 +418,7 @@ def detect_channel_shift(image_path, common_name = '', ref_ch = 610):
 
     im = get_HiSeqImages(image_path, common_name)
     im = im.im
-    config = get_machine_config(im.machine)
+    config, config_path = get_machine_config(im.machine)
 
     try:
         im = im[0]                                                              # In case there are multiple sections in image_path
@@ -516,7 +516,7 @@ def detect_channel_shift(image_path, common_name = '', ref_ch = 610):
         for ch in ch_shift.keys():
             reg_dict[str(ch)] = ','.join(map(str, ch_shift[ch]))
 
-        config, config_path = get_machine_config(im.machine)
+        #config, config_path = get_machine_config(im.machine)
         config.read_dict({im.machine+'registration':reg_dict})
 
         if path.exists(config_path):
@@ -581,7 +581,7 @@ class HiSeqImages():
             if path.exists(name_path):
                 with open(name_path,'r') as f:
                     machine = f.readline().strip()
-                    self.config = get_machine_config(machine)
+                    self.config, config_path = get_machine_config(machine)
             if self.config is not None:
                 self.machine = machine
 
@@ -965,7 +965,7 @@ class HiSeqImages():
                 im.attrs['machine'] = None
                 self.machine = None
             else:
-                self.config = get_machine_config(im.machine)
+                self.config, config_path = get_machine_config(im.machine)
                 if self.config is not None:
                     self.machine = im.machine
 

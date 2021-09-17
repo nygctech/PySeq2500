@@ -244,9 +244,9 @@ def get_machine_info(virtual=False):
     if not machine_settings.has_section(name+'background'):
         if not userYN('Continue experiment without background data for',name):
             model = None
-    if not machine_settings.has_section(name+'registration') and model is not None:
-        if not userYN('Continue experiment without registration data for',name):
-            model = None
+    # if not machine_settings.has_section(name+'registration') and model is not None:
+    #     if not userYN('Continue experiment without registration data for',name):
+    #         model = None
 
     if not NAME_EXISTS and model is not None and name not in [None,'virtual']:
         # Save machine info
