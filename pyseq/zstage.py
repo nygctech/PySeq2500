@@ -65,7 +65,7 @@ class Zstage():
 
         """
 
-        self.serial_port = fpga
+        self.fpga = fpga
         self.min_z = 0
         self.max_z = 25000
         self.spum = 0.656                                                       #steps per um
@@ -78,30 +78,43 @@ class Zstage():
         #self.ystep = [-2580000, 5695000, 4070000]                               # y step position of motors
         self.xstep = [-447290,   16770, -179390]
         self.ystep = [-10362000, -61867000, 73152000]
-        self.focus_pos = 21500
-        self.active = True                                                  # rough focus position
+        self.focus_pos = 21500                                                  # rough focus position
+        self.active = True
 
 
     def initialize(self):
         """Initialize the zstage."""
 
+        homed = False
         #Home Motors
-        if self.active:
+        if self.active and not homed:
             for i in range(3):
                 response = self.command('T' + self.motors[i] + 'HM')
+                # Need to read 2 lines
+                reponse = self.fpga.serial_port.readline()
+                if self.logger is not None:
+                    self.logger.info(instrument+'::txmt::'+text)
+                    self.logger.info(instrument+'::rcvd::'+response)
+                else:
+                    print(response)
 
-        #Wait till they stop
-        response = self.check_position()
+            #Wait till they stop
+            position = self.check_position()
 
-        # Clear motor count registers
-        for i in range(3):
-            response = self.command('T' + self.motors[i] + 'CR')
+            # Clear motor count registers
+            for i in range(3):
+                response = self.command('T' + self.motors[i] + 'CR')
 
-        # Update position
-        for i in range(3):
-            response = self.command('T' + self.motors[i] + 'RD')[5:]
-            print(response)
-            self.position[i] = int(response[5:])                                    # Set position
+            # Update position
+            position = self.check_position()
+
+            #Check if homed correctly
+            if self.in_position([0,0,0]):
+                homed = True
+            # for i in range(3):
+            #     response = self.command('T' + self.motors[i] + 'RD')[5:]
+            #     print(response)
+            #     self.position[i] = int(response[5:])                          # Set position
 
 
     def command(self, text):
@@ -115,7 +128,7 @@ class Zstage():
 
         """
 
-        response = self.serial_port.command(text)
+        response = self.fpga.command(text,'Zstage')
         #text = text + self.suffix
         #self.serial_port.write(text)                                            # Write to serial port
         #self.serial_port.flush()                                                # Flush serial port

@@ -81,7 +81,7 @@ class Optics():
 
         """
 
-        self.serial_port = fpga
+        self.fpga = fpga
         self.logger = logger
         self.ex = [None, None]
         self.em_in = None
@@ -112,7 +112,7 @@ class Optics():
                          0.5: -71}
                         }
 
-        
+
     def initialize(self):
         """Initialize the optics.
 
@@ -141,15 +141,16 @@ class Optics():
 
         """
 
-        text = text + self.suffix
-        self.serial_port.write(text)                                            # Write to serial port
-        self.serial_port.flush()                                                # Flush serial port
-        response = self.serial_port.readline()
-        if self.logger is not None:
-            self.logger.info('optics::txmt::'+text)
-            self.logger.info('optics::rcvd::'+response)
+        response = self.fpga.command(text,'optics')
+        # text = text + self.suffix
+        # self.serial_port.write(text)                                            # Write to serial port
+        # self.serial_port.flush()                                                # Flush serial port
+        # response = self.serial_port.readline()
+        # if self.logger is not None:
+        #     self.logger.info('optics::txmt::'+text)
+        #     self.logger.info('optics::rcvd::'+response)
 
-        return  response
+        return response
 
 
     def move_ex(self, color, position):

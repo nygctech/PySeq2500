@@ -111,11 +111,12 @@ class FPGA():
         self.LED(1,'off')
         self.LED(2,'off')
 
-    def command(self, text):
+    def command(self, text, instrument='FPGA'):
         """Send commands to the FPGA and return the response.
 
            **Parameters:**
             - text (str): A command to send to the FPGA.
+            - instrument (str): Specify instrument (FPGA,OBJstage,Zstage,optics)
 
            **Returns:**
             - str: The response from the FPGA.
@@ -131,8 +132,8 @@ class FPGA():
         self.serial_port.flush()                                        # Flush serial port
         response = self.serial_port.readline()
         if self.logger is not None:
-            self.logger.info('FPGA::txmt::'+text)
-            self.logger.info('FPGA::rcvd::'+response)
+            self.logger.info(instrument+'::txmt::'+text)
+            self.logger.info(instrument+'::rcvd::'+response)
         else:
             print(response)
 

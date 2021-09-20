@@ -141,9 +141,9 @@ class HiSeq():
                                             logger = Logger),
                       'red': laser.Laser(com_ports['laser2'], color = 'red',
                                          logger = Logger)}
-        self.z = zstage.Zstage(self.f.serial_port, logger = Logger)
-        self.obj = objstage.OBJstage(self.f.serial_port, logger = Logger)
-        self.optics = optics.Optics(self.f.serial_port, logger = Logger)
+        self.z = zstage.Zstage(self.f, logger = Logger)
+        self.obj = objstage.OBJstage(self.f, logger = Logger)
+        self.optics = optics.Optics(self.f, logger = Logger)
         self.cam1 = None
         self.cam2 = None
         self.p = {'A': pump.Pump(com_ports['pumpa'], 'pumpA', logger = Logger),

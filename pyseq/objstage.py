@@ -67,7 +67,7 @@ class OBJstage():
               position of the objective.
         """
 
-        self.serial_port = fpga
+        self.fpga = fpga
         self.min_z = 0
         self.max_z = 65535
         self.spum = 262                                                         #steps per um
@@ -106,15 +106,16 @@ class OBJstage():
 
         """
 
-        text = text + self.suffix
-        self.serial_port.write(text)
-        self.serial_port.flush()
-        response = self.serial_port.readline()
-        if self.logger is not None:
-            self.logger.info('OBJstage::txmt::'+text)
-            self.logger.info('OBJstage::rcvd::'+response)
+        response = self.fpga.command(text,'OBJstage')
+        # text = text + self.suffix
+        # self.serial_port.write(text)
+        # self.serial_port.flush()
+        # response = self.serial_port.readline()
+        # if self.logger is not None:
+        #     self.logger.info('OBJstage::txmt::'+text)
+        #     self.logger.info('OBJstage::rcvd::'+response)
 
-        return  response
+        return response
 
 
     def move(self, position):
@@ -134,7 +135,7 @@ class OBJstage():
                 position = int(position)
                 start = time.time()
                 while self.check_position() != position:
-                    response = self.command('ZMV ' + str(position))                 # Move Objective
+                    response = self.command('ZMV ' + str(position))        # Move Objective
                     if (time.time() - start) > self.timeout:
                         self.check_position()
                         break
@@ -157,7 +158,7 @@ class OBJstage():
         """
 
         try:
-            position = self.command('ZDACR')                                    # Read position
+            position = self.command('ZDACR')                               # Read position
             position = position.split(' ')[1]
             position = int(position[0:-1])
             self.position = position
@@ -182,7 +183,7 @@ class OBJstage():
             self.v = v
             # convert mm/s to steps/s
             v = int(v * 1288471)                                                #steps/mm
-            self.command('ZSTEP ' + str(v))                                     # Set velocity
+            self.command('ZSTEP ' + str(v))                                # Set velocity
         else:
             self.write_log('ERROR::Objective velocity out of range')
 
