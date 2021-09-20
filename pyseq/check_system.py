@@ -164,7 +164,7 @@ def test_z_stage():
                     warnings.warn('ERROR::'+text, RuntimeWarning)
 
     except:
-        error()
+        #error()
         status = False
         message('Z Stage Failed')
 
