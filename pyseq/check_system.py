@@ -343,7 +343,11 @@ def test_pumps():
 # Test cameras
 def test_cameras():
     message('Testing Cameras')
+
+    with open(join(hs.image_path,'machine_name.txt'),'w') as file:
+        file.write(hs.name)
     image_name = 'A_sDark_r0_x'+str(hs.x.position)+'_o'+str(hs.obj.position)
+    
     try:
         hs.initializeCams(logger)
         hs.cam1.setAREA()
