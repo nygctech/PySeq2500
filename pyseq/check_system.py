@@ -5,6 +5,7 @@ import os
 import sys
 from os.path import join
 from . import image_analysis as ia
+from . import methods
 
 
 
@@ -347,7 +348,7 @@ def test_cameras():
     with open(join(hs.image_path,'machine_name.txt'),'w') as file:
         file.write(hs.name)
     image_name = 'A_sDark_r0_x'+str(hs.x.position)+'_o'+str(hs.obj.position)
-    
+
     try:
         hs.initializeCams(logger)
         hs.cam1.setAREA()
@@ -387,8 +388,9 @@ try:
 
     # Creat HiSeq Object
     import pyseq
-    com_ports = pyseq.get_com_ports()
-    hs = pyseq.HiSeq(Logger=logger)
+    model, name = methods.get_machine_info()
+    hs = pyseq.HiSeq(name, Logger=logger)
+
     # Exception for ValueError of port, must be string or None, not int)
     # Exception for SerialException, could not open port
     hs.image_path = image_path

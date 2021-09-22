@@ -344,7 +344,7 @@ def compute_background(image_path=None, common_name = ''):
     # Check if background data exists and check with user to overwrite
     proceed = True
     if config.has_section(config_section):
-        if not userYN('Overide existing background data for '+im.machine):
+        if userYN('Overide existing background data for '+im.machine):
             if not userYN('Confirm overide of '+im.machine+' background data'):
                 proceed = False
 
