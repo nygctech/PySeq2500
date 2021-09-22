@@ -165,7 +165,7 @@ def test_z_stage():
                     warnings.warn('ERROR::'+text, RuntimeWarning)
 
     except:
-        error()
+        #error()
         status = False
         message('Z Stage Failed')
 
@@ -349,7 +349,7 @@ def test_cameras():
         hs.cam1.setAREA()
         hs.cam2.setAREA()
         if instrument_status['YSTAGE'] and instrument_status['FPGA']:
-            image_complete = hs.take_picture(n_frames=32, image_name)
+            image_complete = hs.take_picture(n_frames=32, image_name=image_name)
             if image_complete:
                 status = True
                 message('Cameras Nominal')
