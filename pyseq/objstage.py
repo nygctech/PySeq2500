@@ -158,14 +158,17 @@ class OBJstage():
         """
 
         try:
-            position = self.command('ZDACR')                               # Read position
-            position = position.split(' ')[1]
+            response = self.command('ZDACR')                                    # Read position
+            position = response.split(' ')[1]
             position = int(position[0:-1])
             self.position = position
-            return position
         except:
             self.write_log('WARNING:: Could not read objective position')
-            return None
+            position = None
+            while response.strip() != '':
+                response = self.fpga.serial_port.readline()
+
+        return position
 
 
     def set_velocity(self, v):
