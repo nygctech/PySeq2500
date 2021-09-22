@@ -93,8 +93,7 @@ class Zstage():
                 # Need to read 2 lines
                 reponse = self.fpga.serial_port.readline()
                 if self.logger is not None:
-                    self.logger.info(instrument+'::txmt::'+text)
-                    self.logger.info(instrument+'::rcvd::'+response)
+                    self.logger.info('Zstage'+'::rcvd::'+response)
                 else:
                     print(response)
 
