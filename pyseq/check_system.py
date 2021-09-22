@@ -4,6 +4,7 @@ import time
 import os
 import sys
 from os.path import join
+from . import image_analysis as ia
 
 
 
@@ -342,12 +343,13 @@ def test_pumps():
 # Test cameras
 def test_cameras():
     message('Testing Cameras')
+    image_name = 'A_sDark_r0_x'+str(hs.x.position)+'_o'+str(hs.obj.position)
     try:
         hs.initializeCams(logger)
         hs.cam1.setAREA()
         hs.cam2.setAREA()
         if instrument_status['YSTAGE'] and instrument_status['FPGA']:
-            image_complete = hs.take_picture(n_frames=32, image_name = 'dark')
+            image_complete = hs.take_picture(n_frames=32, image_name)
             if image_complete:
                 status = True
                 message('Cameras Nominal')
@@ -412,6 +414,7 @@ instrument_tests = {'FPGA': test_led,
 
 instrument_status = {'FPGA':False}
 
+# Perform Instrument tests
 for instrument in instrument_tests.keys():
     if instrument_status['FPGA']:
         hs.f.LED('A', 'green')
@@ -423,10 +426,7 @@ for instrument in instrument_tests.keys():
         hs.f.LED('B', 'green')
         time.sleep(2)
 
-if instrument_status['FPGA']:
-    hs.f.LED('A', 'pulse green')
-    hs.f.LED('B', 'pulse green')
-
+# Print diagnostics results
 table = []
 for instrument in instrument_status.keys():
     if instrument_status[instrument]:
@@ -440,3 +440,11 @@ try:
                                   tablefmt = 'presto'))
 except:
     print(table)
+
+# Compute background pixel group values
+bg_dict = ia.compute_background(hs.image_path, common_name = 'Dark')
+
+# Signal diagnostics are complete
+if instrument_status['FPGA']:
+    hs.f.LED('A', 'pulse green')
+    hs.f.LED('B', 'pulse green')
