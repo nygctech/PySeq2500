@@ -253,6 +253,8 @@ def get_machine_info(virtual=False):
         config.read_dict({'DEFAULT':{'model':model,'name':name}})
         with open(config_path,'w') as f:
             config.write(f)
+
+    if not NAME_EXISTS and model is not None and name is not None:
         #Add to list in machine settings
         if not machine_settings.has_section('machines'):
             machine_settings.add_section('machines')

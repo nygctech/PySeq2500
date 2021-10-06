@@ -16,6 +16,7 @@ import imageio
 import glob
 import configparser
 import time
+import tabulate
 from qtpy.QtCore import QTimer
 from skimage.registration import phase_cross_correlation
 
@@ -331,7 +332,7 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
 
 
 def compute_background(image_path=None, common_name = ''):
-    sensor_size = 256 # pixels
+
 
     im = get_HiSeqImages(image_path, common_name)
     config, config_path = get_machine_config(im.machine)
@@ -341,15 +342,21 @@ def compute_background(image_path=None, common_name = ''):
     except:
         pass
 
+    if im.machine == 'virtual':
+        sensor_size = 32
+    else:
+        sensor_size = 256 # pixels
+
     # Check if background data exists and check with user to overwrite
-    proceed = True
+    bg_dict = True
     if config.has_section(config_section):
         print('Current background correction')
-        print(config[config_section])
+        print(tabulate.tabulate(config.items('virtualbackground'),
+              tablefmt='presto',headers=['channel','background correction']))
         if not userYN('Calculate new background correction for '+im.machine):
-            proceed = False
+            bg_dict = None
 
-    if proceed:
+    if bg_dict:
         print('Analyzing ', im.im.name)
         bg_dict = {}
         # Loop over channels then sensor group and find mode of sensor group
@@ -586,6 +593,8 @@ class HiSeqImages():
                     self.config, config_path = get_machine_config(machine)
             if self.config is not None:
                 self.machine = machine
+            if self.machine is None:
+                self.machine = ''
 
             if len(common_name) > 0:
                 common_name = '*'+common_name
@@ -1137,8 +1146,8 @@ class HiSeqImages():
 
 
                 #im = self.register_channels(im.squeeze())
-                im = im.assign_attrs(first_group = 0, machine = '', scale=1,
-                                     overlap=0, fixed_bg = 0)
+                im = im.assign_attrs(first_group = 0, machine = self.machine,
+                                     scale=1, overlap=0, fixed_bg = 0)
                 im_names.append(s[1:])
             except:
                 im = None

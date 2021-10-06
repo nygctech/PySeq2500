@@ -8,12 +8,8 @@ from . import image_analysis as ia
 from . import methods
 
 
-
-def message(text):
-    logger.log(21, 'PySeq::'+text)
-
 def error(text):
-    message('ERROR::'+text)
+    hs.message('ERROR::'+text)
     if instrument_status['FPGA']:
         hs.f.LED(1, 'yellow')
 
@@ -48,16 +44,16 @@ def setup_logger(log_path):
 # Test LEDS
 def test_led():
     try:
-        message('Testing LEDs')
+        hs.message('Testing LEDs')
         hs.f.initialize()
         for color in hs.f.led_dict.keys():
             for i in [1,2]:
                 hs.f.LED(i, color)
             time.sleep(2)
-        message('LEDs Nominal')
+        hs.message('LEDs Nominal')
         status = True
     except:
-        message('LEDs Failed')
+        hs.message('LEDs Failed')
         status = False
 
     return status
@@ -70,14 +66,14 @@ def test_x_stage():
     hs.y.command('OFF')
     try:
 
-        message('Testing X Stage')
+        hs.message('Testing X Stage')
         homed = hs.x.initialize()
         if homed:
             delta_x = int((hs.x.max_x-hs.x.min_x)*0.25)
             hs.x.move(hs.x.home-delta_x)
             hs.x.move(hs.x.home+delta_x)
             hs.x.move(hs.x.home)
-            message('X Stage Nominal')
+            hs.message('X Stage Nominal')
             status = True
         else:
             error('X Stage Homing Failed')
@@ -91,7 +87,7 @@ def test_x_stage():
 # Test Y Stage
 def test_y_stage():
     try:
-        message('Testing Y Stage')
+        hs.message('Testing Y Stage')
         hs.y.initialize()
         start = time.time()
         timeout = 60*10
@@ -121,7 +117,7 @@ def test_y_stage():
 
 
         status = True
-        message('Y Stage Nominal')
+        hs.message('Y Stage Nominal')
 
     except:
         error('Y Stage Failed')
@@ -133,7 +129,7 @@ def test_y_stage():
 def test_z_stage():
     z_pass = [False, False, False]
     try:
-        message('Testing Z Stage')
+        hs.message('Testing Z Stage')
         hs.z.initialize()
         zpos = hs.z.focus_pos
         zpos_list = hs.z.move([zpos, zpos, zpos])
@@ -146,7 +142,7 @@ def test_z_stage():
                 z_pass[i] = True
         if all(z_pass):
             status = True
-            message('Z Stage Nominal')
+            hs.message('Z Stage Nominal')
         else:
             for i, z in enumerate(z_pass):
                 if not z:
@@ -162,7 +158,7 @@ def test_z_stage():
 # Test Objective Stage
 def test_objective_stage():
     try:
-        message('Testing Objective Stage')
+        hs.message('Testing Objective Stage')
         hs.obj.initialize()
         hs.obj.move(hs.obj.focus_start)
         hs.obj.move(hs.obj.focus_stop)
@@ -170,7 +166,7 @@ def test_objective_stage():
         hs.obj.move(hs.obj.focus_start)
         hs.obj.move(hs.obj.focus_stop)
         hs.obj.set_velocity(hs.obj.max_v)
-        message('Objective Stage Nominal')
+        hs.message('Objective Stage Nominal')
         status = True
     except:
         status = False
@@ -181,7 +177,7 @@ def test_objective_stage():
 
 # Test Lasers
 def test_lasers():
-    message('Testing Lasers')
+    hs.message('Testing Lasers')
 
     laser_pass = [False, False]
     laser_color = ['green', 'red']
@@ -216,7 +212,7 @@ def test_lasers():
 
     if all(laser_pass):
         status = True
-        message('Lasers Nominal')
+        hs.message('Lasers Nominal')
     else:
         status = False
 
@@ -224,11 +220,11 @@ def test_lasers():
 
 # Test Optics
 def test_optics():
-    message('Testing Optics')
+    hs.message('Testing Optics')
     try:
         hs.optics.initialize()
         status = True
-        message('Optics Nominal')
+        hs.message('Optics Nominal')
     except:
         status = False
         error('Optics Failed')
@@ -237,7 +233,7 @@ def test_optics():
 
 # Test Temperature Control
 def test_temperature_control():
-    message('Testing Stage Temperature Control')
+    hs.message('Testing Stage Temperature Control')
     flowcells = ['A', 'B']
     try:
         hs.T.initialize()
@@ -253,7 +249,7 @@ def test_temperature_control():
             hs.T.wait_fc_T(fc,20)
         for fc in flowcells:
             hs.T.fc_off(fc)
-        message('Temperature Control Nominal')
+        hs.message('Temperature Control Nominal')
         status = True
     except:
         status = False
@@ -265,7 +261,7 @@ def test_temperature_control():
 def test_valves():
     valve_pass = [False, False, False, False]
 
-    message('Testing Valves')
+    hs.message('Testing Valves')
 
     for i, AorB in enumerate(['A','B']):
         try:
@@ -290,7 +286,7 @@ def test_valves():
 
     if all(valve_pass):
         status = True
-        message('Valves Nominal')
+        hs.message('Valves Nominal')
     else:
         status = False
 
@@ -300,7 +296,7 @@ def test_valves():
 def test_pumps():
 
     pump_pass = [False, False]
-    message('Testing Pumps')
+    hs.message('Testing Pumps')
     for i, AorB in enumerate(['A','B']):
         try:
             hs.p[AorB].initialize()
@@ -314,7 +310,7 @@ def test_pumps():
 
     if all(pump_pass):
         status = True
-        message('Pumps Nominal')
+        hs.message('Pumps Nominal')
     else:
         status = False
 
@@ -323,7 +319,7 @@ def test_pumps():
 
 # Test cameras
 def test_cameras():
-    message('Testing Cameras')
+    hs.message('Testing Cameras')
     status = False
 
     with open(join(hs.image_path,'machine_name.txt'),'w') as file:
@@ -349,7 +345,7 @@ def test_cameras():
             image_complete = hs.take_picture(n_frames=32, image_name=image_name)
             if image_complete:
                 status = True
-                message('Cameras Nominal')
+                hs.message('Cameras Nominal')
             else:
                 error('Dark Images Failed')
         else:
@@ -360,7 +356,6 @@ def test_cameras():
         error('Cameras Failed')
 
     return status
-
 
 
 
@@ -377,7 +372,7 @@ try:
     # Create HiSeq Object
     if name == 'virtual':
         from . import virtualHiSeq
-        hs = virtualHiSeq.HiSeq('virtual', logger)
+        hs = virtualHiSeq.HiSeq(name, Logger=logger)
         hs.speed_up = 5000
     else:
         import pyseq
@@ -389,7 +384,7 @@ try:
     hs.image_path = image_path
 
 except ImportError:
-    message('PySeq Failed')
+    hs.message('PySeq Failed')
     sys.exit()
 except OSError:
     print('Failed to make directories')
