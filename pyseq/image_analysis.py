@@ -344,14 +344,15 @@ def compute_background(image_path=None, common_name = ''):
     # Check if background data exists and check with user to overwrite
     proceed = True
     if config.has_section(config_section):
-        if userYN('Overide existing background data for '+im.machine):
-            if not userYN('Confirm overide of '+im.machine+' background data'):
-                proceed = False
+        print('Current background correction')
+        print(config[config_section])
+        if not userYN('Calculate new background correction for '+im.machine):
+            proceed = False
 
     if proceed:
         print('Analyzing ', im.im.name)
         bg_dict = {}
-        # Loop over channels then sensor group and find mode
+        # Loop over channels then sensor group and find mode of sensor group
         for ch in im.im.channel.values:
             background = []
             for i in range(8):
@@ -362,6 +363,7 @@ def compute_background(image_path=None, common_name = ''):
 
             for i in range(8):
                 background[i] = avg_background-background[i]                    # Calculate background correction
+            print('Channel', ch,'::',*background)
             bg_dict[ch] = ','.join(map(str, background))                        # Format backround correction
 
         if userYN('Save new background data for '+im.machine):
