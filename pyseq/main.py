@@ -403,6 +403,7 @@ def configure_instrument(IMAG_counter, port_dict):
     else:
         sys.exit()
 
+
     # Check side ports
     try:
         side_ports = method.get('side ports', fallback = '9,21,22,23,24')
@@ -483,7 +484,12 @@ def configure_instrument(IMAG_counter, port_dict):
     hs.AF = method.get('autofocus', fallback = 'partial once')
     if hs.AF.lower() in ['','none']: hs.AF = None
     if hs.AF not in ['partial', 'partial once', 'full', 'full once', 'manual', None]:
-        error('ConfigFile:: Auto focus method not valid.')
+        # Skip autofocus and set objective position in config file
+        try:
+            if hs.obj.min_z <= int(hs.AF) <= hs.obj.max_z:
+                hs.AF = int(hs.AF)
+        except:
+            error('ConfigFile:: Auto focus method not valid.')
     #Enable/Disable z stage
     hs.z.active = method.getboolean('enable z stage', fallback = True)
     # Get focus Tolerance
@@ -492,7 +498,7 @@ def configure_instrument(IMAG_counter, port_dict):
     range = float(method.get('focus range', fallback = 90))
     spacing = float(method.get('focus spacing', fallback = 4.1))
     hs.obj.update_focus_limits(range=range, spacing=spacing)                    # estimate, get actual value in hs.obj_stack()
-
+    hs.stack_split = float(method.get('stack split', fallback = 2/3))
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
 
     # Assign output directory
@@ -708,6 +714,9 @@ def confirm_settings(recipe_z_planes = []):
             print('z planes:', z_planes)
         else:
             print('z planes:', *recipe_z_planes)
+        if z_planes > 1 or any(recipe_z_planes):
+            print('stack split:', hs.stack_split)
+
 
         if not userYN('Confirm imaging settings'):
             sys.exit()
@@ -1513,6 +1522,7 @@ def IMAG(fc, n_Zplanes):
         focus.manual_focus(hs, flowcells)
         hs.AF = 'partial once'
 
+
     #Image sections on flowcell
     for section in fc.sections:
         pos = fc.stage[section]
@@ -1523,7 +1533,7 @@ def IMAG(fc, n_Zplanes):
 
         # Autofocus
         msg = 'PySeq::' + AorB + '::cycle' + cycle+ '::' + str(section) + '::'
-        if hs.AF:
+        if hs.AF and not isinstance(hs.AF, int):
             obj_pos = focus.get_obj_pos(hs, section, cycle)
             if obj_pos is None:
                 # Move to focus filters
@@ -1550,8 +1560,10 @@ def IMAG(fc, n_Zplanes):
         if fc.z_planes is not None: n_Zplanes = fc.z_planes
 
         # Calculate objective positions to image
-        if n_Zplanes > 1:
-            obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes*2/3)       # Want 2/3 of planes below opt_ob_pos and 1/3 of planes above
+        if n_Zplanes > 1 and not isinstance(hs.AF, int):
+            obj_start = int(hs.obj.position - hs.nyquist_obj*n_Zplanes*hs.stack_split)       # (Default) 2/3 of planes below opt_ob_pos and 1/3 of planes above
+        elif isinstance(hs.AF, int):
+            obj_start = hs.AF
         else:
             obj_start = hs.obj.position
 
@@ -1596,7 +1608,7 @@ def IMAG(fc, n_Zplanes):
         fc.IMAG_counter += 1
 
     hs.scan_flag = False
-        
+
 
 
 def WAIT(AorB, event):

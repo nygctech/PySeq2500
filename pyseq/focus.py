@@ -199,6 +199,8 @@ class Autofocus():
           objective position, only if a previous in focus objective position has
           not been found. Use for large sections and the zstage has not changed
           position.
+        - preset: An integer objective step can be provided to skip autofocusing
+          and immediately begin imaging.
 
        **Attributes:**
         - hs (HiSeq): HiSeq object.

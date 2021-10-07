@@ -119,6 +119,7 @@ class HiSeq():
         - AF: Autofocus routine, options are full, partial, full once,
           partial once, or None, the default is partial once.
         - focus_tol: Focus tolerance, distance in microns.
+        - stack_split: = Portion of image stack below optimal focus object step, default is 2/3
         - overlap: Pixel overlap, the default is 0.
         - overlap_dir: Pixel overlap direction (left/right), the default is left.
         - virtual: Flag for using virtual HiSeq
@@ -168,6 +169,7 @@ class HiSeq():
         self.channels = None
         self.AF = 'partial'                                                     # autofocus routine
         self.focus_tol = 0                                                      # um, focus tolerance
+        self.stack_split = 2/3                                                  # portion of image stack below optimal focus object step
         self.overlap = 0
         self.overlap_dir = 'left'
         self.virtual = False                                                    # virtual flag
