@@ -95,11 +95,13 @@ def print_method(method):
 def list_settings(instrument = 'HiSeq2500'):
     """Print all possible setting keywords and descriptions."""
 
-    settings = configparser.ConfigParser()
-    with pkg_resources.path(resources, 'settings.cfg') as settings_path:
-        settings.read(settings_path)
+    # settings = configparser.ConfigParser()
+    # with pkg_resources.path(resources, 'settings.cfg') as settings_path:
+    #     settings.read(settings_path)
+    #
+    # settings = settings[instrument]
 
-    settings = settings[instrument]
+    settings = get_settings(instrument)
     for s in settings:
         print(s,':', settings[s])
         print()

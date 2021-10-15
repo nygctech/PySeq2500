@@ -1,3 +1,20 @@
+"""PySeq Flowcell
+
+   **Example:**
+
+    .. code-block:: python
+
+        #Create flowcell object
+        import flowcell
+        fcA = flowcell.Flowcell('A')
+        # Add to ROI/section dictionary
+        #section names as keys and list of bounding box as values
+        fcA.sections['section1'] = [10,20,5,15]
+
+"""
+
+
+
 class Flowcell():
     """HiSeq 2500 System :: Flowcell
 

@@ -6,12 +6,8 @@ import sys
 from os.path import join
 
 
-
-def message(text):
-    logger.log(21, 'PySeq::'+text)
-
 def error(text):
-    message(text)
+    hs.message(text)
     if instrument_status['FPGA']:
         hs.f.LED(1, 'yellow')
     raise RuntimeError
@@ -381,7 +377,6 @@ try:
 
     # Creat HiSeq Object
     import pyseq
-    com_ports = pyseq.get_com_ports()
     hs = pyseq.HiSeq(Logger=logger)
     # Exception for ValueError of port, must be string or None, not int)
     # Exception for SerialException, could not open port

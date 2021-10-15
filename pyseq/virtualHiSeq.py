@@ -970,7 +970,7 @@ import time
 import warnings
 import pandas as pd
 
-class HiSeq():
+class HiSeq2500():
     def __init__(self, name = 'HiSeq2500', Logger = None):
         self.x = Xstage()
         self.y = Ystage()

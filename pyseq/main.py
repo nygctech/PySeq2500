@@ -327,49 +327,7 @@ def parse_line(line):
 ##########################################################
 ## Setup Logging #########################################
 ##########################################################
-def setup_logger():
-    """Create a logger and return the handle."""
 
-    # Get experiment info from config file
-    experiment = config['experiment']
-    experiment_name = experiment['experiment name']
-    # Make directory to save data
-    save_path = join(experiment['save path'],experiment_name)
-    if not os.path.exists(save_path):
-        os.mkdir(save_path)
-    # Make directory to save logs
-    log_path = join(save_path, experiment['log path'])
-    if not os.path.exists(log_path):
-        os.mkdir(log_path)
-
-    # Create a custom logger
-    logger = logging.getLogger(__name__)
-    logger.setLevel(10)
-
-    # Create console handler
-    c_handler = logging.StreamHandler()
-    c_handler.setLevel(21)
-    # Create file handler
-    f_log_name = join(log_path,experiment_name + '.log')
-    f_handler = logging.FileHandler(f_log_name)
-    f_handler.setLevel(logging.INFO)
-
-    # Create formatters and add it to handlers
-    c_format = logging.Formatter('%(asctime)s - %(message)s', datefmt = '%Y-%m-%d %H:%M')
-    f_format = logging.Formatter('%(asctime)s - %(message)s')
-    c_handler.setFormatter(c_format)
-    f_handler.setFormatter(f_format)
-
-    # Add handlers to the logger
-    logger.addHandler(c_handler)
-    logger.addHandler(f_handler)
-
-    # Save copy of config with log
-    config_path = join(log_path,'config.cfg')
-    with open(config_path, 'w') as configfile:
-        config.write(configfile)
-
-    return logger
 
 
 def configure_instrument(IMAG_counter, port_dict):
@@ -377,10 +335,13 @@ def configure_instrument(IMAG_counter, port_dict):
 
     global n_errors
 
+    hs = pyseq.get_instrument(args_['virtual'])
 
-    model, name = methods.get_machine_info(args_['virtual'])
-    if model is not None:
-        config['experiment']['machine'] = model+'::'+name
+    if hs is not None:
+        config['experiment']['machine'] = hs.model+'::'+name
+    else:
+        sys.exit()
+
     experiment = config['experiment']
     method = experiment['method']
     method = config[method]
@@ -389,19 +350,6 @@ def configure_instrument(IMAG_counter, port_dict):
         total_cycles = int(experiment.get('cycles'))
     except:
         error('ConfigFile:: Cycles not specified')
-
-    # Creat HiSeq Object
-    if model == 'HiSeq2500':
-        if args_['virtual']:
-            from . import virtualHiSeq
-            hs = virtualHiSeq.HiSeq(name, logger)
-            hs.speed_up = int(method.get('speed up', fallback = 5000))
-        else:
-            import pyseq
-            com_ports = pyseq.get_com_ports()
-            hs = pyseq.HiSeq(name, logger)
-    else:
-        sys.exit()
 
     # Check side ports
     try:
@@ -495,6 +443,17 @@ def configure_instrument(IMAG_counter, port_dict):
 
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
 
+    hs.image_path = experiment['image path']
+    hs.log_path = experiment['log_path']
+
+    return hs
+
+def make_directories():
+
+    experiment = config['experiment']
+    method = experiment['method']
+    method = config[method]
+
     # Assign output directory
     save_path = experiment['save path']
     experiment_name = experiment['experiment name']
@@ -503,21 +462,22 @@ def configure_instrument(IMAG_counter, port_dict):
         try:
             os.mkdir(save_path)
         except:
-            error('ConfigFile:: Save path not valid.')
-    # Assign image directory
-    image_path = join(save_path, experiment['image path'])
+            print('ConfigFile:: Save path not valid.')
+
+    # Make image directory
+    image_path = experiment['image path']
     if not os.path.exists(image_path):
         os.mkdir(image_path)
     with open(join(image_path,'machine_name.txt'),'w') as file:
         file.write(hs.name)
-    hs.image_path = image_path
-    # Assign log directory
-    log_path = join(save_path, experiment['log path'])
+
+    # Make log directory
+    log_path = experiment['log path']
     if not os.path.exists(log_path):
         os.mkdir(log_path)
-    hs.log_path = log_path
 
-    return hs
+    return log_path
+
 
 def confirm_settings(recipe_z_planes = []):
     """Have user confirm the HiSeq settings before experiment."""
@@ -1596,7 +1556,7 @@ def IMAG(fc, n_Zplanes):
         fc.IMAG_counter += 1
 
     hs.scan_flag = False
-        
+
 
 
 def WAIT(AorB, event):
@@ -1768,10 +1728,6 @@ def get_config(args):
     # Create config parser
     config = configparser.ConfigParser()
 
-    # Defaults that can be overided
-    config.read_dict({'experiment' : {'log path': 'logs',
-                                      'image path': 'images'}
-                      })
     # Open config file
     if os.path.isfile(args['config']):
          config.read(args['config'])
@@ -1779,9 +1735,17 @@ def get_config(args):
         error('ConfigFile::Does not exist')
         sys.exit()
     # Set output path
-    config['experiment']['save path'] = args['output']
+    output_path = args['output']
+    config['experiment']['save path'] = output_path
     # Set experiment name
-    config['experiment']['experiment name'] = args['name']
+    experiment_name = args['name']
+    config['experiment']['experiment name'] = experiment_name
+
+    # set log and image path
+    save_dir = join(output_path, experiment_name)
+    config['experiment']['log path'] = join(save_dir, 'logs')
+    config['experiment']['log path'] = join(save_dir, 'images')
+
     # save user valve
     USERVALVE = False
     if config.has_section('reagents'):
@@ -1862,7 +1826,8 @@ args_ = args.get_arguments()                                                    
 if __name__ == 'pyseq.main':
     n_errors = 0
     config = get_config(args_)                                                  # Get config file
-    logger = setup_logger()                                                     # Create logfiles
+    log_path = make_directories()                                               # create exp, image, and log directories
+    logger = pyseq.setup_logger(config)                                         # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
     first_line, IMAG_counter, z_planes = check_instructions()                   # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, IMAG_counter)                       # Create flowcells

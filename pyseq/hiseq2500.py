@@ -83,7 +83,7 @@ except ImportError:
 from . import resources
 
 
-class HiSeq():
+class HiSeq2500():
     """Illumina HiSeq 2500 System
 
        **Attributes:**
@@ -125,6 +125,8 @@ class HiSeq():
         - fc_origin: Upper right X and Y stage step position for flowcell slots.
         - scan_flag: True if HiSeq is currently scanning
         - current_view: Block run to show latest images, otherwise is None
+        - name: Cosmetic name of the instrument
+        - model: HiSeq2500
 
     """
 
@@ -174,6 +176,7 @@ class HiSeq():
         self.scan_flag = False                                                  # imaging/scanning flag
         self.current_view = None                                                # latest images
         self.name = name
+        self.model = 'HiSeq2500'
         self.check_COM()
 
 
