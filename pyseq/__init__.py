@@ -2,13 +2,13 @@ from . import methods
 
 # Functions common to all HiSeq models
 
-def get_instrument(virtual=False):
+def get_instrument(virtual=False, logger=None):
 
     # Get instrument model and name
     model, name = methods.get_machine_info(args_['virtual'])
 
     # Create HiSeq Object
-    if model == 'HiSeq2500':
+    if model == 'HiSeq2500' and name is not None:
         if args_['virtual']:
             from . import virtualHiSeq
             hs = virtualHiSeq.HiSeq2500(name, logger)
@@ -22,13 +22,82 @@ def get_instrument(virtual=False):
 
 
 
-def setup_logger(experiment_name=None, log_path = None, config=None):
+def get_machine_info(virtual=False):
+    """Specify machine model and name."""
+
+    # Open machine_info.cfg save in USERHOME/.pyseq2500
+    homedir = expanduser('~')
+    if not isdir(join(homedir,'.pyseq2500')):
+        mkdir(join(homedir,'.pyseq2500'))
+
+    config_path = join(homedir,'.pyseq2500','machine_info.cfg')
+    config = configparser.ConfigParser()
+    NAME_EXISTS = isfile(config_path)
+    if NAME_EXISTS:
+        with open(config_path,'r') as f:
+            config.read_file(f)
+        model = config['DEFAULT']['model']
+        name = config['DEFAULT']['name']
+    else:
+        model = None
+        name = None
+
+
+    # Get machine model from user
+    while model is None:
+        if userYN('Is this a HiSeq2500'):
+            model = 'HiSeq2500'
+            if model not in ['HiSeq2500']:
+                model = None
+
+    # Get machine name from user
+    while name is None and not virtual:
+        name = input('Name of '+model+' = ')
+        if not userYN('Name this '+model+' '+name):
+            name = None
+
+    if virtual:
+        name = 'virtual'
+
+
+    # Check if background and registration data exists
+    # Open machine_settings.cfg saved in USERHOME/.pyseq2500
+    machine_settings = configparser.ConfigParser()
+    ms_path = join(homedir,'.pyseq2500','machine_settings.cfg')
+    if isfile(ms_path):
+        with open(ms_path,'r') as f:
+            machine_settings.read_file(f)
+
+    if not machine_settings.has_section(name+'background'):
+        if not userYN('Continue experiment without background data for',name):
+            model = None
+    # if not machine_settings.has_section(name+'registration') and model is not None:
+    #     if not userYN('Continue experiment without registration data for',name):
+    #         model = None
+
+    if not NAME_EXISTS and model is not None and name not in [None,'virtual']:
+        # Save machine info
+        config.read_dict({'DEFAULT':{'model':model,'name':name}})
+        with open(config_path,'w') as f:
+            config.write(f)
+        #Add to list in machine settings
+        if not machine_settings.has_section('machines'):
+            machine_settings.add_section('machines')
+        machine_settings.set('machines', name, time.strftime('%m %d %y'))
+        with open(ms_path,'w') as f:
+            machine_settings.write(f)
+
+    return model, name
+
+
+
+def setup_logger(log_name=None, log_path = None, config=None):
     """Create a logger and return the handle."""
 
     if log_path is None and config is not None:
         log_path = config.get('experiment','log_path')
     if experiment_name is None and config is not None:
-        experiment_name = config.get('experiment','experiment name')
+        log_name = config.get('experiment','experiment name')
 
     # Create a custom logger
     logger = logging.getLogger(__name__)
@@ -38,7 +107,7 @@ def setup_logger(experiment_name=None, log_path = None, config=None):
     c_handler = logging.StreamHandler()
     c_handler.setLevel(21)
     # Create file handler
-    f_log_name = join(log_path,experiment_name + '.log')
+    f_log_name = join(log_path,log_name + '.log')
     f_handler = logging.FileHandler(f_log_name)
     f_handler.setLevel(logging.INFO)
 

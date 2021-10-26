@@ -335,7 +335,7 @@ def configure_instrument(IMAG_counter, port_dict):
 
     global n_errors
 
-    hs = pyseq.get_instrument(args_['virtual'])
+    hs = pyseq.get_instrument(args_['virtual'], logger)
 
     if hs is not None:
         config['experiment']['machine'] = hs.model+'::'+name
@@ -730,7 +730,7 @@ def initialize_hs(IMAG_counter):
         if not userYN('Initialize HiSeq'):
             sys.exit()
 
-        hs.initializeCams(logger)
+        hs.initializeCams()
         x_homed = hs.initializeInstruments()
         if not x_homed:
             error('HiSeq:: X-Stage did not home correctly')
@@ -1827,7 +1827,7 @@ if __name__ == 'pyseq.main':
     n_errors = 0
     config = get_config(args_)                                                  # Get config file
     log_path = make_directories()                                               # create exp, image, and log directories
-    logger = pyseq.setup_logger(config)                                         # Create logfiles
+    logger = pyseq.setup_logger(log_path, config)                               # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
     first_line, IMAG_counter, z_planes = check_instructions()                   # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, IMAG_counter)                       # Create flowcells
