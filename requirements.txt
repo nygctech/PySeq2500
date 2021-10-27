@@ -8,7 +8,7 @@ certifi==2020.12.5
 chardet==4.0.0
 colorama==0.4.4
 cycler==0.10.0
-dask==2020.12.0
+dask==2021.10.0
 decorator==4.4.1
 docutils==0.16
 fasteners==0.15
