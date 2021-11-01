@@ -76,8 +76,8 @@ class Flowcell():
         self.signal_event = None                                                # defines event that signals the next flowcell to continue
         self.wait_thread = threading.Event()                                    # blocks next flowcell until current flowcell reaches signal event
         self.waits_for = None                                                   # position of the flowcell that signals current flowcell to continue
-        self.pump_speed = {}
-        self.volume = {'main':None,'side':None,'sample':None,'flush':None}      # Flush volume
+        self.pump_speed = {'flush':700,'prime':100,'reagent':40}                # standard flowrates uL/min
+        self.volume = {'main':500,'side':350,'sample':250,'flush':1000}         # standard volumes to use uL
         self.filters = {}                                                       # Dictionary of filter set at each cycle, c: em, ex1, ex2
         self.IMAG_counter = None                                                # Counter for multiple images per cycle
         self.events_since_IMAG = []                                             # List events since last IMAG step

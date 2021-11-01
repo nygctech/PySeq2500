@@ -65,6 +65,8 @@ from . import zstage
 from . import focus
 from . import temperature
 
+from .methods import userYN
+
 import time
 from os.path import getsize, join, isfile
 from os import getcwd
@@ -177,6 +179,7 @@ class HiSeq2500():
         self.current_view = None                                                # latest images
         self.name = name
         self.model = 'HiSeq2500'
+        self.flowcell = {'A':None,'B':None}
         self.check_COM()
 
 
@@ -261,6 +264,7 @@ class HiSeq2500():
 
     def initializeInstruments(self):
         """Initialize x,y,z, & obj stages, pumps, valves, optics, and FPGA."""
+
         msg = 'HiSeq::'
 
         self.message(msg+'Initializing FPGA')
@@ -303,6 +307,280 @@ class HiSeq2500():
         self.message(msg+'Initialized!')
 
         return homed
+
+    def LED(self, AorB, indicate):
+        """Control front LEDs to communicate what the HiSeq is doing.
+
+            ===========  ===========  =============================
+            LED MODE      indicator   HiSeq Action / Flowcell State
+            ===========  ===========  ===================================================
+            off              off      The flowcell is not in use.
+            yellow          error     There is an error with the flowcell.
+            green          startup    The HiSeq is starting up or shutting down
+            pulse green     user      The HiSeq requires user input
+            blue            sleep     The flowcell is holding or waiting.
+            pulse blue      awake     HiSeq valve, pump, or temperature action on the flowcell.
+            sweep blue     imaging    HiSeq is imaging the flowcell.
+            ===========  ===========  ========================================
+
+           **Parameters:**
+           - AorB (str): Flowcell position (A or B), or all.
+           - indicate (str): Current action of the HiSeq or state of the flowcell.
+
+            **Returns**
+            - bool: True if AorB and indicate are valid, False otherwise.
+
+        """
+
+        fc = []
+        if AorB in self.flowcells.keys():
+            fc = [AorB]
+        elif AorB == 'all':
+            fc = [*self.flowcells.keys()]
+
+        for AorB in fc:
+            complete = True
+
+            if indicate == 'startup':
+                self.f.LED(AorB, 'green')
+            elif indicate == 'user':
+                self.f.LED(AorB, 'pulse green')
+            elif indicate == 'error':
+                self.f.LED(AorB, 'yellow')
+            elif indicate == 'sleep':
+                self.f.LED(AorB, 'blue')
+            elif indicate == 'awake':
+                self.f.LED(AorB, 'pulse blue')
+            elif indicate == 'imaging':
+                self.f.LED(AorB, 'sweep blue')
+            elif indicate == 'off':
+                self.f.LED(AorB, 'off')
+            else:
+                complete = False
+
+        return complete
+
+    def wait_for_fc(self):
+        """Block until all flowcell threads are complete."""
+
+
+        alive = True
+        while alive:
+            alive_ = []
+            for fc in self.flowcells.values():
+                alive_.append(fc.thread.is_alive())
+                alive = any(alive_)
+
+    def flush_lines(self, flush_ports = None, flowrate = None, volume = None):
+        """Flush all, some, or none of lines.
+
+           If flush_ports are supplied then no user prompts asking for which
+           ports to flush are given. The default volume is 1000 uL and the
+           default flowrate is 700 uL/min.
+
+           **Parameters:**
+            - flush_ports (int/string/list): Ports to flush
+            - flowrate (int): Flowrate in uL/min to flush lines, default is 700 uL/min
+
+           **Returns:**
+            - bool: True if lines were flushed, False if flush was skipped
+
+        """
+
+        AorB_ = [*self.flowcells.keys()][0]
+        port_dict = self.v24[AorB_].port_dict
+
+        self.LED('all', 'user')
+        # Select lines to flush
+        if flush_ports is not None:
+            if is_instance(flush_ports,int):
+                flush_ports = [flush_ports]
+            confirm = True
+        else:
+            confirm = False
+
+        while not confirm:
+            flush_ports = input("Flush all, some, or none of the lines? ")
+            if flush_ports.strip().lower() == 'all':
+                flush_all = True
+                flush_ports = [*port_dict.keys()]
+                for vp in self.v24[AorB_].variable_ports:
+                    if vp in flush_ports:
+                        flush_ports.remove(vp)
+                confirm = userYN('Confirm flush all lines')
+            elif flush_ports.strip().lower() in ['none', 'n', '']:
+                flush_ports = []
+                confirm = userYN('Confirm skip flushing lines')
+            else:
+                good =[]
+                bad = []
+                for fp in flush_ports.split(','):
+                    fp = fp.strip()
+                    if fp in port_dict.keys():
+                        good.append(fp)
+                    else:
+                        try:
+                            fp = int(fp)
+                            if fp in range(1,self.v24[AorB_].n_ports+1):
+                                good.append(fp)
+                            else:
+                                bad.append(fp)
+                        except:
+                            bad.append(fp)
+                if len(bad) > 0:
+                    print('Valid ports:', *good)
+                    print('Invalid ports:', *bad)
+                    confirm = not userYN('Re-enter lines to flush')
+                else:
+                    confirm = userYN('Confirm only flushing',*good)
+
+                if confirm:
+                    flush_ports = good
+
+        if len(flush_ports) > 0:
+            while not userYN('Temporary flowcell(s) locked on to stage'): pass
+            while not userYN('All valve input lines in water'): pass
+            while not userYN('Ready to flush'): pass
+
+            self.LED('all', 'awake')
+
+            # Flush ports
+            if flowrate is None:
+                flowrate = self.flowcells[AorB_].pump_speed['flush']
+            if volume is None:
+                volume = self.flowcells[AorB_].volume['flush']
+            for port in flush_ports:
+                if port in self.v24[AorB_].variable_ports:
+                    flush_ports.append(*self.v24[AorB_].port_dict[port].values())
+                else:
+                    hs.message('Flushing ' + str(port))
+                    for AorB, fc in self.flowcells.items()
+                        fc.thread = threading.Thread(target=self.v24[AorB].move,
+                                                     args=(port,))
+                        fc.thread.start()
+
+                    for AorB, fc in self.flowcells.items()
+                        fc.thread = threading.Thread(target=self.p[AorB].pump,
+                                                     args={volume, flowrate})
+                        fc.thread.start()
+                    self.wait_for_fc()
+
+            self.LED('all', 'sleep')
+
+        return confirm
+
+
+
+    def prime_lines(self, rinse_port=None, flowrate=None, flush_YorN = True):
+        """Prime lines with all reagents in valve.
+
+           Prime all reagent lines listed in the 24 port valve port dictionary
+           The default volumes for ports 1-8 & 10-19 (in the chiller) is 500 uL
+           port 20 (sample) is 250 uL, and ports 9 & 22-24 is 350 uL (all
+           volumes stored in self.flowcells.[AorB].volume dictionary). After
+           priming, the lines will be rinsed with the rinse_port reagent, if
+           supplied.
+
+           **Parameters:**
+            - rinse_port (int/string): Port to use as rinse reagent
+            - flowrate (int): Flowrate in uL/min to prime lines, default is 100 uL/min
+            - flush_YorN (bool): Flag for user prompts in automated control
+
+           **Returns:**
+            - string/int: Last port that was used
+
+        """
+
+        self.LED('all', 'user')
+
+        confirm = False
+        while not confirm:
+            prime_YorN = userYN("Prime lines")
+            if prime_YorN:
+                confirm = userYN("Confirm prime lines")
+            else:
+                confirm = userYN("Confirm skip priming lines")
+
+        if prime_YorN:
+            if flush_YorN:
+                while not userYN('Temporary flowcell(s) locked on to stage'): pass
+            while not userYN('Valve input lines in reagents'): pass
+            while not userYN('Ready to prime lines'): pass
+
+            #Flush all lines
+            self.LED('all', 'awake')
+
+            AorB_ = [*self.flowcells.keys()][0]
+            port_dict = self.v24[AorB_].port_dict
+            if flowrate is None:
+                flowrate = self.flowcells[AorB_].pump_speed['prime']
+
+            for port in port_dict.keys():
+                if isinstance(port_dict[port], int):
+                    self.message('Priming ' + str(port))
+                    for AorB, fc in self.flowcells.items():
+                        port_num = port_dict[port]
+                        fc.thread = threading.Thread(target=self.v24[AorB].move,
+                                                     args=(port,))
+                        fc.thread.start()
+
+                    self.wait_for_fc()
+
+                    for AorB, fc in self.flowcells.items():
+                        if port_num in self.v24[AorB].side_ports:
+                            volume = fc.volume['side']
+                        elif port_num == self.v24[AorB].sample_port:
+                            volume = fc.volume['sample']
+                        else:
+                            volume = fc.volume['main']
+                        fc.thread = threading.Thread(target=self.p[AorB].pump,
+                                                     args=(volume, flowrate,))
+                        fc.thread.start()
+
+                    self.wait_for_fc()
+
+            # Rinse flowcells
+            # method = config.get('experiment', 'method')                             # Read method specific info
+            # method = config[method]
+            # rinse_port = method.get('rinse', fallback = None)
+            rinse = rinse_port in self.v24[AorB].port_dict
+            if rinse_port == port:                                                  # Option to skip rinse if last reagent pump was rinse reagent
+                rinse = False
+
+            # Ask for rinse reagent if not supplied
+            if not rinse:
+                self.LED('all', 'user')
+                print('Last reagent pumped was', str(port))
+                if userYN('Rinse flowcell'):
+                    while not rinse:
+                        if rinse_port not in self.v24[AorB].port_dict:
+                            rinse_port = input('Specify rinse reagent: ')
+                        rinse = rinse_port in self.v24[AorB].port_dict
+                        if not rinse:
+                            print('ERROR::Invalid rinse reagent')
+                            print('Choose from:', *list(self.v24[AorB].port_dict.keys()))
+            if rinse:
+                # Simultaneously Rinse Flowcells
+                self.LED('all', 'awake')
+                for fc in flowcells.values():
+                    fc.thread = threading.Thread(target=self.flush_lines,
+                                                 kwargs={'flush_ports':rinse_port,'flowrate':flowrate})
+                    fc.thread.start()
+                self.wait_for_fc()
+
+            if __name__ == 'pyseq.main':
+                self.LED('all', 'user')
+                while not userYN('Temporary flowcell(s) removed'): pass
+
+        if __name__ == 'pyseq.main':
+            while not userYN('Experiment flowcell(s) locked on to stage'): pass
+            if not prime_YorN:
+                while not userYN('Valve input lines in reagents'): pass
+            while not userYN('Door closed'): pass
+
+        return port
+
+
 
     def write_metadata(self, n_frames, image_name):
         """Write image metadata to file.

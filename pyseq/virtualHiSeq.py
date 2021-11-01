@@ -1076,6 +1076,8 @@ class HiSeq2500():
 
         return True
 
+
+
     def move_inlet(self, n_ports):
         """Move 10 port valves to 2 inlet row or 8 inlet row ports."""
 

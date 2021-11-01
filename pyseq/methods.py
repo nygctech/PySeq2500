@@ -197,7 +197,6 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
 
 
 
-
 def userYN(*args):
     """Ask a user a Yes/No question and return True if Yes, False if No."""
 
