@@ -13,6 +13,9 @@
 
 """
 
+import threading
+import time
+
 
 
 class Flowcell():
@@ -93,6 +96,58 @@ class Flowcell():
 
         self.position = position
 
+    def addSection(self, name, position):
+        """Add section/ROI to flowcell.
+
+            Position can be a list or string of the corners of a bounding box
+            around the section/ROI measured with a slide grid.
+
+            position = LLx, LLy, URx, URy
+
+            - LLx: Lower left x position on flowcell
+            - LLy: Lower left x position on flowcell
+            - URx: Upper right x position on flowcell
+            - URy: Upper right y position on flowcell
+
+           **Parameters**
+           - name (str): Name of section/ROI
+           - position (str/list): Coordinates of flowcell see above.
+
+           **Returns**
+           list: List of error messages if there was a problem adding the section/ROI,
+                 Empty list if the section/ROI was added succesfully
+
+        """
+
+        AorB = self.position
+        err_prefix = 'Flowcell '+AorB+'::'
+        err_msg = []
+        name = str(name)
+
+        if isinstance(position, str):
+            coord  = position.split(',')
+        elif isinstance(position, list):
+            coord = position
+        else:
+            coord = None
+            err_msg.append(err_prefix+'Unable to read position of '+name)
+
+        # Add section to flowcell
+        if coord is not None and name not in self.sections:
+            self.sections[name] = []                                            # List to store coordinates of section on flowcell
+            self.stage[name] = {}                                               # Dictionary to store stage position of section on flowcell
+            if float(coord[0]) <  float(coord[2]):
+                error(err_msg,'Invalid x coordinates for', sect_name)
+            if float(coord[1]) <  float(coord[3]):
+                error(err_msg, 'Invalid y coordinates for', sect_name)
+            for i in range(4):
+                self.sections[name].append(float(coord[i]))
+        else:
+            err_msg.append(err_prefix+name+' duplicated on flowcell')
+
+        return err_msg
+
+
 
     def addEvent(self, event, command):
         """Record history of events on flow cell.
@@ -120,7 +175,7 @@ class Flowcell():
         return self.history[0][-1]                                              # return time stamp of last event
 
 
-    def restart_recipe(self):
+    def restart_recipe(self, hs):
         """Restarts the recipe and returns the number of completed cycles."""
 
         # Restart recipe
@@ -139,7 +194,7 @@ class Flowcell():
             hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
             hs.T.fc_off(fc.position)
             self.temperature = None
-            do_rinse(self)
+            hs.do_rinse(self)
             if self.temp_timer is not None:
                 self.temp_timer.cancel()
                 self.temp_timer = None
@@ -158,7 +213,7 @@ class Flowcell():
 
         return self.cycle
 
-    def pre_recipe(self):
+    def pre_recipe(self, hs):
         """Initializes pre recipe before starting experiment."""
         prerecipe_message = 'PySeq::'+self.position+'::'+'Starting pre recipe'
         self.recipe = open(self.prerecipe_path)

@@ -77,6 +77,7 @@ class Valve():
         self.variable_ports = []
         self.side_ports = None
         self.sample_port = None
+        self.rinse_port = None
         self.prefix = ''
         self.suffix = '\r'
         self.logger = logger

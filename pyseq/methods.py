@@ -5,7 +5,7 @@ Kunal Pandit 3/15/2020
 '''
 
 import configparser
-from os.path import expanduser, join, isfile, isdir
+from os.path import join
 from os import mkdir
 import time
 

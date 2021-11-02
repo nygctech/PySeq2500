@@ -1,15 +1,21 @@
-from . import methods
+import logging
+import configparser
+import time
+from os.path import expanduser, join, isfile, isdir
+import os
+
+from .methods import userYN
 
 # Functions common to all HiSeq models
 
 def get_instrument(virtual=False, logger=None):
 
     # Get instrument model and name
-    model, name = methods.get_machine_info(args_['virtual'])
+    model, name = get_machine_info(virtual)
 
     # Create HiSeq Object
     if model == 'HiSeq2500' and name is not None:
-        if args_['virtual']:
+        if virtual:
             from . import virtualHiSeq
             hs = virtualHiSeq.HiSeq2500(name, logger)
         else:
@@ -96,8 +102,13 @@ def setup_logger(log_name=None, log_path = None, config=None):
 
     if log_path is None and config is not None:
         log_path = config.get('experiment','log_path')
-    if experiment_name is None and config is not None:
+    else:
+        log_path = os.getcwd()
+
+    if log_name is None and config is not None:
         log_name = config.get('experiment','experiment name')
+    else:
+        log_name = time.strftime('%Y%m%d_%H%M%S')
 
     # Create a custom logger
     logger = logging.getLogger(__name__)

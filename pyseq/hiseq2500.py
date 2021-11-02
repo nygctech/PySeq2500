@@ -129,6 +129,8 @@ class HiSeq2500():
         - current_view: Block run to show latest images, otherwise is None
         - name: Cosmetic name of the instrument
         - model: HiSeq2500
+        - flowcell['A','B']: Flowcell objects.
+        - led_dict: Dictionary with indication meaning as keys and color as values
 
     """
 
@@ -180,7 +182,11 @@ class HiSeq2500():
         self.name = name
         self.model = 'HiSeq2500'
         self.flowcell = {'A':None,'B':None}
+        self.led_dict = {'startup':'green','user':'pulse green','error':'yellow',
+                         'sleep':'blue','awake':'pulse blue','imaging':'sweep blue',
+                         'off':'off'}
         self.check_COM()
+
 
 
     def check_COM(self):
@@ -333,28 +339,16 @@ class HiSeq2500():
         """
 
         fc = []
-        if AorB in self.flowcells.keys():
+        if AorB in self.flowcell.keys():
             fc = [AorB]
         elif AorB == 'all':
-            fc = [*self.flowcells.keys()]
+            fc = [*self.flowcell.keys()]
 
         for AorB in fc:
-            complete = True
-
-            if indicate == 'startup':
-                self.f.LED(AorB, 'green')
-            elif indicate == 'user':
-                self.f.LED(AorB, 'pulse green')
-            elif indicate == 'error':
-                self.f.LED(AorB, 'yellow')
-            elif indicate == 'sleep':
-                self.f.LED(AorB, 'blue')
-            elif indicate == 'awake':
-                self.f.LED(AorB, 'pulse blue')
-            elif indicate == 'imaging':
-                self.f.LED(AorB, 'sweep blue')
-            elif indicate == 'off':
-                self.f.LED(AorB, 'off')
+            if indicate in self.led_dict.keys():
+                color = self.led_dict[indicate]
+                self.f.LED(AorB, color)
+                complete = True
             else:
                 complete = False
 
@@ -367,7 +361,7 @@ class HiSeq2500():
         alive = True
         while alive:
             alive_ = []
-            for fc in self.flowcells.values():
+            for fc in self.flowcell.values():
                 alive_.append(fc.thread.is_alive())
                 alive = any(alive_)
 
@@ -383,91 +377,47 @@ class HiSeq2500():
             - flowrate (int): Flowrate in uL/min to flush lines, default is 700 uL/min
 
            **Returns:**
-            - bool: True if lines were flushed, False if flush was skipped
+            - str/int: Return last port used
 
         """
 
-        AorB_ = [*self.flowcells.keys()][0]
-        port_dict = self.v24[AorB_].port_dict
+        self.LED('all', 'awake')
+        AorB_ = [*self.flowcell.keys()][0]
+        variable_ports = self.v24[AorB_].variable_ports
+        if flowrate is None: flowrate = self.p[AorB_].min_flow
+        vol = volume
 
-        self.LED('all', 'user')
-        # Select lines to flush
-        if flush_ports is not None:
-            if is_instance(flush_ports,int):
-                flush_ports = [flush_ports]
-            confirm = True
-        else:
-            confirm = False
-
-        while not confirm:
-            flush_ports = input("Flush all, some, or none of the lines? ")
-            if flush_ports.strip().lower() == 'all':
-                flush_all = True
-                flush_ports = [*port_dict.keys()]
-                for vp in self.v24[AorB_].variable_ports:
-                    if vp in flush_ports:
-                        flush_ports.remove(vp)
-                confirm = userYN('Confirm flush all lines')
-            elif flush_ports.strip().lower() in ['none', 'n', '']:
-                flush_ports = []
-                confirm = userYN('Confirm skip flushing lines')
+        port = None
+        for port in flush_ports:
+            if port in variable_ports:
+                flush_ports += list(self.v24[AorB_].port_dict[port].values())
             else:
-                good =[]
-                bad = []
-                for fp in flush_ports.split(','):
-                    fp = fp.strip()
-                    if fp in port_dict.keys():
-                        good.append(fp)
+                if volume is None:
+                    self.message('Priming ' + str(port))
+                    port_num = self.v24[AorB_].port_dict[port]
+                    if port_num in self.v24[AorB].side_ports:
+                        vol = fc.volume['side']
+                    elif port_num == self.v24[AorB].sample_port:
+                        vol = fc.volume['sample']
                     else:
-                        try:
-                            fp = int(fp)
-                            if fp in range(1,self.v24[AorB_].n_ports+1):
-                                good.append(fp)
-                            else:
-                                bad.append(fp)
-                        except:
-                            bad.append(fp)
-                if len(bad) > 0:
-                    print('Valid ports:', *good)
-                    print('Invalid ports:', *bad)
-                    confirm = not userYN('Re-enter lines to flush')
+                        vol = fc.volume['main']
                 else:
-                    confirm = userYN('Confirm only flushing',*good)
+                    self.message('Flushing ' + str(port))
 
-                if confirm:
-                    flush_ports = good
+                for AorB, fc in self.flowcell.items():
+                    fc.thread = threading.Thread(target=self.v24[AorB].move,
+                                                 args=(port,))
+                    fc.thread.start()
 
-        if len(flush_ports) > 0:
-            while not userYN('Temporary flowcell(s) locked on to stage'): pass
-            while not userYN('All valve input lines in water'): pass
-            while not userYN('Ready to flush'): pass
+                for AorB, fc in self.flowcell.items():
+                    fc.thread = threading.Thread(target=self.p[AorB].pump,
+                                                 args={vol, flowrate})
+                    fc.thread.start()
+                self.wait_for_fc()
 
-            self.LED('all', 'awake')
+        self.LED('all', 'sleep')
 
-            # Flush ports
-            if flowrate is None:
-                flowrate = self.flowcells[AorB_].pump_speed['flush']
-            if volume is None:
-                volume = self.flowcells[AorB_].volume['flush']
-            for port in flush_ports:
-                if port in self.v24[AorB_].variable_ports:
-                    flush_ports.append(*self.v24[AorB_].port_dict[port].values())
-                else:
-                    hs.message('Flushing ' + str(port))
-                    for AorB, fc in self.flowcells.items()
-                        fc.thread = threading.Thread(target=self.v24[AorB].move,
-                                                     args=(port,))
-                        fc.thread.start()
-
-                    for AorB, fc in self.flowcells.items()
-                        fc.thread = threading.Thread(target=self.p[AorB].pump,
-                                                     args={volume, flowrate})
-                        fc.thread.start()
-                    self.wait_for_fc()
-
-            self.LED('all', 'sleep')
-
-        return confirm
+        return port
 
 
 
@@ -477,7 +427,7 @@ class HiSeq2500():
            Prime all reagent lines listed in the 24 port valve port dictionary
            The default volumes for ports 1-8 & 10-19 (in the chiller) is 500 uL
            port 20 (sample) is 250 uL, and ports 9 & 22-24 is 350 uL (all
-           volumes stored in self.flowcells.[AorB].volume dictionary). After
+           volumes stored in self.flowcell.[AorB].volume dictionary). After
            priming, the lines will be rinsed with the rinse_port reagent, if
            supplied.
 
@@ -510,15 +460,15 @@ class HiSeq2500():
             #Flush all lines
             self.LED('all', 'awake')
 
-            AorB_ = [*self.flowcells.keys()][0]
+            AorB_ = [*self.flowcell.keys()][0]
             port_dict = self.v24[AorB_].port_dict
             if flowrate is None:
-                flowrate = self.flowcells[AorB_].pump_speed['prime']
+                flowrate = self.flowcell[AorB_].pump_speed['prime']
 
             for port in port_dict.keys():
                 if isinstance(port_dict[port], int):
                     self.message('Priming ' + str(port))
-                    for AorB, fc in self.flowcells.items():
+                    for AorB, fc in self.flowcell.items():
                         port_num = port_dict[port]
                         fc.thread = threading.Thread(target=self.v24[AorB].move,
                                                      args=(port,))
@@ -526,7 +476,7 @@ class HiSeq2500():
 
                     self.wait_for_fc()
 
-                    for AorB, fc in self.flowcells.items():
+                    for AorB, fc in self.flowcell.items():
                         if port_num in self.v24[AorB].side_ports:
                             volume = fc.volume['side']
                         elif port_num == self.v24[AorB].sample_port:
@@ -540,29 +490,28 @@ class HiSeq2500():
                     self.wait_for_fc()
 
             # Rinse flowcells
-            # method = config.get('experiment', 'method')                             # Read method specific info
-            # method = config[method]
-            # rinse_port = method.get('rinse', fallback = None)
-            rinse = rinse_port in self.v24[AorB].port_dict
+            rinse_port = self.v24[AorB].rinse_port
+            ask_rinse = rinse_port is not None
             if rinse_port == port:                                                  # Option to skip rinse if last reagent pump was rinse reagent
-                rinse = False
+                ask_rinse = False
 
             # Ask for rinse reagent if not supplied
-            if not rinse:
+            if ask_rinse:
                 self.LED('all', 'user')
                 print('Last reagent pumped was', str(port))
-                if userYN('Rinse flowcell'):
-                    while not rinse:
-                        if rinse_port not in self.v24[AorB].port_dict:
-                            rinse_port = input('Specify rinse reagent: ')
-                        rinse = rinse_port in self.v24[AorB].port_dict
-                        if not rinse:
+                if userYN('Rinse lines'):
+                    while not ask_rinse:
+                        rinse_port = input('Specify rinse reagent: ')
+                        ask_rinse = rinse_port in self.v24[AorB].port_dict or rinse_port is None:
+                        if not ask_rinse:
                             print('ERROR::Invalid rinse reagent')
                             print('Choose from:', *list(self.v24[AorB].port_dict.keys()))
+                        if rinse_port is None:
+                            userYN('Skip rinsing')
             if rinse:
                 # Simultaneously Rinse Flowcells
                 self.LED('all', 'awake')
-                for fc in flowcells.values():
+                for fc in self.flowcells.values():
                     fc.thread = threading.Thread(target=self.flush_lines,
                                                  kwargs={'flush_ports':rinse_port,'flowrate':flowrate})
                     fc.thread.start()
@@ -579,7 +528,6 @@ class HiSeq2500():
             while not userYN('Door closed'): pass
 
         return port
-
 
 
     def write_metadata(self, n_frames, image_name):
