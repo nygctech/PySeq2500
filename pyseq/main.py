@@ -863,11 +863,13 @@ def check_filters(cycle_dict, ex_dict):
 
 
 
+def endHOLD(fc):
+    """Print end hold message for flowcell fc, returns False"""
 
+    msg = 'PySeq::'+fc.position+'::cycle'+str(fc.cycle)+'::Hold stopped'
+    hs.message(msg)
 
-##########################################################
-## Flush Lines ###########################################
-##########################################################
+    return False
 
 ##########################################################
 def do_nothing():
@@ -935,10 +937,10 @@ def do_recipe(fc):
                 holdTime = float(command)*60
                 log_message = 'Flowcell holding for ' + str(command) + ' min.'
                 if hs.virtual:
-                    fc.thread = threading.Timer(holdTime/hs.speed_up, fc.endHOLD)
-                    #fc.thread = threading.Timer(holdTime, fc.endHOLD)
+                    print(holdTime, hs.speed_up, holdTime/hs.speed_up)
+                    fc.thread = threading.Timer(holdTime/hs.speed_up, endHOLD, args=(fc,))
                 else:
-                    fc.thread = threading.Timer(holdTime, fc.endHOLD)
+                    fc.thread = threading.Timer(holdTime, endHOLD, args=(fc,))
             elif command == 'STOP':
                 hs.message('PySeq::Paused')
                 hs.LED(AorB, 'user')

@@ -222,11 +222,3 @@ class Flowcell():
         thread_id = self.thread.start()
 
         return thread_id
-
-    def endHOLD(self):
-        """Ends hold for incubations in buffer, returns False."""
-
-        msg = 'PySeq::'+self.position+'::cycle'+str(self.cycle)+'::Hold stopped'
-        hs.message(msg)
-
-        return False

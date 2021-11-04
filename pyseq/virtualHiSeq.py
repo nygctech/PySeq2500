@@ -1011,7 +1011,7 @@ class HiSeq2500():
         self.AF = 'partial'
         self.focus_tol = 0
         self.scan_flag = False
-        self.speed_up = 10
+        self.speed_up = 100
         self.current_view = None
         self.name = name
         self.model = 'virtualHiSeq2500'
