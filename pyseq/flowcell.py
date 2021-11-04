@@ -192,9 +192,12 @@ class Flowcell():
             self.cycle += 1
             # Flowcell completed all cycles
             hs.message(msg+'Completed '+ str(self.total_cycles) + ' cycles')
-            hs.T.fc_off(fc.position)
+            hs.T.fc_off(self.position)
             self.temperature = None
-            hs.do_rinse(self)
+            rinse_port = hs.v24[self.position].rinse_port
+            if rinse_port is not None:
+                flowrate = hs.flowcells[self.position].pump_speed['reagent']
+                hs.flush_lines(flush_ports = [rinse_port], flowrate=flowrate)
             if self.temp_timer is not None:
                 self.temp_timer.cancel()
                 self.temp_timer = None

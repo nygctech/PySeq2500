@@ -200,7 +200,7 @@ def configure_instrument(IMAG_counter, port_dict, flowcells):
     # Add flowcells
     for fc in flowcells.values():
         AorB = fc.position
-        hs.flowcell[AorB] = flowcells[AorB]
+        hs.flowcells[AorB] = flowcells[AorB]
         hs.v24[AorB].side_ports = side_ports
         hs.v24[AorB].sample_port = sample_port
         hs.v24[AorB].port_dict = port_dict                                      # Assign ports on HiSeq
@@ -215,9 +215,9 @@ def configure_instrument(IMAG_counter, port_dict, flowcells):
             fc.stage[section] = pos
             fc.stage[section]['z_pos'] = [hs.z.image_step]*3
     # Remove unused flowcell slots
-    for fc in hs.flowcell.keys():
-        if hs.flowcell[fc] is None:
-            hs.flowcell.pop(fc)
+    for fc in hs.flowcells.keys():
+        if hs.flowcells[fc] is None:
+            hs.flowcells.pop(fc)
 
     ## TODO: Changing laser color unecessary for now, revist if upgrading HiSeq
     # Configure laser color & filters
@@ -347,8 +347,8 @@ def confirm_settings(recipe_z_planes = []):
 
     # Flowcell summary
     table = {}
-    for fc in hs.flowcell.keys():
-        table[fc] = hs.flowcell[fc].sections.keys()
+    for fc in hs.flowcells.keys():
+        table[fc] = hs.flowcells[fc].sections.keys()
     print('-'*80)
     print()
     print('Flowcells:')
@@ -383,8 +383,8 @@ def confirm_settings(recipe_z_planes = []):
     print()
 
     # Pump summary:
-    AorB = [*hs.flowcell.keys()][0]
-    fc = hs.flowcell[AorB]
+    AorB = [*hs.flowcells.keys()][0]
+    fc = hs.flowcells[AorB]
     print('-'*80)
     print()
     print('Pump Settings:')
@@ -937,7 +937,6 @@ def do_recipe(fc):
                 holdTime = float(command)*60
                 log_message = 'Flowcell holding for ' + str(command) + ' min.'
                 if hs.virtual:
-                    print(holdTime, hs.speed_up, holdTime/hs.speed_up)
                     fc.thread = threading.Timer(holdTime/hs.speed_up, endHOLD, args=(fc,))
                 else:
                     fc.thread = threading.Timer(holdTime, endHOLD, args=(fc,))
@@ -1161,8 +1160,8 @@ def flush_lines():
 
     """
 
-    AorB_ = [*hs.flowcell.keys()][0]
-    port_dict = hs.v24[AorB_].port_dict
+    AorB = [*hs.flowcells.keys()][0]
+    port_dict = hs.v24[AorB].port_dict
 
     hs.LED('all', 'user')
 
@@ -1171,9 +1170,8 @@ def flush_lines():
     while not confirm:
         flush_ports = input("Flush all, some, or none of the lines? ")
         if flush_ports.strip().lower() == 'all':
-            flush_all = True
-            flush_ports = [*port_dict.keys()]
-            for vp in hs.v24[AorB_].variable_ports:
+            flush_ports = list(port_dict.keys())
+            for vp in hs.v24[AorB].variable_ports:
                 if vp in flush_ports:
                     flush_ports.remove(vp)
             confirm = userYN('Confirm flush all lines')
@@ -1190,7 +1188,7 @@ def flush_lines():
                 else:
                     try:
                         fp = int(fp)
-                        if fp in range(1,hs.v24[AorB_].n_ports+1):
+                        if fp in range(1,hs.v24[AorB].n_ports+1):
                             good.append(fp)
                         else:
                             bad.append(fp)
@@ -1204,7 +1202,7 @@ def flush_lines():
                 confirm = userYN('Confirm only flushing',*good)
 
             if confirm:
-                flush_ports = good
+                flush_ports = hs.flowcells
 
     if len(flush_ports) > 0:
         while not userYN('Temporary flowcell(s) locked on to stage'): pass
@@ -1212,9 +1210,9 @@ def flush_lines():
         while not userYN('Ready to flush'): pass
 
         # Flush ports
-        flowrate = hs.flowcell[AorB_].pump_speed['flush']
-        volume = hs.flowcell[AorB_].volume['flush']
-        hs.flush_lines(flush_ports, volume, flowrate)
+        flowrate = hs.flowcells[AorB].pump_speed['flush']
+        volume = hs.flowcells[AorB].volume['flush']
+        hs.flush_lines(flush_ports = flush_ports, volume = volume, flowrate = flowrate)
 
 
     return confirm
@@ -1248,63 +1246,16 @@ def prime_lines(self, flush_YorN = True):
             confirm = userYN("Confirm skip priming lines")
 
     if prime_YorN:
-        if flush_YorN:
+        if not flush_YorN:
             while not userYN('Temporary flowcell(s) locked on to stage'): pass
         while not userYN('Valve input lines in reagents'): pass
         while not userYN('Ready to prime lines'): pass
 
-        AorB_ = [*hs.flowcell.keys()][0]
-        prime_ports = list(hs.v24[AorB_].port_dict.keys())
-        flowrate = hs.flowcell[AorB_].pump_speed['prime']
-        last_port = hs.flush_lines(prime_ports, flowrate)
+        AorB_ = [*hs.flowcells.keys()][0]
+        flowrate = hs.flowcells[AorB_].pump_speed['prime']
+        last_port = hs.flush_lines(flowrate = flowrate)
 
-        # for port in port_dict.keys():
-        #     if isinstance(port_dict[port], int):
-        #         self.message('Priming ' + str(port))
-        #         for AorB, fc in self.flowcell.items():
-        #             port_num = port_dict[port]
-        #             fc.thread = threading.Thread(target=self.v24[AorB].move,
-        #                                          args=(port,))
-        #             fc.thread.start()
-        #
-        #         self.wait_for_fc()
-        #
-        #         for AorB, fc in self.flowcell.items():
-        #             if port_num in self.v24[AorB].side_ports:
-        #                 volume = fc.volume['side']
-        #             elif port_num == self.v24[AorB].sample_port:
-        #                 volume = fc.volume['sample']
-        #             else:
-        #                 volume = fc.volume['main']
-        #             fc.thread = threading.Thread(target=self.p[AorB].pump,
-        #                                          args=(volume, flowrate,))
-        #             fc.thread.start()
-        #
-        #         self.wait_for_fc()
-
-        # Rinse flowcells
-        rinse_port = hs.v24[AorB_].rinse_port
-        ask_rinse = rinse_port is not None
-        if rinse_port == last_port:                                             # Option to skip rinse if last reagent pump was rinse reagent
-            ask_rinse = False
-
-        # Ask for rinse reagent if not supplied
-        if ask_rinse:
-            hs.LED('all', 'user')
-            print('Last reagent pumped was', str(last_port))
-            if userYN('Rinse lines'):
-                while not ask_rinse:
-                    rinse_port = input('Specify rinse reagent: ')
-                    ask_rinse = rinse_port in hs.v24[AorB_].port_dict or rinse_port is None
-                    if not ask_rinse:
-                        print('ERROR::Invalid rinse reagent')
-                        print('Choose from:', *list(hs.v24[AorB_].port_dict.keys()))
-                    if rinse_port is None:
-                        ask_rinse = userYN('Skip rinsing')
-
-        if rinse_port:
-            # Simultaneously Rinse Flowcells
-            last_port = hs.flush_lines([rinse_port], flowrate)
+        rinse_lines(last_port = last_port)
 
         hs.LED('all', 'user')
         while not userYN('Temporary flowcell(s) removed'): pass
@@ -1316,6 +1267,38 @@ def prime_lines(self, flush_YorN = True):
     while not userYN('Door closed'): pass
 
     return prime_YorN
+
+def rinse_lines(flowcells='AB', last_port=None):
+
+
+    # Get default rinse port
+    AorB = flowcells[0]
+    rinse_port = hs.v24[AorB].rinse_port
+    ask_rinse = rinse_port is not None
+    if rinse_port == last_port:                                                 # Option to skip rinse if last reagent pump was rinse reagent
+        ask_rinse = False
+
+    # Ask for rinse reagent if not supplied
+    if ask_rinse:
+        hs.LED('all', 'user')
+        print('Last reagent pumped was', str(last_port))
+        if userYN('Rinse lines'):
+            while not ask_rinse:
+                rinse_port = input('Specify rinse reagent: ')
+                ask_rinse = rinse_port in hs.v24[AorB].port_dict or rinse_port is None
+                if not ask_rinse:
+                    print('ERROR::Invalid rinse reagent')
+                    print('Choose from:', *list(hs.v24[AorB].port_dict.keys()))
+                if rinse_port is None:
+                    ask_rinse = userYN('Skip rinsing')
+
+    # Rinse linse
+    if rinse_port:
+        flowrate = hs.flowcells[AorB].pump_speed['prime']
+        last_port = hs.flush_lines(flowcells=flowcells, flush_ports = [rinse_port], flowrate=flowrate)
+
+
+
 
 def do_rinse(fc, port=None):
     """Rinse flowcell with reagent specified in config file.
@@ -1372,7 +1355,7 @@ def do_shutdown():
 
     hs.z.move([0, 0, 0])
     hs.move_stage_out()
-    hs.do_flush()
+    flush_lines()
     ##Flush all lines##
     # hs.LED('all', 'user')
     #
@@ -1573,13 +1556,13 @@ if __name__ == 'pyseq.main':
     hs = initialize_hs(IMAG_counter)                                            # Initialize HiSeq, takes a few minutes
 
     if n_errors is 0:
-        flush_YorN = flush_lines()                                              # Ask to flush out lines
+        flush_YorN = flush_lines()                                              # Flush lines
         prime_YorN = prime_lines(flush_YorN)                                    # Ask to prime lines
         if not userYN('Start experiment'):
             sys.exit()
 
         # Do prerecipe or Initialize Flowcells
-        for fc in hs.flowcell.values():
+        for fc in hs.flowcells.values():
             if fc.prerecipe_path:
                 fc.pre_recipe(hs)
             else:
@@ -1590,7 +1573,7 @@ if __name__ == 'pyseq.main':
             stuck = 0
             complete = 0
 
-            for fc in hs.flowcell.values():
+            for fc in hs.flowcells.values():
                 if not fc.thread.is_alive():                                    # flowcell not busy, do next step in recipe
                     do_recipe(fc)
 
