@@ -1787,6 +1787,9 @@ def get_config(args):
     # Open config file
     if os.path.isfile(args['config']):
          config.read(args['config'])
+    elif args['config'] in methods.get_methods():
+        config_path, recipe_path = methods.return_method(args['config'])
+        config.read(config_path)
     else:
         error('ConfigFile::Does not exist')
         sys.exit()
