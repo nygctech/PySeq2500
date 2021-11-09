@@ -1786,7 +1786,8 @@ def get_config(args):
                       })
     # Open config file
     if os.path.isfile(args['config']):
-         config.read(args['config'])
+         config_path = args['config']
+         config.read(config_path)
     elif args['config'] in methods.get_methods():
         config_path, recipe_path = methods.return_method(args['config'])
         config.read(config_path)
@@ -1839,7 +1840,7 @@ def get_config(args):
 
     # Don't override user defined valve
     user_config = configparser.ConfigParser()
-    user_config.read(args['config'])
+    user_config.read(config_path)
     if USERVALVE:
         config.read_dict({'reagents':dict(user_config['reagents'])})
     if user_config.has_section(method):
