@@ -1808,8 +1808,8 @@ def get_config(args):
     # Get method specific configuration
     method = config['experiment']['method']
     if method in methods.get_methods():
-        config_path, recipe_path = methods.return_method(method)
-        config.read(config_path)
+        method_path, recipe_path = methods.return_method(method)
+        config.read(method_path)
     elif os.path.isfile(method):
         config.read(method)
         recipe_path = None
