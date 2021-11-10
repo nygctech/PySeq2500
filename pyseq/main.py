@@ -1804,6 +1804,8 @@ def get_config(args):
         valve = config['reagents'].items()
         if len(valve) > 0:
             USERVALVE = True
+    # save first port
+    user_first_port = config.get('experiment','first port', fallback=None)
 
     # Get method specific configuration
     method = config['experiment']['method']
@@ -1845,6 +1847,8 @@ def get_config(args):
         config.read_dict({'reagents':dict(user_config['reagents'])})
     if user_config.has_section(method):
         config.read_dict({method:dict(user_config[method])})
+    if user_first_port is not None:
+        config['experiment']['first port'] = user_firt_port
 
     return config
 
