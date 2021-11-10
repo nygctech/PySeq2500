@@ -1848,7 +1848,7 @@ def get_config(args):
     if user_config.has_section(method):
         config.read_dict({method:dict(user_config[method])})
     if user_first_port is not None:
-        config['experiment']['first port'] = user_firt_port
+        config['experiment']['first port'] = user_first_port
 
     return config
 
