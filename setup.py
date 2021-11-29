@@ -25,7 +25,7 @@ setup(
         ],
     keywords='sequencing, HiSeq, automation, biology',
     packages=['pyseq'],
-    python_requires='>=3.5',
+    python_requires='==3.7',
     install_requires=['pyserial>=3', #add version numbers
                       'numpy',
                       'scipy',
