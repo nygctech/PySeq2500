@@ -62,7 +62,7 @@ python-dateutil==2.8.1
 PyTweening==1.0.3
 pytz==2020.1
 PyWavelets==1.1.1
-pywin32==300
+pywin32==302
 PyYAML==5.3.1
 pyzmq==21.0.0
 qtconsole==5.0.1
