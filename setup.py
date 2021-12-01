@@ -34,7 +34,7 @@ setup(
                       'dask', 'xarray', 'zarr', 'qtpy','napari',
                       'scikit-image >= 0.17',
                       'wmi',
-                      'qtpy==1.9.0', 'pyqt5==5.15.4'],
+                      'qtpy==1.11.2', 'pyqt5==5.15.4'],
     package_data={
         'pyseq': ['recipes/*', 'focus_data/*',
                   'focus_data/full/*', 'focus_data/partial/*',
