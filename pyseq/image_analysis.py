@@ -351,7 +351,7 @@ def compute_background(image_path=None, common_name = ''):
     bg_dict = True
     if config.has_section(config_section):
         print('Current background correction')
-        print(tabulate.tabulate(config.items('virtualbackground'),
+        print(tabulate.tabulate(config.items(config_section),
               tablefmt='presto',headers=['channel','background correction']))
         if not userYN('Calculate new background correction for '+im.machine):
             bg_dict = None
