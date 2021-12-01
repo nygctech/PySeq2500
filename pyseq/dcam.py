@@ -1150,13 +1150,11 @@ class HamamatsuCamera():
     def setTDI(self):
         'Switch camera to TDI imaging mode, return True is successful.'
 
-        success = 0
-
-        success +=self.setPropertyValue("sensor_mode", 4)                       #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-        success += self.setPropertyValue("sensor_mode_line_bundle_height", 128)
+        mode =self.setPropertyValue("sensor_mode", 4)                       #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        height = self.setPropertyValue("sensor_mode_line_bundle_height", 128)
 
         #self.setPropertyValue("exposure_time", self.tdi_exposure)
-        if success == 2:
+        if mode == 4 and height == 128:
             self.sensor_mode = 'TDI'
             self.captureSetup()
             success = True
@@ -1171,17 +1169,15 @@ class HamamatsuCamera():
     def setAREA(self):
         'Switch camera to AREA imaging mode, return True is successful.'
 
-        success = 0
+        mode = self.setPropertyValue("sensor_mode", 1)                      #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
+        height = self.setPropertyValue("sensor_mode_line_bundle_height", 64)
 
-        success += self.setPropertyValue("sensor_mode", 1)                      #1=AREA, 2=LINE, 4=TDI, 6=PARTIAL AREA
-        success += self.setPropertyValue("sensor_mode_line_bundle_height", 64)
-
-        if success == 2:
+        if mode == 1 and height == 64:
             self.sensor_mode = 'AREA'
             self.captureSetup()
             success = True
         else:
-            sucess = False
+            success = False
 
         return success
 
