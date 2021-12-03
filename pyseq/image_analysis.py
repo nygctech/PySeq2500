@@ -590,7 +590,7 @@ class HiSeqImages():
             if path.exists(name_path):
                 with open(name_path,'r') as f:
                     machine = f.readline().strip()
-                    self.config, config_path = get_machine_config(machine)
+                self.config, config_path = get_machine_config(machine)
             if self.config is not None:
                 self.machine = machine
             if self.machine is None:
@@ -665,10 +665,11 @@ class HiSeqImages():
             self.im.attrs['fixed_bg'] = 1
 
         else:
+            pre_msg='CorrectBackground::'
             if bool(self.im.fixed_bg):
-                message(self.logger, 'Image already background corrected.')
+                message(self.logger, pre_msg+'Image already background corrected.')
             elif machine is None:
-                message(self.logger, 'Unknown machine')
+                message(self.logger, pre_msg+'Unknown machine')
 
 
     def register_channels(self, image=None):
