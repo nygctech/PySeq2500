@@ -1298,46 +1298,6 @@ def rinse_lines(flowcells='AB', last_port=None):
         last_port = hs.flush_lines(flowcells=flowcells, flush_ports = [rinse_port], flowrate=flowrate)
 
 
-
-
-def do_rinse(fc, port=None):
-    """Rinse flowcell with reagent specified in config file.
-
-       **Parameters:**
-       fc (flowcell): The flowcell to rinse.
-
-    """
-
-    method = config.get('experiment', 'method')                                 # Read method specific info
-    method = config[method]
-    if port is None:
-        port = method.get('rinse', fallback = None)
-    AorB  = fc.position
-    rinse = port in hs.v24[AorB].port_dict
-
-    if rinse:
-        hs.LED(fc.position, 'awake')
-        # Move valve
-        hs.message('PySeq::'+AorB+'::Rinsing flowcell with', port)
-        fc.thread = threading.Thread(target = hs.v24[AorB].move, args = (port,))
-        fc.thread.start()
-
-        # Pump
-        port_num = hs.v24[AorB].port_dict[port]
-        if port_num in hs.v24[AorB].side_ports:
-            volume = fc.volume['side']
-        elif port_num == hs.v24[AorB].sample_port:
-            volume = fc.volume['sample']
-        else:
-            volume = fc.volume['main']
-        speed = fc.pump_speed['reagent']
-        while fc.thread.is_alive():                                             # Wait till valve has moved
-            pass
-        fc.thread = threading.Thread(target = hs.p[AorB].pump,
-                                       args = (volume, speed,))
-    else:
-        fc.thread = threading.Thread(target = do_nothing)
-
 ##########################################################
 ## Shut down system ######################################
 ##########################################################
