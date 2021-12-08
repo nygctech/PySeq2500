@@ -1670,6 +1670,9 @@ def do_rinse(fc, port=None):
     else:
         fc.thread = threading.Thread(target = do_nothing)
 
+    fc.thread.start()
+
+
 ##########################################################
 ## Shut down system ######################################
 ##########################################################
