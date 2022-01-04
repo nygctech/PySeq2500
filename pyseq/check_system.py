@@ -331,13 +331,13 @@ def test_cameras():
 
         cam_pass = []
         cam_pass.append(hs.cam1.setAREA())
-        cam_pass.append(hs.cam2.setAREA())
+        #cam_pass.append(hs.cam2.setAREA())
         if not all(cam_pass):
             error('Unable to set cameras to AREA mode')
 
         cam_pass = []
         cam_pass.append(hs.cam1.setTDI())
-        cam_pass.append(hs.cam2.setTDI())
+        #cam_pass.append(hs.cam2.setTDI())
         if not all(cam_pass):
             error('Unable to set cameras to TDI mode')
 

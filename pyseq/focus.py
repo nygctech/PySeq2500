@@ -484,8 +484,8 @@ class Autofocus():
         name_ = 'FormatFocus::'
         hs = self.hs
 
-        if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
-            message(hs.logger,name_,'Frame interval mismatch')
+        # if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
+        #     message(hs.logger,name_,'Frame interval mismatch')
 
         frame_interval = hs.cam1.getFrameInterval()
         spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
