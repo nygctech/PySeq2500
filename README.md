@@ -19,13 +19,18 @@ Newer operating systems have not been tried yet because the [drivers](https://dc
 
 ## Software Requirements
 Windows 7
+
 Python 3.7
+
 compiler such as Build Tools for Visual Studio 2019 (version 16.11)
 
 ## PySeq2500 Installation
 pip install pyseq2500
+
 pip remove qtpy
+
 pip install qtpy==1.11.2
+
 pip install pyqt5==5.15.4
 
 ## Verify PySeq2500
