@@ -5,26 +5,24 @@ Control an Illumina HiSeq 2500 System Interactively
 
 # Installation
 
-## Hardware Requirements
+## Requirements
 PySeq2500 has only been tested on PCs that were previously used to control the HiSeq2500s with the Illumina Control Software.
 
-PC Specs:
-Windows 7 64 bit
-Dual Intel Xeon CPU 2.00 GHx
-64 GB RAM
-Active Silicon Phoenix Camera Link Frame Grabbers (D48CL PE4)
-
+### PC Specs
+- Windows 7 64 bit
+- Dual Intel Xeon CPU 2.00 GHx
+- 64 GB RAM
+- Active Silicon Phoenix Camera Link Frame Grabbers (D48CL PE4)
 
 Newer operating systems have not been tried yet because the [drivers](https://dcam-api.com/downloads/#archive) for the cameras/frame grabber are not compatible.
 
-## Software Requirements
-Windows 7
-
-Python 3.7
-
-compiler such as Build Tools for Visual Studio 2019 (version 16.11)
+### Software Requirements
+- Windows 7
+- Python 3.7
+- compiler such as Build Tools for Visual Studio 2019 (version 16.11)
 
 ## PySeq2500 Installation
+```
 pip install pyseq2500
 
 pip remove qtpy
@@ -32,9 +30,27 @@ pip remove qtpy
 pip install qtpy==1.11.2
 
 pip install pyqt5==5.15.4
+```
 
-## Verify PySeq2500
+## Verify Installation
+```
 pyseq -h
+
+usage: pyseq [-h] [-config PATH] [-name NAME] [-output PATH] [-list]
+             [-method METHOD] [-virtual] [-settings] [-ports] [-diagnostics]
+
+optional arguments:
+  -h, --help      show this help message and exit
+  -config PATH    path to config file
+  -name NAME      experiment name
+  -output PATH    directory to save data
+  -list           list installed methods
+  -method METHOD  print method details
+  -virtual        use virtual HiSeq
+  -settings       print optional HiSeq settings
+  -ports          view com ports
+  -diagnostics    perform a diagnostics run
+```
 
 ## Issues
 PySeq2500 relies on napari for manual focusing and displaying images with the
@@ -42,29 +58,7 @@ image analysis module. However the dependencies for napari do not get installed
 correctly so there are some additional pip install commands.
 
 # HiSeq Modifications
-## Remove front panel (optional)
-It may be easier to remove the front panel of the HiSeq for easier access to all the screws of the stage and the all the valves.
-To remove the front pannel, first open the stage door and disconnect the wires to the stage door sensors/lock (located to the right of the stage).
-Then unscrew 2 philips head screws behind the pump door and 2 philips head screws behind chiller door.
-Also remove any additional screws on the left side of the HiSeq.
-Pry off the front panel slowly and set aside until ready to reattach.
-Reattach front planel by sliding into place.
-Reconnect wires to door sensors/lock and then secure panel with screws.
-
-## Remove stage plate (required)
-It may be easier to access the stage if the front panel of the HiSeq is removed.
-Unscrew 3 philips head screws located on top of stage. Pry off and remove the plate.
-
-## Remove notches on stage plate (optional)
-Remove the stage plate.
-Grind or hammer off chamfered corners at the back left of each flow cell slot on the stage plate.
-Resecure the stage plate.
-
-## Tie pump lines (optional)
-Our flowcell design only uses the outlets 4 and 5 of each flow cell slot. To maximize the capacity of the pump, inlets 1-4 and 5-8 of the pump are tied to outlets 4 and 5 of the flow cell respectivly with 5 port port PEEK manifold (VICI, C5M1PK), ¼-28 flanged tube fittings with washers (VICI, CF-1A and CF-W1), and 1/16 in. OD PTFE tubing.
-
-## Additional reagent lines (optional)
-Ports 9, 21, 22, 23, and 24 are not used on HiSeq 2500 reagent valves. Additional reagent lines can be added to these ports with 1/16 in. outer diameter PTFE tubing and 6-40 one-piece nuts/bushings (VICI, CNNF1PK). A 1 cm diameter hole was drilled into the left side of the HiSeq front panel which was used to direct additional reagent lines through to external reagent reservoirs.
+See [Wiki on HiSeq Modification](https://github.com/nygctech/PySeq2500/wiki/PySeq2500-Wiki)
 
 # Initializing HiSeq
 
