@@ -488,7 +488,8 @@ class HiSeq():
 
         meta_f.close()
 
-        return image_complete == 2
+        #return image_complete == 2
+        return image_complete == 1
 
 
     def obj_stack(self, n_frames = None, velocity = None):
