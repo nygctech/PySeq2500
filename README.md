@@ -25,16 +25,32 @@ Python 3.7
 compiler such as Build Tools for Visual Studio 2019 (version 16.11)
 
 ## PySeq2500 Installation
+```
 pip install pyseq2500
-
 pip remove qtpy
-
 pip install qtpy==1.11.2
-
 pip install pyqt5==5.15.4
+```
 
-## Verify PySeq2500
+## Verify Installation
+```
 pyseq -h
+
+usage: pyseq [-h] [-config PATH] [-name NAME] [-output PATH] [-list]
+             [-method METHOD] [-virtual] [-settings] [-ports] [-diagnostics]
+
+optional arguments:
+  -h, --help      show this help message and exit
+  -config PATH    path to config file
+  -name NAME      experiment name
+  -output PATH    directory to save data
+  -list           list installed methods
+  -method METHOD  print method details
+  -virtual        use virtual HiSeq
+  -settings       print optional HiSeq settings
+  -ports          view com ports
+  -diagnostics    perform a diagnostics run
+```
 
 ## Issues
 PySeq2500 relies on napari for manual focusing and displaying images with the
