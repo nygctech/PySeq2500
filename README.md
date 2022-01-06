@@ -5,24 +5,21 @@ Control an Illumina HiSeq 2500 System Interactively
 
 # Installation
 
-## Hardware Requirements
+## Requirements
 PySeq2500 has only been tested on PCs that were previously used to control the HiSeq2500s with the Illumina Control Software.
 
-PC Specs:
-Windows 7 64 bit
-Dual Intel Xeon CPU 2.00 GHx
-64 GB RAM
-Active Silicon Phoenix Camera Link Frame Grabbers (D48CL PE4)
-
+### PC Specs
+- Windows 7 64 bit
+- Dual Intel Xeon CPU 2.00 GHx
+- 64 GB RAM
+- Active Silicon Phoenix Camera Link Frame Grabbers (D48CL PE4)
 
 Newer operating systems have not been tried yet because the [drivers](https://dcam-api.com/downloads/#archive) for the cameras/frame grabber are not compatible.
 
-## Software Requirements
-Windows 7
-
-Python 3.7
-
-compiler such as Build Tools for Visual Studio 2019 (version 16.11)
+### Software Requirements
+- Windows 7
+- Python 3.7
+- compiler such as Build Tools for Visual Studio 2019 (version 16.11)
 
 ## PySeq2500 Installation
 ```
