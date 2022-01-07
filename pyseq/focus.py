@@ -483,6 +483,9 @@ class Autofocus():
 
         name_ = 'FormatFocus::'
         hs = self.hs
+        xpos = hs.x.position
+        ypos = hs.y.position
+        self.message(False, name_,'Analyzing data from x',xpos,'y',ypos)
 
         # if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
         #     message(hs.logger,name_,'Frame interval mismatch')
@@ -521,8 +524,8 @@ class Autofocus():
         else:
             f_fd = f_fd/ np.sum(f_fd)
             if filename is None:
-                filename = 'x'+str(hs.x.position)
-                filename+= 'y'+str(hs.y.position)+'.txt'
+                filename = 'x'+str(xpos)
+                filename+= 'y'+str(ypos)+'.txt'
             else:
                 filename += '.txt'
             focus_data = np.vstack((objsteps,f_fd)).T
