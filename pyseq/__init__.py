@@ -255,8 +255,8 @@ class HiSeq():
         # self.cam2.get_status()
         self.channels =[str(self.cam1.left_emission),
                         str(self.cam1.right_emission),
-                        # str(self.cam2.left_emission),
-                        # str(self.cam2.right_emission)
+                        610,# str(self.cam2.left_emission),
+                        740,# str(self.cam2.right_emission)
                         ]
 
     def initializeInstruments(self):
