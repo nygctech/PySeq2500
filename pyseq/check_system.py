@@ -1,4 +1,5 @@
-import logging
+import pyseq
+import args
 import warnings
 import time
 import os
@@ -12,33 +13,6 @@ def error(text):
     hs.message('ERROR::'+text)
     if instrument_status['FPGA']:
         hs.f.LED(1, 'yellow')
-
-def setup_logger(log_path):
-    """Create a logger and return the handle."""
-
-
-    # Create a custom logger
-    logger = logging.getLogger(__name__)
-    logger.setLevel(10)
-
-    # Create console handler
-    c_handler = logging.StreamHandler()
-    c_handler.setLevel(21)
-    # Create file handler
-    f_handler = logging.FileHandler(log_path)
-    f_handler.setLevel(logging.INFO)
-
-    # Create formatters and add it to handlers
-    c_format = logging.Formatter('%(asctime)s - %(message)s', datefmt = '%Y-%m-%d %H:%M')
-    f_format = logging.Formatter('%(asctime)s - %(message)s')
-    c_handler.setFormatter(c_format)
-    f_handler.setFormatter(f_format)
-
-    # Add handlers to the logger
-    logger.addHandler(c_handler)
-    logger.addHandler(f_handler)
-
-    return logger
 
 
 # Test LEDS
@@ -365,22 +339,10 @@ try:
     timestamp = time.strftime('%Y%m%d%H%M')
     image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
     os.mkdir(image_path)
-    log_path = join(image_path,timestamp+'_HiSeqCheck.log')
-    logger = setup_logger(log_path)
-    model, name = methods.get_machine_info()
-
-    # Create HiSeq Object
-    if name == 'virtual':
-        from . import virtualHiSeq
-        hs = virtualHiSeq.HiSeq(name, Logger=logger)
-        hs.speed_up = 5000
-    else:
-        import pyseq
-        model, name = methods.get_machine_info()
-        hs = pyseq.HiSeq(name, Logger=logger)
-
-    # Exception for ValueError of port, must be string or None, not int)
-    # Exception for SerialException, could not open port
+    logger = pyseq.setup_logger(timestamp+'_HiSeqCheck.log', log_path)
+    args_ = args.get_arguments()
+    model, name = pyseq.get_machine_info(args_['virtual'])
+    hs = pyseq.get_instrument(args_['virtual'])
     hs.image_path = image_path
 
 except ImportError:

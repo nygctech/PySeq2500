@@ -77,6 +77,7 @@ class Valve():
         self.variable_ports = []
         self.side_ports = None
         self.sample_port = None
+        self.rinse_port = None
         self.prefix = ''
         self.suffix = '\r'
         self.logger = logger
@@ -156,15 +157,21 @@ class Valve():
     def move(self, port_name):
         """Move valve to the specified port_name (str)."""
 
+        position = False
+
         if isinstance(port_name, int):
             if port_name in range(1,self.n_ports+1):
                 position = port_name
         else:
-            position = self.port_dict[port_name]
+            if port_name in self.port_dict.keys():
+                position = self.port_dict[port_name]
+            else:
+                self.write_log(port_name + ' does not exist')
 
-        while position != self.check_valve():
-            response = self.command('GO' + str(position))
-            time.sleep(1)
+        if position:
+            while position != self.check_valve():
+                response = self.command('GO' + str(position))
+                time.sleep(1)
 
         return position
 
@@ -189,5 +196,8 @@ class Valve():
 
     def write_log(self, text):
         """Write errors/warnings to the log"""
+        message = self.name + '::' + text
         if self.logger is not None:
-            self.logger.info(self.name + ' ' + text)
+            self.logger.info(message)
+        else:
+            print(message)

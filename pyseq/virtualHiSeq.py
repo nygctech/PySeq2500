@@ -3,6 +3,9 @@ from os.path import join
 import importlib.resources as pkg_resources
 from math import floor, ceil
 from . import image_analysis as IA
+from . import flowcell
+from .methods import userYN
+import threading
 
 
 # HiSeq Simulater
@@ -991,7 +994,7 @@ import time
 import warnings
 import pandas as pd
 
-class HiSeq():
+class HiSeq2500():
     def __init__(self, name = 'HiSeq2500', Logger = None):
         self.x = Xstage()
         self.y = Ystage()
@@ -1029,9 +1032,14 @@ class HiSeq():
         self.AF = 'partial'
         self.focus_tol = 0
         self.scan_flag = False
-        self.speed_up = 10
+        self.speed_up = 5000
         self.current_view = None
         self.name = name
+        self.model = 'virtualHiSeq2500'
+        self.flowcells = {'A':None,'B':None}
+        self.led_dict = {'startup':'green','user':'pulse green','error':'yellow',
+                         'sleep':'blue','awake':'pulse blue','imaging':'sweep blue',
+                         'off':'off'}
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""
@@ -1097,6 +1105,8 @@ class HiSeq():
 
         return True
 
+
+
     def move_inlet(self, n_ports):
         """Move 10 port valves to 2 inlet row or 8 inlet row ports."""
 
@@ -1110,6 +1120,47 @@ class HiSeq():
             return True
         else:
             return False
+
+
+    def LED(self, flowcells, indicate):
+        """Control front LEDs to communicate what the HiSeq is doing.
+
+            ===========  ===========  =============================
+            LED MODE      indicator   HiSeq Action / Flowcell State
+            ===========  ===========  ===================================================
+            off              off      The flowcell is not in use.
+            yellow          error     There is an error with the flowcell.
+            green          startup    The HiSeq is starting up or shutting down
+            pulse green     user      The HiSeq requires user input
+            blue            sleep     The flowcell is holding or waiting.
+            pulse blue      awake     HiSeq valve, pump, or temperature action on the flowcell.
+            sweep blue     imaging    HiSeq is imaging the flowcell.
+            ===========  ===========  ========================================
+
+           **Parameters:**
+           - AorB (str): Flowcell position A, B, or AB.
+           - indicate (str): Current action of the HiSeq or state of the flowcell.
+
+            **Returns**
+            - bool: True if AorB and indicate are valid, False otherwise.
+
+        """
+
+
+        if flowcells not in ['A','B','AB','BA']:
+            AorB = ''.join(self.flowcells.keys())
+
+        for AorB in flowcells:
+            if indicate in self.led_dict.keys():
+                color = self.led_dict[indicate]
+                self.f.LED(AorB, color)
+                complete = True
+            else:
+                self.message('Invalid LED mode::'+indicate)
+                complete = False
+
+        return complete
+
 
     def obj_stack(self, n_frames = None, velocity = None):
 
@@ -1128,6 +1179,81 @@ class HiSeq():
 
         return focus_stack
 
+    def wait_for_flowcells(self):
+        """Block until all flowcell threads are complete."""
+
+
+        alive = True
+        while alive:
+            alive_ = []
+            for fc in self.flowcells.values():
+                alive_.append(fc.thread.is_alive())
+                alive = any(alive_)
+
+    def flush_lines(self, flowcells = 'AB', flush_ports = None, flowrate = None, volume = None):
+        """Flush all, some, or none of lines.
+
+           If flush_ports are supplied then no user prompts asking for which
+           ports to flush are given. The default volume is 1000 uL and the
+           default flowrate is 700 uL/min.
+
+           **Parameters:**
+            - flush_ports (int/string/list): Ports to flush
+            - flowrate (int): Flowrate in uL/min to flush lines, default is 700 uL/min
+
+           **Returns:**
+            - bool: True if lines were flushed, False if flush was skipped
+
+        """
+
+        if flowcells not in ['A','B', 'AB','BA']:
+            flowcells = ''.join(self.flowcells.keys())
+
+        self.LED(flowcells, 'awake')
+        AorB = flowcells[0]
+        variable_ports = self.v24[AorB].variable_ports
+        if flowrate is None: flowrate = self.p[AorB].min_flow
+        if flush_ports is None:
+            flush_ports = list(self.v24[AorB].port_dict.keys())
+            for vp in variable_ports:
+                if vp in flush_ports:
+                    flush_ports.remove(vp)
+
+        port = None
+        vol = volume                                                            # save volume for priming loop
+        for port in flush_ports:
+            if port in variable_ports:
+                flush_ports += list(self.v24[AorB].port_dict[port].values())
+            else:
+                if volume is None:
+                    self.message('Priming ' + str(port))
+                    port_num = self.v24[AorB].port_dict[port]
+                    if port_num in self.v24[AorB].side_ports:
+                        vol = self.flowcells[AorB].volume['side']
+                    elif port_num == self.v24[AorB].sample_port:
+                        vol = self.flowcells[AorB].volume['sample']
+                    else:
+                        vol = self.flowcells[AorB].volume['main']
+                else:
+                    self.message('Flushing ' + str(port))
+
+                for AorB in flowcells:
+                    fc = self.flowcells[AorB]
+                    fc.thread = threading.Thread(target=self.v24[AorB].move,
+                                                 args=(port,))
+                    fc.thread.start()
+                self.wait_for_flowcells()
+
+                for AorB in flowcells:
+                    fc = self.flowcells[AorB]
+                    fc.thread = threading.Thread(target=self.p[AorB].pump,
+                                                 args={vol, flowrate})
+                    fc.thread.start()
+                self.wait_for_flowcells()
+
+        self.LED(flowcells, 'sleep')
+
+        return port
 
 
     def take_picture(self, n_frames, image_name = None):

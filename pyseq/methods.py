@@ -5,7 +5,7 @@ Kunal Pandit 3/15/2020
 '''
 
 import configparser
-from os.path import expanduser, join, isfile, isdir
+from os.path import join
 from os import mkdir
 import time
 
@@ -95,11 +95,13 @@ def print_method(method):
 def list_settings(instrument = 'HiSeq2500'):
     """Print all possible setting keywords and descriptions."""
 
-    settings = configparser.ConfigParser()
-    with pkg_resources.path(resources, 'settings.cfg') as settings_path:
-        settings.read(settings_path)
+    # settings = configparser.ConfigParser()
+    # with pkg_resources.path(resources, 'settings.cfg') as settings_path:
+    #     settings.read(settings_path)
+    #
+    # settings = settings[instrument]
 
-    settings = settings[instrument]
+    settings = get_settings(instrument)
     for s in settings:
         print(s,':', settings[s])
         print()
@@ -192,77 +194,6 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
                 default_com_ports.write(f)
         else:
             instrument = False
-
-
-
-def get_machine_info(virtual=False):
-    """Specify machine model and name."""
-
-    # Open machine_info.cfg save in USERHOME/.pyseq2500
-    homedir = expanduser('~')
-    if not isdir(join(homedir,'.pyseq2500')):
-        mkdir(join(homedir,'.pyseq2500'))
-
-    config_path = join(homedir,'.pyseq2500','machine_info.cfg')
-    config = configparser.ConfigParser()
-    NAME_EXISTS = isfile(config_path)
-    if NAME_EXISTS:
-        with open(config_path,'r') as f:
-            config.read_file(f)
-        model = config['DEFAULT']['model']
-        name = config['DEFAULT']['name']
-    else:
-        model = None
-        name = None
-
-
-    # Get machine model from user
-    while model is None:
-        if userYN('Is this a HiSeq2500'):
-            model = 'HiSeq2500'
-            if model not in ['HiSeq2500']:
-                model = None
-
-    # Get machine name from user
-    while name is None and not virtual:
-        name = input('Name of '+model+' = ')
-        if not userYN('Name this '+model+' '+name):
-            name = None
-
-    if virtual:
-        name = 'virtual'
-
-
-    # Check if background and registration data exists
-    # Open machine_settings.cfg saved in USERHOME/.pyseq2500
-    machine_settings = configparser.ConfigParser()
-    ms_path = join(homedir,'.pyseq2500','machine_settings.cfg')
-    if isfile(ms_path):
-        with open(ms_path,'r') as f:
-            machine_settings.read_file(f)
-
-    if not machine_settings.has_section(name+'background'):
-        if not userYN('Continue experiment without background data for',name):
-            model = None
-    # if not machine_settings.has_section(name+'registration') and model is not None:
-    #     if not userYN('Continue experiment without registration data for',name):
-    #         model = None
-
-    if not NAME_EXISTS and model is not None and name not in [None,'virtual']:
-        # Save machine info
-        config.read_dict({'DEFAULT':{'model':model,'name':name}})
-        with open(config_path,'w') as f:
-            config.write(f)
-
-    if not NAME_EXISTS and model is not None and name is not None:
-        #Add to list in machine settings
-        if not machine_settings.has_section('machines'):
-            machine_settings.add_section('machines')
-        machine_settings.set('machines', name, time.strftime('%m %d %y'))
-        with open(ms_path,'w') as f:
-            machine_settings.write(f)
-
-    return model, name
 
 
 
