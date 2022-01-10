@@ -229,13 +229,13 @@ class HiSeq2500():
         from . import dcam
 
         self.cam1 = dcam.HamamatsuCamera(0, logger = Logger)
-        self.cam2 = dcam.HamamatsuCamera(1, logger = Logger)
+        #self.cam2 = dcam.HamamatsuCamera(1, logger = Logger)
 
         #Set emission labels, wavelengths in  nm
         self.cam1.left_emission = 687
         self.cam1.right_emission = 558
-        self.cam2.left_emission = 610
-        self.cam2.right_emission = 740
+        #self.cam2.left_emission = 610
+        #self.cam2.right_emission = 740
 
         # Initialize camera 1
         # self.cam1.setPropertyValue("exposure_time", 40.0)
@@ -260,13 +260,14 @@ class HiSeq2500():
         # self.cam2.setPropertyValue("trigger_connector", 1)                      #Interface
         # self.cam2.setPropertyValue("trigger_source", 2)                         #1 = internal, 2=external
         # self.cam2.setPropertyValue("contrast_gain", 0)
-        self.cam2.setTDI()
-        self.cam2.captureSetup()
-        self.cam2.get_status()
+        # self.cam2.setTDI()
+        # self.cam2.captureSetup()
+        # self.cam2.get_status()
         self.channels =[str(self.cam1.left_emission),
                         str(self.cam1.right_emission),
-                        str(self.cam2.left_emission),
-                        str(self.cam2.right_emission)]
+                        #str(self.cam2.left_emission),
+                        #str(self.cam2.right_emission)]
+                        '610','740']
 
     def initializeInstruments(self):
         """Initialize x,y,z, & obj stages, pumps, valves, optics, and FPGA."""
@@ -466,7 +467,7 @@ class HiSeq2500():
                      'ex filters ' + str(self.optics.ex) + '\n' +
                      'em filter in ' + str(self.optics.em_in) + '\n' +
                      'interval 1 ' + str(self.cam1.getFrameInterval()) + '\n' +
-                     'interval 2 ' + str(self.cam2.getFrameInterval()) + '\n' +
+                     #'interval 2 ' + str(self.cam2.getFrameInterval()) + '\n' +
                      'flowcell A ' + str(self.T.T_fc[0]) + ' °C' + '\n' +
                      'flowcell B ' + str(self.T.T_fc[1]) + ' °C' + '\n'
                      )
@@ -501,7 +502,7 @@ class HiSeq2500():
         f = self.f
         op = self.optics
         cam1 = self.cam1
-        cam2 = self.cam2
+        #cam2 = self.cam2
 
         if image_name is None:
             image_name = time.strftime('%Y%m%d_%H%M%S')
@@ -527,26 +528,26 @@ class HiSeq2500():
             cam1.stopAcquisition()
             cam1.freeFrames()
             cam1.captureSetup()
-        while cam2.get_status() != 3:
-            cam2.stopAcquisition()
-            cam2.freeFrames()
-            cam2.captureSetup()
+        # while cam2.get_status() != 3:
+        #     cam2.stopAcquisition()
+        #     cam2.freeFrames()
+        #     cam2.captureSetup()
 
         if cam1.sensor_mode != 'TDI':
             cam1.setTDI()
-        if cam2.sensor_mode != 'TDI':
-            cam2.setTDI()
+        # if cam2.sensor_mode != 'TDI':
+        #     cam2.setTDI()
 
         # Set bundle height
         cam1.setPropertyValue("sensor_mode_line_bundle_height",
                                self.bundle_height)
-        cam2.setPropertyValue("sensor_mode_line_bundle_height",
-                               self.bundle_height)
+        # cam2.setPropertyValue("sensor_mode_line_bundle_height",
+        #                        self.bundle_height)
         cam1.captureSetup()
-        cam2.captureSetup()
+        #cam2.captureSetup()
         # Allocate memory for image data
         cam1.allocFrame(n_frames)
-        cam2.allocFrame(n_frames)
+        # cam2.allocFrame(n_frames)
 
 
         #
@@ -566,7 +567,7 @@ class HiSeq2500():
 
         # Start cameras
         cam1.startAcquisition()
-        cam2.startAcquisition()
+        #cam2.startAcquisition()
         # Open laser shutter
         f.command('SWLSRSHUT 1')
         # move ystage (blocking)
@@ -582,7 +583,7 @@ class HiSeq2500():
 
         # Stop Cameras
         cam1.stopAcquisition()
-        cam2.stopAcquisition()
+        #cam2.stopAcquisition()
 
         # Check if all frames were taken from camera 1 then save images
         if cam1.getFrameCount() != n_frames:
@@ -593,19 +594,19 @@ class HiSeq2500():
             cam1.saveImage(image_name, self.image_path)
             image_complete = True
         # Check if all frames were taken from camera 2 then save images
-        if cam2.getFrameCount() != n_frames:
-            self.message(False, msg, 'Cam2 frames = ', cam2.getFrameCount())
-            self.message(True, msg,  'Cam2 image not taken')
-            image_complete += False
-        else:
-            cam2.saveImage(image_name, self.image_path)
-            image_complete += True
+        # if cam2.getFrameCount() != n_frames:
+        #     self.message(False, msg, 'Cam2 frames = ', cam2.getFrameCount())
+        #     self.message(True, msg,  'Cam2 image not taken')
+        #     image_complete += False
+        # else:
+        #     cam2.saveImage(image_name, self.image_path)
+        #     image_complete += True
         # Print out info pulses = triggers, not sure with CLINES is
         if image_complete:
             response  = self.cam1.getFrameCount()
             meta_f.write('frame count 1 ' + str(response) +'\n')
-            response  = self.cam2.getFrameCount()
-            meta_f.write('frame count 2 ' + str(response) +'\n')
+            # response  = self.cam2.getFrameCount()
+            # meta_f.write('frame count 2 ' + str(response) +'\n')
             response = f.command('TDICLINES')
             meta_f.write('clines ' + str(response) + '\n')
             response = f.command('TDIPULSES')
@@ -613,7 +614,7 @@ class HiSeq2500():
 
         # Free up frames/memory
         cam1.freeFrames()
-        cam2.freeFrames()
+        #cam2.freeFrames()
 
         # Reset gains & velocity for ystage
         y.set_mode('moving')
@@ -622,7 +623,8 @@ class HiSeq2500():
 
         meta_f.close()
 
-        return image_complete == 2
+        #return image_complete == 2
+        return image_complete == 1
 
 
     def obj_stack(self, n_frames = None, velocity = None):
@@ -647,30 +649,30 @@ class HiSeq2500():
         obj = self.obj
         z = self.z
         cam1 = self.cam1
-        cam2 = self.cam2
+        # cam2 = self.cam2
 
 
         if cam1.sensor_mode != 'AREA':
             cam1.setAREA()
-        if cam2.sensor_mode != 'AREA':
-            cam2.setAREA()
+        # if cam2.sensor_mode != 'AREA':
+        #     cam2.setAREA()
         # Make sure cameras are ready (status = 3)
         while cam1.get_status() != 3:
             cam1.stopAcquisition()
             cam1.freeFrames()
             cam1.captureSetup()
-        while cam2.get_status() != 3:
-            cam2.stopAcquisition()
-            cam2.freeFrames()
-            cam2.captureSetup()
+        # while cam2.get_status() != 3:
+        #     cam2.stopAcquisition()
+        #     cam2.freeFrames()
+        #     cam2.captureSetup()
 
 
         #Set line bundle height to 8
         cam1.setPropertyValue("sensor_mode_line_bundle_height", 64)
-        cam2.setPropertyValue("sensor_mode_line_bundle_height", 64)
+        #cam2.setPropertyValue("sensor_mode_line_bundle_height", 64)
 
         cam1.captureSetup()
-        cam2.captureSetup()
+        #cam2.captureSetup()
 
         # Update limits that were previously based on estimates
         obj.update_focus_limits(cam_interval = cam1.getFrameInterval(),
@@ -682,7 +684,7 @@ class HiSeq2500():
             velocity = obj.focus_velocity
 
         response = cam1.allocFrame(n_frames)
-        response = cam2.allocFrame(n_frames)
+        #response = cam2.allocFrame(n_frames)
 
 
         # Position objective stage
@@ -702,7 +704,7 @@ class HiSeq2500():
 
         # Start Cameras
         cam1.startAcquisition()
-        cam2.startAcquisition()
+        #cam2.startAcquisition()
 
         # Move objective
         obj.serial_port.flush()
@@ -721,7 +723,8 @@ class HiSeq2500():
 
         # Wait for imaging
         start_time = time.time()
-        while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
+        #while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
+        while cam1.getFrameCount() != n_frames:
            now = time.time()
            if now - start_time > stack_time*20:
                self.message(msg, 'Imaging took too long.')
@@ -732,7 +735,7 @@ class HiSeq2500():
 
         # Stop cameras
         cam1.stopAcquisition()
-        cam2.stopAcquisition()
+        #cam2.stopAcquisition()
 
         # Check if received correct number of frames
         if cam1.getFrameCount() != n_frames:
@@ -743,23 +746,24 @@ class HiSeq2500():
             cam1_stack = cam1.getFocusStack()
             image_complete = True
         # Check if all frames were taken from camera 2 then save images
-        if cam2.getFrameCount() != n_frames:
-            self.message(True, msg, 'Cam2::Images not taken')
-            self.message(False,msg,'Cam2::',cam2.getFrameCount(),'of',n_frames)
-            image_complete = False
-        else:
-            cam2_stack = cam2.getFocusStack()
-            image_complete = True
+        # if cam2.getFrameCount() != n_frames:
+        #     self.message(True, msg, 'Cam2::Images not taken')
+        #     self.message(False,msg,'Cam2::',cam2.getFrameCount(),'of',n_frames)
+        #     image_complete = False
+        # else:
+        #     cam2_stack = cam2.getFocusStack()
+        #     image_complete = True
 
         cam1.freeFrames()
-        cam2.freeFrames()
+        #cam2.freeFrames()
 
         # if image_complete:
         #     f_filesize = np.concatenate((cam1_filesize,cam2_filesize), axis = 1)
         # else:
         #     f_filesize = 0
 
-        return np.hstack((cam1_stack, cam2_stack))
+        #return np.hstack((cam1_stack, cam2_stack))
+        return np.hstack((cam1_stack, cam1_stack))
 
 
 
