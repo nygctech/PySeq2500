@@ -1,3 +1,5 @@
+import pyseq
+from . import args
 import logging
 import warnings
 import time
@@ -366,21 +368,22 @@ def test_cameras():
 
 
 
-
+args_ = args.get_arguments()
 try:
     timestamp = time.strftime('%Y%m%d%H%M')
     image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
     os.mkdir(image_path)
     log_path = join(image_path,timestamp+'_HiSeqCheck.log')
     logger = setup_logger(log_path)
-
-
+    model, name = pyseq.get_machine_info(args_['virtual'])
+    hs = pyseq.get_instrument(args_['virtual'], logger)
+    hs.image_path = image_path
+    hs.log_path = image_path
     # Creat HiSeq Object
-    import pyseq
-    hs = pyseq.HiSeq(Logger=logger)
+
     # Exception for ValueError of port, must be string or None, not int)
     # Exception for SerialException, could not open port
-    hs.image_path = image_path
+
 
 except ImportError:
     message('PySeq Failed')
