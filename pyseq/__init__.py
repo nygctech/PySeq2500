@@ -20,7 +20,7 @@ def get_instrument(virtual=False, logger=None):
             hs = virtualHiSeq.HiSeq2500(name, logger)
         else:
             from . import hiseq2500
-            hs = hiseq2500.HiSeq(name, logger)
+            hs = hiseq2500.HiSeq2500(name, logger)
     else:
         hs = None
 

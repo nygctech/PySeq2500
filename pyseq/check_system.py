@@ -1,5 +1,5 @@
 import pyseq
-import args
+from . import args
 import warnings
 import time
 import os
@@ -334,16 +334,16 @@ def test_cameras():
 
 
 
-
+args_ = args.get_arguments()
 try:
     timestamp = time.strftime('%Y%m%d%H%M')
     image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
     os.mkdir(image_path)
-    logger = pyseq.setup_logger(timestamp+'_HiSeqCheck.log', log_path)
-    args_ = args.get_arguments()
+    logger = pyseq.setup_logger(timestamp+'_HiSeqCheck.log', image_path)
     model, name = pyseq.get_machine_info(args_['virtual'])
     hs = pyseq.get_instrument(args_['virtual'])
     hs.image_path = image_path
+    hs.log_path = image_path
 
 except ImportError:
     hs.message('PySeq Failed')
