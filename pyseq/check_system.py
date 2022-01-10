@@ -373,8 +373,7 @@ try:
     timestamp = time.strftime('%Y%m%d%H%M')
     image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
     os.mkdir(image_path)
-    log_path = join(image_path,timestamp+'_HiSeqCheck.log')
-    logger = setup_logger(log_path)
+    logger = pyseq.setup_logger(image_path, timestamp+'_HiSeqCheck.log')
     model, name = pyseq.get_machine_info(args_['virtual'])
     hs = pyseq.get_instrument(args_['virtual'], logger)
     hs.image_path = image_path
