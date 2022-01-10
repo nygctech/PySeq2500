@@ -398,7 +398,8 @@ except:
     print(table)
 
 # Compute background pixel group values
-bg_dict = ia.compute_background(hs.image_path, common_name = 'Dark')
+if instrument_status['CAMERAS']:
+    bg_dict = ia.compute_background(hs.image_path, common_name = 'Dark')
 
 # Signal diagnostics are complete
 if instrument_status['FPGA']:
