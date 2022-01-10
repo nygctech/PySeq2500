@@ -341,7 +341,7 @@ try:
     os.mkdir(image_path)
     logger = pyseq.setup_logger(timestamp+'_HiSeqCheck.log', image_path)
     model, name = pyseq.get_machine_info(args_['virtual'])
-    hs = pyseq.get_instrument(args_['virtual'])
+    hs = pyseq.get_instrument(args_['virtual'], logger)
     hs.image_path = image_path
     hs.log_path = image_path
 
