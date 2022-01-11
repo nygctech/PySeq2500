@@ -554,7 +554,7 @@ def initialize_hs(IMAG_counter):
         if not userYN('Initialize HiSeq'):
             sys.exit()
 
-        hs.initializeCams()
+        hs.initializeCams(hs.logger)
         x_homed = hs.initializeInstruments()
         if not x_homed:
             error('HiSeq:: X-Stage did not home correctly')
