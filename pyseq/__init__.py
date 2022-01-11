@@ -100,14 +100,14 @@ def get_machine_info(virtual=False):
 def setup_logger(log_name=None, log_path = None, config=None):
     """Create a logger and return the handle."""
 
-    if log_path is None and config is not None:
+    if config is not None:
         log_path = config.get('experiment','log_path')
-    else:
+    elif log_path is None:
         log_path = os.getcwd()
 
-    if log_name is None and config is not None:
+    if config is not None:
         log_name = config.get('experiment','experiment name')
-    else:
+    elif log_name is None:
         log_name = time.strftime('%Y%m%d_%H%M%S')
 
     # Create a custom logger
