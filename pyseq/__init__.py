@@ -102,7 +102,7 @@ def setup_logger(log_name=None, log_path = None, config=None):
 
 
     if config is not None:
-        log_path = config.get('experiment','log_path')
+        log_path = config.get('experiment','log path')
     elif log_path is None:
         log_path = os.getcwd()
 
