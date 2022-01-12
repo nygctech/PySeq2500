@@ -369,7 +369,7 @@ class HiSeq2500():
                 alive_.append(fc.thread.is_alive())
                 alive = any(alive_)
 
-    def flush_lines(self, flowcells = 'AB', flush_ports = None, flowrate = None, volume = None):
+    def flush_lines(self, flowcells = None, flush_ports = None, flowrate = None, volume = None):
         """Flush all, some, or none of lines.
 
            If flush_ports are supplied then no user prompts asking for which
@@ -377,7 +377,7 @@ class HiSeq2500():
            default flowrate is 700 uL/min.
 
            **Parameters:**
-            - flowcells (str): Flowcells to flush, 'A', 'B', or default 'AB'
+            - flowcells (str): Flowcells to flush, 'A', 'B'. If none will flush flowcells in hs.flowcells.keys()
             - flush_ports (int/string/list): Ports to flush
             - flowrate (int): Flowrate in uL/min to flush lines, default is 700 uL/min
             - volume (int): Volume in uL, if None volume will be decided based on port position
@@ -387,7 +387,7 @@ class HiSeq2500():
 
         """
 
-        if flowcells not in ['A','B', 'AB','BA']:
+        if flowcells is None:
             flowcells = ''.join(self.flowcells.keys())
 
         self.LED(flowcells, 'awake')
