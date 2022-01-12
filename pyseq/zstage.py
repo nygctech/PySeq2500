@@ -91,11 +91,11 @@ class Zstage():
             for i in range(3):
                 response = self.command('T' + self.motors[i] + 'HM')
                 # Need to read 2 lines
-                reponse = self.fpga.serial_port.readline()
-                if self.logger is not None:
-                    self.logger.info('Zstage::rcvd::'+response)
-                else:
-                    print(response)
+                #reponse = self.fpga.serial_port.readline()
+                # if self.logger is not None:
+                #     self.logger.info('Zstage::rcvd::'+response)
+                # else:
+                #     print(response)
 
             #Wait till they stop
             position = self.check_position()

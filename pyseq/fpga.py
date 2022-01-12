@@ -131,13 +131,20 @@ class FPGA():
         self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
         response = self.serial_port.readline()
-        while response.strip() is not '':
+        keepreading = True
+        while keepreading:
             if self.logger is not None:
                 self.logger.info(instrument+'::txmt::'+text)
                 self.logger.info(instrument+'::rcvd::'+response)
             else:
                 print(response)
-            response = self.serial_port.readline()
+
+            response_nextline = self.serial_port.readline()
+            if response_nextline.strip() is not '':
+                response = response_nextline
+            else:
+                keepreading = False
+
 
         self.busy = False
 
