@@ -700,15 +700,17 @@ class HiSeq2500():
 
         # Prepare move objective to move
         text = 'ZMV ' + str(obj.focus_stop) + obj.suffix
-        obj.serial_port.write(text)
+        while f.busy:
+            pass
+        f.serial_port.write(text)
 
         # Start Cameras
         cam1.startAcquisition()
         #cam2.startAcquisition()
 
         # Move objective
-        obj.serial_port.flush()
-        response = obj.serial_port.readline()
+        f.serial_port.flush()
+        response = f.serial_port.readline()
 
         # Wait for objective
         start_time = time.time()
