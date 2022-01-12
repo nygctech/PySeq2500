@@ -1525,7 +1525,7 @@ if __name__ == 'pyseq.main':
     n_errors = 0
     config = get_config(args_)                                                  # Get config file
     log_path = make_directories()                                               # create exp, image, and log directories
-    logger = pyseq.setup_logger(log_path, config)                               # Create logfiles
+    logger = pyseq.setup_logger(log_path=log_path, config=config)                               # Create logfiles
     port_dict = check_ports()                                                   # Check ports in configuration file
     first_line, IMAG_counter, z_planes = check_instructions()                   # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, IMAG_counter)                       # Create flowcells
