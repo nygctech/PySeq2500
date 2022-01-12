@@ -1212,7 +1212,7 @@ def flush_lines():
                 confirm = userYN('Confirm only flushing',*good)
 
             if confirm:
-                flush_ports = hs.flowcells
+                flush_ports = good
 
     if len(flush_ports) > 0:
         while not userYN('Temporary flowcell(s) locked on to stage'): pass
