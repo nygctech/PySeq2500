@@ -215,8 +215,8 @@ def configure_instrument(IMAG_counter, port_dict, flowcells):
             fc.stage[section] = pos
             fc.stage[section]['z_pos'] = [hs.z.image_step]*3
     # Remove unused flowcell slots
-    if hs.flowcells['A'] is None hs.flowcells.pop('A')
-    if hs.flowcells['B'] is None hs.flowcells.pop('B')
+    if hs.flowcells['A'] is None: hs.flowcells.pop('A')
+    if hs.flowcells['B'] is None: hs.flowcells.pop('B')
 
     ## TODO: Changing laser color unecessary for now, revist if upgrading HiSeq
     # Configure laser color & filters
