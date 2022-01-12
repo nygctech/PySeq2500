@@ -118,6 +118,7 @@ def test_z_stage():
             status = True
             hs.message('Z Stage Nominal')
         else:
+            status = False
             for i, z in enumerate(z_pass):
                 if not z:
                     error('Z Tilt Motor '+str(i)+' Failed.')
