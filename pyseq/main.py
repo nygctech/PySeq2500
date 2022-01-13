@@ -1278,8 +1278,9 @@ def prime_lines(self, flush_YorN = True):
 
     return prime_YorN
 
-def rinse_lines(flowcells='AB', last_port=None):
+def rinse_lines(last_port=None):
 
+    flowcells = ''.join(hs.flowcells.keys())
 
     # Get default rinse port
     AorB = flowcells[0]
