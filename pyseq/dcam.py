@@ -1312,8 +1312,8 @@ if __name__ == "__main__":
     print("found:", n_cameras, "cameras")
     if (n_cameras > 0):
 
-        hcam = HamamatsuCameraMR(0)
-        print(hcam.setPropertyValue("defect_correct_mode", 1))
+        hcam = HamamatsuCamera(0)
+        #print(hcam.setPropertyValue("defect_correct_mode", 1))
         print("camera 0 model:", hcam.getModelInfo(0))
 
         # List support properties.
