@@ -130,10 +130,11 @@ class HiSeq():
     """
 
 
-    def __init__(self, name = 'HiSeq2500', Logger = None):
+    def __init__(self, name = 'HiSeq2500', Logger = None, com_ports = None):
         """Constructor for the HiSeq."""
 
-        com_ports = get_com_ports('HiSeq2500')
+        if com_ports is None:
+            com_ports = get_com_ports('HiSeq2500')
 
         self.y = ystage.Ystage(com_ports['ystage'], logger = Logger)
         self.f = fpga.FPGA(com_ports['fpgacommand'], com_ports['fpgaresponse'], logger = Logger)
