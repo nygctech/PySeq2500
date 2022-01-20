@@ -377,7 +377,8 @@ class HiSeq2500():
            default flowrate is 700 uL/min.
 
            **Parameters:**
-            - flowcells (str): Flowcells to flush, 'A', 'B', or default 'AB'
+            - flowcells (str): Flowcells to flush, 'A', 'B'. If none will flush
+                               flowcells in hs.flowcells.keys()
             - flush_ports (int/string/list): Ports to flush
             - flowrate (int): Flowrate in uL/min to flush lines, default is 700 uL/min
             - volume (int): Volume in uL, if None volume will be decided based on port position
