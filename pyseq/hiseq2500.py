@@ -76,6 +76,7 @@ import imageio
 from scipy.optimize import curve_fit
 from math import ceil
 import configparser
+import pyseq
 
 try:
     import importlib.resources as pkg_resources
@@ -138,7 +139,7 @@ class HiSeq2500():
     def __init__(self, name = 'HiSeq2500', Logger = None):
         """Constructor for the HiSeq."""
 
-        com_ports = get_com_ports('HiSeq2500')
+        com_ports = pyseq.get_com_ports('HiSeq2500')
 
         self.y = ystage.Ystage(com_ports['ystage'], logger = Logger)
         self.f = fpga.FPGA(com_ports['fpgacommand'], com_ports['fpgaresponse'], logger = Logger)
@@ -1204,46 +1205,3 @@ class HiSeq2500():
 def _1gaussian(x, amp1,cen1,sigma1):
     """Gaussian function for curve fitting."""
     return amp1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen1)/sigma1)**2)))
-
-def get_com_ports(machine = 'HiSeq2500'):
-
-    # Read COM Names
-    com_names = configparser.ConfigParser()
-    with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
-        com_names.read(config_path)
-
-    # Get list of connected devices
-    import wmi
-    conn = wmi.WMI()
-    devices = conn.CIM_LogicalDevice()
-    # Get lists of valid COM ports
-    ids = []
-    com_ports = []
-    for d in devices:
-        if 'USB Serial Port' in d.caption:
-            try:
-                ids.append(d.deviceid)
-                caption = d.caption
-                id_start = caption.find('(')+1
-                id_end = caption.find(')')
-                caption = caption[id_start:id_end]
-                com_ports.append(caption)
-            except:
-                pass
-
-    # Match instruments to ports
-    matched_ports = {}
-    for instrument, com_name in com_names.items(machine):
-        try:
-            ind = [i for i, id in enumerate(ids) if com_name in id]
-            if len(ind) == 1:
-                ind = ind[0]
-            else:
-                print('Multiple COM Port matches for', instrument)
-                raise ValueError
-            matched_ports[instrument] = com_ports[ind]
-        except ValueError:
-            matched_ports[instrument] = None
-            print('Could not find port for', instrument)
-
-    return matched_ports

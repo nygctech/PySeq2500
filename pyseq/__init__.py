@@ -133,3 +133,23 @@ def setup_logger(log_name=None, log_path = None, config=None):
     logger.addHandler(f_handler)
 
     return logger
+
+def get_com_ports(machine = 'HiSeq2500'):
+
+    # Read cosmetic instrument names : and COM serial_number
+    com_names = configparser.ConfigParser()
+    with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
+        com_names.read(config_path)
+
+    # Get dictionary of COM ports : and their serial_number
+    devices = {dev.serial_number: dev.device for dev in comports()}
+
+    # Match instruments to ports
+    matched_ports = {}
+    for instrument, sn in com_names.items(machine):
+        try:
+            matched_ports[instrument] = devices[sn]
+        except ValueError:
+            print('Could not find port for', instrument)
+
+    return matched_ports
