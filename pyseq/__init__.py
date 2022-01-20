@@ -1084,7 +1084,7 @@ def get_com_ports(machine = 'HiSeq2500'):
 
     # Match instruments to ports
     matched_ports = {}
-    for instrument, sn in com_names.items():
+    for instrument, sn in com_names.items(machine):
         try:
             matched_ports[instrument] = devices[sn]
         except ValueError:
