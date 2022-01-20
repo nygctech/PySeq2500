@@ -36,7 +36,7 @@ napari-plugin-engine==0.1.9
 napari-svg==0.1.4
 networkx==2.4
 nose==1.3.7
-numcodecs @ file:///C:/Users/kpandit/Downloads/numcodecs-0.7.2-cp37-cp37m-win_amd64.whl
+numcodecs==0.9.1
 numpy==1.17.2
 numpydoc==1.1.0
 packaging==20.8
@@ -53,21 +53,20 @@ PyMsgBox==1.0.7
 PyOpenGL==3.1.5
 pyparsing==2.4.5
 pyperclip==1.7.0
-PyQt5==5.15.2
+PyQt5==5.15.4
 PyQt5-sip==12.8.1
 PyRect==0.1.4
 PyScreeze==0.1.22
--e git+https://github.com/nygctech/PySeq2500V2.git@0957ae57e5b6f64ef0e15c0255f8e0ddd9596c1c#egg=pyseq2500
 pyserial==3.4
 python-dateutil==2.8.1
 PyTweening==1.0.3
 pytz==2020.1
 PyWavelets==1.1.1
-pywin32==300
+pywin32==300; sys.platform == 'win32'
 PyYAML==5.3.1
 pyzmq==21.0.0
 qtconsole==5.0.1
-QtPy==1.9.0
+QtPy==1.11.2
 requests==2.25.1
 scikit-image==0.18.1
 scipy==1.3.3
@@ -89,7 +88,7 @@ typing-extensions==3.7.4.3
 urllib3==1.26.2
 vispy==0.6.6
 wcwidth==0.2.5
-WMI==1.5.1
+WMI==1.5.1; sys.platform == 'win32'
 wrapt==1.12.1
 xarray==0.16.2
 zarr==2.6.1

@@ -1,61 +1,33 @@
 import pyseq
 from . import args
-import logging
 import warnings
 import time
 import os
 import sys
 from os.path import join
+from . import image_analysis as ia
+from . import methods
 
 
 def error(text):
-    hs.message(text)
+    hs.message('ERROR::'+text)
     if instrument_status['FPGA']:
         hs.f.LED(1, 'yellow')
-    raise RuntimeError
-
-def setup_logger(log_path):
-    """Create a logger and return the handle."""
-
-
-    # Create a custom logger
-    logger = logging.getLogger(__name__)
-    logger.setLevel(10)
-
-    # Create console handler
-    c_handler = logging.StreamHandler()
-    c_handler.setLevel(21)
-    # Create file handler
-    f_handler = logging.FileHandler(log_path)
-    f_handler.setLevel(logging.INFO)
-
-    # Create formatters and add it to handlers
-    c_format = logging.Formatter('%(asctime)s - %(message)s', datefmt = '%Y-%m-%d %H:%M')
-    f_format = logging.Formatter('%(asctime)s - %(message)s')
-    c_handler.setFormatter(c_format)
-    f_handler.setFormatter(f_format)
-
-    # Add handlers to the logger
-    logger.addHandler(c_handler)
-    logger.addHandler(f_handler)
-
-    return logger
 
 
 # Test LEDS
 def test_led():
     try:
-        message('Testing LEDs')
+        hs.message('Testing LEDs')
         hs.f.initialize()
         for color in hs.f.led_dict.keys():
             for i in [1,2]:
                 hs.f.LED(i, color)
             time.sleep(2)
-        message('LEDs Nominal')
+        hs.message('LEDs Nominal')
         status = True
     except:
-        #logger.log(21, 'Check COM port')
-        message('LEDs Failed')
+        hs.message('LEDs Failed')
         status = False
 
     return status
@@ -63,36 +35,33 @@ def test_led():
 
 # Test X Stage
 def test_x_stage():
+    # Shut off y stage and hopefully springs retract stage so its safe to move X stage
     hs.y.command('Z')
     hs.y.command('OFF')
     try:
 
-        message('Testing X Stage')
+        hs.message('Testing X Stage')
         homed = hs.x.initialize()
         if homed:
             delta_x = int((hs.x.max_x-hs.x.min_x)*0.25)
             hs.x.move(hs.x.home-delta_x)
             hs.x.move(hs.x.home+delta_x)
             hs.x.move(hs.x.home)
-            message('X Stage Nominal')
+            hs.message('X Stage Nominal')
             status = True
         else:
-            text = 'X Stage Homing Failed'
-            error(text)
-            #warnings.warn('ERROR::'+text, RuntimeWarning)
+            error('X Stage Homing Failed')
 
     except:
-        #error()
         status = False
-        #logger.log(21, 'Check COM port')
-        message('X Stage Failed')
+        error('X Stage Failed')
 
     return status
 
 # Test Y Stage
 def test_y_stage():
     try:
-        message('Testing Y Stage')
+        hs.message('Testing Y Stage')
         hs.y.initialize()
         start = time.time()
         timeout = 60*10
@@ -100,40 +69,33 @@ def test_y_stage():
             if time.time() - start > timeout:
                 text = 'Y Stage failed to home'
                 error(text)
-                #warnings.warn('ERROR::'+text, RuntimeWarning)
                 break
             else:
                 time.sleep(10)
-        if not hs.y.move(hs.y.min_y):
-            text = 'Y Stage failed to move out'
-            error(text)
-            #warnings.warn('ERROR::'+text, RuntimeWarning)
-        if not hs.y.move(hs.y.max_y):
-            text = 'Y Stage failed to move in'
-            error(text)
-            #warnings.warn('ERROR::'+text, RuntimeWarning)
-        if not hs.y.move(hs.y.home):
-            text = 'Y stage failed to move home'
-            error(text)
-            #warnings.warn('ERROR::'+text, RuntimeWarning)
-        if instrument_status['FPGA'] and hs.x.check_position(hs.x.home):
+
+        delta_y = int((hs.y.max_y-hs.y.min_y)*0.1)
+        if abs(hs.y.position) <= 0:
+            if not hs.y.move(hs.y.home - delta_y):
+                error('Y Stage failed to move out')
+            if not hs.y.move(hs.y.home + delta_y):
+                error('Y Stage failed to move in')
+            if not hs.y.move(hs.y.home):
+                error('Y stage failed to move home')
+        if instrument_status['FPGA'] and hs.y.check_position():
             attempts = 0
             if abs(hs.f.read_position() - hs.y.read_position()) > 10:
                 hs.reset_stage()
                 attempts += 1
                 if attempts >= 10:
-                    text = 'Unable to sync FPGA & Y Stage'
-                    error(text)
-                    #warnings.warn('ERROR::'+text, RuntimeWarning)
+                    error('Unable to sync FPGA & Y Stage')
+
 
         status = True
-        message('Y Stage Nominal')
+        hs.message('Y Stage Nominal')
 
     except:
-        #error()
+        error('Y Stage Failed')
         status = False
-        #logger.log(21, 'Check COM port')
-        message('Y Stage Failed')
 
     return status
 
@@ -141,7 +103,7 @@ def test_y_stage():
 def test_z_stage():
     z_pass = [False, False, False]
     try:
-        message('Testing Z Stage')
+        hs.message('Testing Z Stage')
         hs.z.initialize()
         zpos = hs.z.focus_pos
         zpos_list = hs.z.move([zpos, zpos, zpos])
@@ -154,17 +116,16 @@ def test_z_stage():
                 z_pass[i] = True
         if all(z_pass):
             status = True
-            message('Z Stage Nominal')
+            hs.message('Z Stage Nominal')
         else:
+            status = False
             for i, z in enumerate(z_pass):
                 if not z:
-                    text = 'Z Tilt Motor '+str(i)+' Failed.'
-                    warnings.warn('ERROR::'+text, RuntimeWarning)
+                    error('Z Tilt Motor '+str(i)+' Failed.')
 
     except:
-        error()
+        error('Z Stage Failed')
         status = False
-        message('Z Stage Failed')
 
     return status
 
@@ -172,7 +133,7 @@ def test_z_stage():
 # Test Objective Stage
 def test_objective_stage():
     try:
-        message('Testing Objective Stage')
+        hs.message('Testing Objective Stage')
         hs.obj.initialize()
         hs.obj.move(hs.obj.focus_start)
         hs.obj.move(hs.obj.focus_stop)
@@ -180,18 +141,18 @@ def test_objective_stage():
         hs.obj.move(hs.obj.focus_start)
         hs.obj.move(hs.obj.focus_stop)
         hs.obj.set_velocity(hs.obj.max_v)
-        message('Objective Stage Nominal')
+        hs.message('Objective Stage Nominal')
         status = True
     except:
         status = False
-        message('Objective Stage Failed')
+        error('Objective Stage Failed')
 
     return status
 
 
 # Test Lasers
 def test_lasers():
-    message('Testing Lasers')
+    hs.message('Testing Lasers')
 
     laser_pass = [False, False]
     laser_color = ['green', 'red']
@@ -221,13 +182,12 @@ def test_lasers():
                         hs.lasers[color].set_power(10)
 
             except:
-                error()
+                error(color + ' Laser Failed')
                 laser_pass[i] = False
-                message(color + ' Laser Failed')
 
     if all(laser_pass):
         status = True
-        message('Lasers Nominal')
+        hs.message('Lasers Nominal')
     else:
         status = False
 
@@ -235,20 +195,20 @@ def test_lasers():
 
 # Test Optics
 def test_optics():
-    message('Testing Optics')
+    hs.message('Testing Optics')
     try:
         hs.optics.initialize()
         status = True
-        message('Optics Nominal')
+        hs.message('Optics Nominal')
     except:
         status = False
-        message('Optics Failed')
+        error('Optics Failed')
 
     return status
 
 # Test Temperature Control
 def test_temperature_control():
-    message('Testing Stage Temperature Control')
+    hs.message('Testing Stage Temperature Control')
     flowcells = ['A', 'B']
     try:
         hs.T.initialize()
@@ -264,11 +224,11 @@ def test_temperature_control():
             hs.T.wait_fc_T(fc,20)
         for fc in flowcells:
             hs.T.fc_off(fc)
-        message('Temperature Control Nominal')
+        hs.message('Temperature Control Nominal')
         status = True
     except:
         status = False
-        message('Temperature Control Failed')
+        error('Temperature Control Failed')
 
     return status
 
@@ -276,7 +236,7 @@ def test_temperature_control():
 def test_valves():
     valve_pass = [False, False, False, False]
 
-    message('Testing Valves')
+    hs.message('Testing Valves')
 
     for i, AorB in enumerate(['A','B']):
         try:
@@ -284,27 +244,24 @@ def test_valves():
             hs.v24[AorB].move(1)
             valve_pass[i] = True
         except:
-            error()
-            message('24 Port ' + AorB + ' Valve Failed')
+            error('24 Port ' + AorB + ' Valve Failed')
 
     for i, AorB in enumerate(['A','B']):
         try:
             hs.v10[AorB].initialize()
             valve_pass[i+2] = True
         except:
-            error()
-            message('10 Port ' + AorB + ' Valve Failed')
+            error('10 Port ' + AorB + ' Valve Failed')
     try:
         hs.move_inlet(8)
     except:
         valve_pass[2] = False
         valve_pass[3] = False
-        error()
-        message('Error moving 10 Port Valves')
+        error('Error moving 10 Port Valves')
 
     if all(valve_pass):
         status = True
-        message('Valves Nominal')
+        hs.message('Valves Nominal')
     else:
         status = False
 
@@ -314,23 +271,21 @@ def test_valves():
 def test_pumps():
 
     pump_pass = [False, False]
-    message('Testing Pumps')
+    hs.message('Testing Pumps')
     for i, AorB in enumerate(['A','B']):
         try:
             hs.p[AorB].initialize()
             if hs.p[AorB].check_pump():
                 pump_pass[i] = True
             else:
-                text = 'Pump ' + AorB + ' Error'
-                warnings.warn('ERROR::'+text, RuntimeWarning)
+                error('Pump ' + AorB + ' Error')
         except:
-            error()
+            error('Pump ' + AorB + ' Failed')
             pump_pass[i] = False
-            message('Pump ' + AorB + ' Failed')
 
     if all(pump_pass):
         status = True
-        message('Pumps Nominal')
+        hs.message('Pumps Nominal')
     else:
         status = False
 
@@ -339,31 +294,43 @@ def test_pumps():
 
 # Test cameras
 def test_cameras():
-    message('Testing Cameras')
+    hs.message('Testing Cameras')
+    status = False
+
+    with open(join(hs.image_path,'machine_name.txt'),'w') as file:
+        file.write(hs.name)
+    image_name = 'A_sDark_r0_x'+str(hs.x.position)+'_o'+str(hs.obj.position)
+
     try:
         hs.initializeCams(logger)
-        hs.cam1.setAREA()
-        hs.cam2.setAREA()
+
+        cam_pass = []
+        cam_pass.append(hs.cam1.setAREA())
+        #cam_pass.append(hs.cam2.setAREA())
+        if not all(cam_pass):
+            error('Unable to set cameras to AREA mode')
+
+        cam_pass = []
+        cam_pass.append(hs.cam1.setTDI())
+        #cam_pass.append(hs.cam2.setTDI())
+        if not all(cam_pass):
+            error('Unable to set cameras to TDI mode')
+
         if instrument_status['YSTAGE'] and instrument_status['FPGA']:
-            image_complete = hs.take_picture(n_frames=32, image_name = 'dark')
+            image_complete = hs.take_picture(n_frames=32, image_name=image_name)
             if image_complete:
                 status = True
-                message('Cameras Nominal')
+                hs.message('Cameras Nominal')
             else:
-                text = 'Dark Images Failed'
-                warnings.warn('ERROR::'+text, RuntimeWarning)
+                error('Dark Images Failed')
         else:
-            text = 'Unable to image without Y Stage and FPGA'
-            error(text)
-            #raise RuntimeError(text)
-            #warnings.warn('ERROR::'+text, RuntimeWarning)
+            error('Unable to image without Y Stage and FPGA')
+
     except:
-        #error()
         status = False
-        message('Cameras Failed')
+        error('Cameras Failed')
 
     return status
-
 
 
 
@@ -373,7 +340,7 @@ try:
     timestamp = time.strftime('%Y%m%d%H%M')
     image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
     os.mkdir(image_path)
-    logger = pyseq.setup_logger(image_path, timestamp+'_HiSeqCheck')
+    logger = pyseq.setup_logger(timestamp+'_HiSeqCheck', image_path)
     model, name = pyseq.get_machine_info(args_['virtual'])
     hs = pyseq.get_instrument(args_['virtual'], logger)
     hs.image_path = image_path
@@ -385,10 +352,10 @@ try:
 
 
 except ImportError:
-    message('PySeq Failed')
+    hs.message('PySeq Failed')
     sys.exit()
 except OSError:
-    message('Failed to make directories')
+    print('Failed to make directories')
     sys.exit()
 # except:
 #     message('HiSeq Failed')
@@ -409,6 +376,7 @@ instrument_tests = {'FPGA': test_led,
 
 instrument_status = {'FPGA':False}
 
+# Perform Instrument tests
 for instrument in instrument_tests.keys():
     if instrument_status['FPGA']:
         hs.f.LED('A', 'green')
@@ -420,10 +388,7 @@ for instrument in instrument_tests.keys():
         hs.f.LED('B', 'green')
         time.sleep(2)
 
-if instrument_status['FPGA']:
-    hs.f.LED('A', 'pulse green')
-    hs.f.LED('B', 'pulse green')
-
+# Print diagnostics results
 table = []
 for instrument in instrument_status.keys():
     if instrument_status[instrument]:
@@ -437,3 +402,12 @@ try:
                                   tablefmt = 'presto'))
 except:
     print(table)
+
+# Compute background pixel group values
+if instrument_status['CAMERAS']:
+    bg_dict = ia.compute_background(hs.image_path, common_name = 'Dark')
+
+# Signal diagnostics are complete
+if instrument_status['FPGA']:
+    hs.f.LED('A', 'pulse green')
+    hs.f.LED('B', 'pulse green')

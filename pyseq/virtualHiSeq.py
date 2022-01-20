@@ -198,6 +198,7 @@ class Ystage():
     def __init__(self):
         self.min_y = -7000000
         self.max_y = 7500000
+        self.home = 0
         self.spum = 100     # steps per um
         self.mode = None
         self.velocity = None
@@ -206,6 +207,8 @@ class Ystage():
         self.configurations = {'imaging':{'g':'5,10,5,2,0'  ,'v':0.15400},
                                'moving': {'g':'5,10,7,1.5,0','v':1}
                               }
+    def initialize(self):
+        pass
 
     def move(self, position):
         """Move ystage to absolute step position.
@@ -228,6 +231,12 @@ class Ystage():
         except:
             print('Position is not an integer')
 
+        return self.position
+
+    def check_position(self):
+        return 1
+
+    def read_position(self):
         return self.position
 
     def command(self, text):
@@ -312,6 +321,10 @@ class OBJstage():
         self.focus_start =  2000                                                # focus start step
         self.focus_stop = 62000                                                 # focus stop step
         self.focus_rough = int((self.max_z - self.min_z)/2 + self.min_z)
+
+    def initialize(self):
+        self.position = 35000
+        self.v = 5
 
     def move(self, position):
         """Move the objective to an absolute step position.
@@ -414,6 +427,10 @@ class FPGA():
         self.y = ystage
         self.led_dict = {'off':'0', 'yellow':'1', 'green':'3', 'pulse green':'4',
                          'blue':'5', 'pulse blue':'6', 'sweep blue': '7'}
+
+    def initialize(self):
+        self.LED(1,'off')
+        self.LED(2,'off')
 
     def read_position(self):
         """Read the y position of the encoder for TDI imaging.
@@ -940,6 +957,10 @@ class Camera():
 
     def setTDI(self):
         self.sensor_mode = 'TDI'
+        return True
+
+    def setAREA(self):
+        self.sensor_mode = 'AREA'
         return True
 
     def saveImage(self, image_name, image_path):

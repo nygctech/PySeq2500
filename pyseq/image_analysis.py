@@ -16,6 +16,7 @@ import imageio
 import glob
 import configparser
 import time
+import tabulate
 from qtpy.QtCore import QTimer
 from skimage.registration import phase_cross_correlation
 
@@ -331,7 +332,7 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
 
 
 def compute_background(image_path=None, common_name = ''):
-    sensor_size = 256 # pixels
+
 
     im = get_HiSeqImages(image_path, common_name)
     config, config_path = get_machine_config(im.machine)
@@ -341,17 +342,24 @@ def compute_background(image_path=None, common_name = ''):
     except:
         pass
 
-    # Check if background data exists and check with user to overwrite
-    proceed = True
-    if config.has_section(config_section):
-        if not userYN('Overide existing background data for '+im.machine):
-            if not userYN('Confirm overide of '+im.machine+' background data'):
-                proceed = False
+    if im.machine == 'virtual':
+        sensor_size = 32
+    else:
+        sensor_size = 256 # pixels
 
-    if proceed:
+    # Check if background data exists and check with user to overwrite
+    bg_dict = True
+    if config.has_section(config_section):
+        print('Current background correction')
+        print(tabulate.tabulate(config.items(config_section),
+              tablefmt='presto',headers=['channel','background correction']))
+        if not userYN('Calculate new background correction for '+im.machine):
+            bg_dict = None
+
+    if bg_dict:
         print('Analyzing ', im.im.name)
         bg_dict = {}
-        # Loop over channels then sensor group and find mode
+        # Loop over channels then sensor group and find mode of sensor group
         for ch in im.im.channel.values:
             background = []
             for i in range(8):
@@ -362,6 +370,7 @@ def compute_background(image_path=None, common_name = ''):
 
             for i in range(8):
                 background[i] = avg_background-background[i]                    # Calculate background correction
+            print('Channel', ch,'::',*background)
             bg_dict[ch] = ','.join(map(str, background))                        # Format backround correction
 
         if userYN('Save new background data for '+im.machine):
@@ -581,9 +590,11 @@ class HiSeqImages():
             if path.exists(name_path):
                 with open(name_path,'r') as f:
                     machine = f.readline().strip()
-                    self.config, config_path = get_machine_config(machine)
+                self.config, config_path = get_machine_config(machine)
             if self.config is not None:
                 self.machine = machine
+            if self.machine is None:
+                self.machine = ''
 
             if len(common_name) > 0:
                 common_name = '*'+common_name
@@ -654,10 +665,11 @@ class HiSeqImages():
             self.im.attrs['fixed_bg'] = 1
 
         else:
+            pre_msg='CorrectBackground::'
             if bool(self.im.fixed_bg):
-                message(self.logger, 'Image already background corrected.')
+                message(self.logger, pre_msg+'Image already background corrected.')
             elif machine is None:
-                message(self.logger, 'Unknown machine')
+                message(self.logger, pre_msg+'Unknown machine')
 
 
     def register_channels(self, image=None):
@@ -1135,8 +1147,8 @@ class HiSeqImages():
 
 
                 #im = self.register_channels(im.squeeze())
-                im = im.assign_attrs(first_group = 0, machine = '', scale=1,
-                                     overlap=0, fixed_bg = 0)
+                im = im.assign_attrs(first_group = 0, machine = self.machine,
+                                     scale=1, overlap=0, fixed_bg = 0)
                 im_names.append(s[1:])
             except:
                 im = None

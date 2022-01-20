@@ -99,11 +99,11 @@ class FPGA():
         """Initialize the FPGA."""
 
         response = self.command('RESET')
-        response = self.serial_port.readline()                                    # Initialize FPGA
-        if self.logger is not None:
-            self.logger.info('FPGA::rcvd::'+response)
-        else:
-            print(response)
+        #response = self.serial_port.readline()                                    # Initialize FPGA
+        # if self.logger is not None:
+        #     self.logger.info('FPGA::rcvd::'+response)
+        # else:
+        #     print(response)
         self.command('EX1HM')                                                   # Home excitation filter on laser line 1
         self.command('EX2HM')                                                   # Home excitation filter on laser line 2
         self.command('EM2I')                                                    # Move emission filter into light path
@@ -131,11 +131,20 @@ class FPGA():
         self.serial_port.write(text)                                    # Write to serial port
         self.serial_port.flush()                                        # Flush serial port
         response = self.serial_port.readline()
-        if self.logger is not None:
-            self.logger.info(instrument+'::txmt::'+text)
-            self.logger.info(instrument+'::rcvd::'+response)
-        else:
-            print(response)
+        keepreading = True
+        while keepreading:
+            if self.logger is not None:
+                self.logger.info(instrument+'::txmt::'+text)
+                self.logger.info(instrument+'::rcvd::'+response)
+            else:
+                print(response)
+
+            response_nextline = self.serial_port.readline()
+            if response_nextline.strip() is not '':
+                response = response_nextline
+            else:
+                keepreading = False
+
 
         self.busy = False
 
