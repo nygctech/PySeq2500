@@ -732,10 +732,10 @@ def confirm_settings(recipe_z_planes = []):
             sys.exit()
 
     # Check if previous focus positions have been found, and confirm to use
-    if os.path.exists(join(hs.log_path, 'focus_config.cfg')):
+    if os.path.exists(join(hs.focus_path, 'focus_config.cfg')):
 
         focus_config = configparser.ConfigParser()
-        focus_config.read(join(hs.log_path, 'focus_config.cfg'))
+        focus_config.read(join(hs.focus_path, 'focus_config.cfg'))
         cycles = 0
         sections = []
         for section in config.options('sections'):
