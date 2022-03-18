@@ -161,6 +161,7 @@ class HiSeq():
         self.T = temperature.Temperature(com_ports['arm9chem'], logger = Logger)
         self.image_path = getcwd()                                                  # path to save images in
         self.log_path = getcwd()                                                  # path to save logs in
+        self.focus_path = getcwd()                                              # path to save focus data in
         self.fc_origin = {'A':[17571,-180000],
                           'B':[43310,-180000]}
         self.tile_width = 0.769                                                 #mm

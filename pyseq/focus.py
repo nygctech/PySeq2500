@@ -33,7 +33,7 @@ def manual_focus(hs, flowcells):
             # Take objective stack
             focus_stack = hs.obj_stack()
             if not hs.virtual:
-                focus_stack = IA.HiSeqImages(image_path = hs.image_path,
+                focus_stack = IA.HiSeqImages(image_path = hs.focus_path,
                                              obj_stack=focus_stack,
                                              logger = hs.logger)
             #Correct background
@@ -118,7 +118,7 @@ def write_obj_pos(hs, section, cycle, step=None):
     section = str(section)
     cycle = str(cycle)
     focus_config = configparser.ConfigParser()
-    config_path = path.join(hs.log_path, 'focus_config.cfg')
+    config_path = path.join(hs.focus_path, 'focus_config.cfg')
     if step is None:
         step = str(hs.obj.position)
     else:
@@ -163,7 +163,7 @@ def get_obj_pos(hs, section, cycle):
     cycle = str(cycle)
     focus_config = configparser.ConfigParser()
     obj_pos = None
-    config_path = path.join(hs.log_path, 'focus_config.cfg')
+    config_path = path.join(hs.focus_path, 'focus_config.cfg')
 
     if path.exists(config_path):
         focus_config.read(config_path)
@@ -223,7 +223,7 @@ class Autofocus():
         if hs.virtual:
             self.image_path = hs.focus_data
         else:
-            self.image_path = hs.image_path
+            self.image_path = hs.focus_path
 
     def partial_scan(self, image_name = 'RoughScan'):
         """Out of focus center scan of the section.
@@ -526,7 +526,7 @@ class Autofocus():
             else:
                 filename += '.txt'
             focus_data = np.vstack((objsteps,f_fd)).T
-            np.savetxt(path.join(hs.log_path,filename), focus_data)
+            np.savetxt(path.join(hs.focus_path,filename), focus_data)
 
             return focus_data
 

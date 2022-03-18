@@ -211,9 +211,11 @@ def get_machine_info(virtual=False):
             config.read_file(f)
         model = config['DEFAULT']['model']
         name = config['DEFAULT']['name']
+        focus_path = config.get('DEFAULT','focus path', fallback=homedir)
     else:
         model = None
         name = None
+        focus_path = homedir
 
 
     # Get machine model from user

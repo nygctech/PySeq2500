@@ -378,7 +378,7 @@ def configure_instrument(IMAG_counter, port_dict):
     global n_errors
 
 
-    model, name = methods.get_machine_info(args_['virtual'])
+    model, name, focus_path = methods.get_machine_info(args_['virtual'])
     if model is not None:
         config['experiment']['machine'] = model+'::'+name
     experiment = config['experiment']
@@ -396,6 +396,7 @@ def configure_instrument(IMAG_counter, port_dict):
             from . import virtualHiSeq
             hs = virtualHiSeq.HiSeq(name, logger)
             hs.speed_up = int(method.get('speed up', fallback = 5000))
+            focus_path = None
         else:
             import pyseq
             com_ports = pyseq.get_com_ports()
@@ -522,6 +523,12 @@ def configure_instrument(IMAG_counter, port_dict):
     if not os.path.exists(log_path):
         os.mkdir(log_path)
     hs.log_path = log_path
+    # Assign focus Directory
+    if focus_path is not None:
+        focus_path = join(focus_parh, experiment['name'])
+        if not os.path.exists(focus_path):
+            os.mkdir(focus_path)
+        hs.focus_path = focus_path
 
     return hs
 
