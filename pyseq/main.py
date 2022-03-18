@@ -530,6 +530,8 @@ def configure_instrument(IMAG_counter, port_dict):
         if not os.path.exists(focus_path):
             os.mkdir(focus_path)
         hs.focus_path = focus_path
+        with open(join(focus_path,'machine_name.txt'),'w') as file:
+            file.write(hs.name)
     else:
         hs.focus_path = log_path
 
