@@ -264,7 +264,7 @@ def get_machine_info(virtual=False):
         with open(ms_path,'w') as f:
             machine_settings.write(f)
 
-    return model, name
+    return model, name, focus_path
 
 
 
