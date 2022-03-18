@@ -214,6 +214,7 @@ class Autofocus():
     def __init__(self, hs, pos_dict):
         """Constructor for the Autofocus object."""
 
+        hs.image_path = hs.focus_path
         self.hs = hs
         self.pos_dict = pos_dict.copy()
         self.rough_ims = None
@@ -223,7 +224,6 @@ class Autofocus():
         if hs.virtual:
             self.image_path = hs.focus_data
         else:
-            self.hs.image_path = hs.focus_path
             self.image_path = hs.focus_path
 
     def partial_scan(self, image_name = 'RoughScan'):

@@ -11,6 +11,7 @@ import sys
 import configparser
 import threading
 import argparse
+import shutil
 
 from . import methods
 from . import args

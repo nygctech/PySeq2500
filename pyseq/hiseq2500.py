@@ -808,7 +808,7 @@ class HiSeq2500():
     def autofocus(self, pos_dict):
         """Find optimal objective position for imaging, True if found."""
 
-        image_path = hs.image_path
+        image_path = self.image_path
 
         try:
             opt_obj_pos = focus.autofocus(self, pos_dict)
@@ -824,8 +824,8 @@ class HiSeq2500():
             self.message('HiSeq::Autofocus failed')
             success =  False
 
-        hs.image_path = image_path
-        
+        self.image_path = image_path
+
         return success
 
     def autolevel(self, focal_points, obj_focus):
