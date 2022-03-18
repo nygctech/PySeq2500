@@ -808,6 +808,8 @@ class HiSeq2500():
     def autofocus(self, pos_dict):
         """Find optimal objective position for imaging, True if found."""
 
+        image_path = hs.image_path
+
         try:
             opt_obj_pos = focus.autofocus(self, pos_dict)
         except:
@@ -816,11 +818,15 @@ class HiSeq2500():
         if opt_obj_pos:
             self.obj.move(opt_obj_pos)
             self.message('HiSeq::Autofocus complete')
-            return True
+            success =  True
         else:
             self.obj.move(self.obj.focus_rough)
             self.message('HiSeq::Autofocus failed')
-            return False
+            success =  False
+
+        hs.image_path = image_path
+        
+        return success
 
     def autolevel(self, focal_points, obj_focus):
         """Tilt the stage motors so the focal points are on a level plane.

@@ -223,6 +223,7 @@ class Autofocus():
         if hs.virtual:
             self.image_path = hs.focus_data
         else:
+            self.hs.image_path = hs.focus_path
             self.image_path = hs.focus_path
 
     def partial_scan(self, image_name = 'RoughScan'):
