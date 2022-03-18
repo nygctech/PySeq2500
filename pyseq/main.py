@@ -525,10 +525,12 @@ def configure_instrument(IMAG_counter, port_dict):
     hs.log_path = log_path
     # Assign focus Directory
     if focus_path is not None:
-        focus_path = join(focus_parh, experiment['name'])
+        focus_path = join(focus_path, experiment['name'])
         if not os.path.exists(focus_path):
             os.mkdir(focus_path)
         hs.focus_path = focus_path
+    else:
+        hs.focus_path = log_path
 
     return hs
 
@@ -1686,6 +1688,13 @@ def do_rinse(fc, port=None):
 ##########################################################
 def do_shutdown():
     """Shutdown the HiSeq and flush all reagent lines if prompted."""
+
+    # Move focus data to logs
+    try:
+        if hs.focus_path != hs.log_path:
+            shutil.move(hs.focus_path, hs.log_path)
+    except:
+        hs.message('PySeq::Could not transfer focus data to logs')
 
     for fc in flowcells.values():
         while fc.thread.is_alive():
