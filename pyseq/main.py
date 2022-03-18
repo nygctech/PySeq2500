@@ -525,7 +525,7 @@ def configure_instrument(IMAG_counter, port_dict):
     hs.log_path = log_path
     # Assign focus Directory
     if focus_path is not None:
-        focus_path = join(focus_path, experiment['name'])
+        focus_path = join(focus_path, experiment['experiment name'])
         if not os.path.exists(focus_path):
             os.mkdir(focus_path)
         hs.focus_path = focus_path
