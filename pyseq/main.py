@@ -567,6 +567,7 @@ def confirm_settings(recipe_z_planes = []):
     if first_port is not  None:
         print('first_port:', first_port)
     print('save path:', experiment['save path'])
+    print('focus path:', hs.focus_path)
     print('enable z stage:', hs.z.active)
     print('machine:', experiment['machine'])
     print()
