@@ -973,13 +973,14 @@ class HiSeqImages():
                             value = ''
                         im.attrs[items[0]] = value
 
-            if im.machine in ['', 'None']:
-                im.attrs['machine'] = None
-                self.machine = None
-            else:
-                self.config, config_path = get_machine_config(im.machine)
-                if self.config is not None:
-                    self.machine = im.machine
+            if hasattr(im, 'machine'):
+                if im.machine in ['', 'None']:
+                    im.attrs['machine'] = None
+                    self.machine = None
+                else:
+                    self.config, config_path = get_machine_config(im.machine)
+                    if self.config is not None:
+                        self.machine = im.machine
 
             self.im.append(im)
 
