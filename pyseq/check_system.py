@@ -367,17 +367,29 @@ try:
     os.mkdir(image_path)
     log_path = join(image_path,timestamp+'_HiSeqCheck.log')
     logger = setup_logger(log_path)
-    model, name = methods.get_machine_info()
+    model, name, focus_path = methods.get_machine_info()
 
     # Create HiSeq Object
     if name == 'virtual':
         from . import virtualHiSeq
         hs = virtualHiSeq.HiSeq(name, Logger=logger)
         hs.speed_up = 5000
+        focus_path = None
     else:
         import pyseq
         model, name = methods.get_machine_info()
         hs = pyseq.HiSeq(name, Logger=logger)
+
+    # Assign focus Directory
+    if focus_path is not None:
+        focus_path = join(focus_path, timestamp+'_HiSeqCheck')
+        if not os.path.exists(focus_path):
+            os.mkdir(focus_path)
+        hs.focus_path = focus_path
+        with open(join(focus_path,'machine_name.txt'),'w') as file:
+            file.write(hs.name)
+    else:
+        hs.focus_path = log_path
 
     # Exception for ValueError of port, must be string or None, not int)
     # Exception for SerialException, could not open port
