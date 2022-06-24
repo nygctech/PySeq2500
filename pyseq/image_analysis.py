@@ -46,8 +46,7 @@ def message(logger, *args):
         logger.info(msg)
 
 
-
-def sum_images(images, logger = None):
+def sum_images(images, logger = None, **kwargs):
     """Sum pixel values over channel images.
 
        The image with the largest signal to noise ratio is used as the
@@ -70,13 +69,24 @@ def sum_images(images, logger = None):
     sum_im = None
     thresh = [1, 9, 27, 81]
 
-
+    mean_ = kwargs.get('mean', None)
+    std_ = kwargs.get('std', None)
     # Calculate modified kurtosis
     channels = images.channel.values
     k_dict = {}
-    for ch in channels:
-        k = kurt(images.sel(channel=ch))
+    for i, ch in enumerate(channels):
+        if mean_ is not None:
+            mean = mean_[i]
+        else:
+            mean = None
+        if std_ is not None:
+            std = std_[i]
+        else:
+            std = None
+
+        k = kurt(images.sel(channel=ch), mean=mean, std=std)
         message(logger, name_, 'Channel',ch, 'k = ', k)
+        print(name_, 'Channel',ch, 'k = ', k)
         k_dict[ch] = k
 
     # Pick kurtosis threshold
@@ -98,11 +108,14 @@ def sum_images(images, logger = None):
     return im
 
 
-def kurt(im):
+def kurt(im, mean=None, std=None):
     """Return kurtosis = mean((image-mode)/2)^4). """
-
-    mode = stats.mode(im, axis = None)[0][0]
-    z_score = (im-mode)/2
+    print(mean, std)
+    if mean is None:
+        mean = stats.mode(im, axis = None)[0][0]
+    if std is None:
+        std = 2
+    z_score = (im-mean)/std
     z_score = z_score**4
     k = float(z_score.mean().values)
 
@@ -643,7 +656,8 @@ class HiSeqImages():
         machine = self.machine
         if not bool(self.im.fixed_bg) and machine is not None:
             bg_dict = {}
-            for ch, values in self.config.items(str(machine)+'background'):
+            for ch in self.im.channel.values:
+                values  = self.config.get(str(machine)+'background', str(ch))
                 values = list(map(int,values.split(',')))
                 bg_dict[int(ch)]=values
 
@@ -713,7 +727,30 @@ class HiSeqImages():
 
         return img
 
+    def normalize(self, dims=['channel']):
+        '''Normalize pixel values between 0 and 1.
 
+           Parameters:
+           - keep_dims ([str]): list of dims to normalize over
+
+        '''
+
+
+        # Check keep_dims exist and find dims to compute min/max over
+        for d in images.dims:
+            assert d in images.dims, f'{d} not in dims'
+        dims_ = [d for d in images.dims if d != dims]
+
+        min_px = images.min(dim=dims_)
+        max_px = images.max(dim=dims_)
+        channels = images.channel.values
+
+        for ch in enumerate(channels):
+            _min_px = min_px.sel(channel=ch).values
+            _max_px = max_px.sel(channel=ch).values
+            message(logger, name_, 'Channel',ch, 'min px =', _min_px, 'max px =', _max_px)
+
+        self.im = (images-min_px)/(max_px-min_px)
 
 
     def remove_overlap(self, overlap=0, direction = 'left'):

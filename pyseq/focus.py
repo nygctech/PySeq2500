@@ -267,6 +267,7 @@ class Autofocus():
         im = IA.HiSeqImages(image_path = im_path, RoughScan=True)
         im.correct_background()
         im.downscale()
+        #im.normalize()
         self.rough_ims = im
         self.scale = im.im.attrs['scale']
 
@@ -315,6 +316,7 @@ class Autofocus():
         im.correct_background()
         im.remove_overlap(overlap=self.hs.overlap, direction=self.hs.overlap_dir)
         im.downscale()
+        #im.normalize()
         self.rough_ims = im
         self.scale = im.im.attrs['scale']
 
@@ -511,7 +513,10 @@ class Autofocus():
         for i in range(n_cols):
             # test if there is a tail in data and add if True
             #kurt_z, pvalue = stats.kurtosistest(focus_data[0:n_f_frames,i])
-            kurt_z, pvalue = stats.kurtosistest(jpeg_size[:,i])
+            baseline = np.median(jpeg_size[:,i])
+            _jpeg_size = (jpeg_size[:,i]-baseline).clip(0)
+            kurt_z, pvalue = stats.kurtosistest(_jpeg_size)
+
             if kurt_z > 1.96 and pvalue < 1e-6:
                 self.message(False, name_,'Signal in', hs.channels[i], 'channel')
                 f_fd = f_fd+jpeg_size[0:n_f_frames,i]
@@ -736,8 +741,16 @@ def autofocus(hs, pos_dict):
     if old_obj_pos is None:
         try:
             af.message('Analyzing out of focus image')
+            mean_bg = af.rough_ims.config.get(af.rough_ims.machine+'background','mean', fallback=None)
+            if mean_bg is not None:
+                mean_bg = list(map(int,mean_bg.split(',')))
+            std_bg = af.rough_ims.config.get(af.rough_ims.machine+'background','std', fallback=None)
+
+            if std_bg is not None:
+                std_bg = list(map(int,std_bg.split(',')))
+
             # Sum channels with signal
-            sum_im = IA.sum_images(af.rough_ims.im, logger=hs.logger)
+            sum_im = IA.sum_images(af.rough_ims.im, logger=hs.logger,  mean=mean_bg, std=std_bg)
         except:
             sum_im = None
     else:

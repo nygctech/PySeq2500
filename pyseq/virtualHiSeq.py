@@ -1019,6 +1019,7 @@ class HiSeq():
         self.tile_width = 0.769                                                 #mm
         self.resolution = 0.375                                                 #um/px
         self.overlap = 0
+        self.overlap_dir = 'left'
         self.bundle_height = 128
         self.nyquist_obj = 235                                                  # 0.9 um (235 obj steps) is nyquist sampling distance in z plane
         self.logger = Logger
