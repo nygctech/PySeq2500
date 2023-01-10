@@ -214,18 +214,19 @@ class Temperature():
     def reset_ARM9(self):
         """Reset ARM9 controller."""
 
+        T_chiller = self.T_chiller
+        T_fc = self.T_fc
         # Reinitialize ARM9
         self.initialize()
 
         # Reset chiller temperatures
-        for i, t in enumerate(self.T_chiller):
+        for i, t in enumerate(T_chiller):
             if t is not None:
                 self.set_chiller_T(t,i)
 
         # Reset flowcell temperature
-        for i, t in enumerate(self.T_fc):
+        for i, t in enumerate(T_fc):
             if t is not None:
-                self.fc_on(i)
                 self.set_fc_T(i, t)
 
 
