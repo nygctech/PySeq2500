@@ -223,7 +223,7 @@ class Temperature():
                 self.set_chiller_T(t,i)
 
         # Reset flowcell temperature
-        for i, t in enumerate(self.T_flowcell):
+        for i, t in enumerate(self.T_fc):
             if t is not None:
                 self.fc_on(i)
                 self.set_fc_T(i, t)
