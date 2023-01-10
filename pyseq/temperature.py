@@ -178,6 +178,7 @@ class Temperature():
         fc = self.get_fc_index(fc)
 
         T = None
+        reset_counter = 0
         if fc is not None:
             while T is None:
                 try:
@@ -185,6 +186,11 @@ class Temperature():
                     T = float(response.split(':')[0][:-1])
                 except:
                     T = None
+                    reset_counter += 1
+                    if reset_counter in [3, 6]:
+                        self.reset_ARM9()
+                    if reset_counter > 6:
+                        T = -1
 
         return T
 
@@ -204,6 +210,24 @@ class Temperature():
               T[i] = float(response[i])
 
         return T
+
+    def reset_ARM9(self):
+        """Reset ARM9 controller."""
+
+        # Reinitialize ARM9
+        self.initialize()
+
+        # Reset chiller temperatures
+        for i, t in enumerate(self.T_chiller):
+            if t is not None:
+                self.set_chiller_T(t,i)
+
+        # Reset flowcell temperature
+        for i, t in enumerate(self.T_flowcell):
+            if t is not None:
+                self.fc_on(i)
+                self.set_fc_T(i, t)
+
 
     def set_fc_T(self, fc, T):
         """Set temperature of flowcell in °C.
