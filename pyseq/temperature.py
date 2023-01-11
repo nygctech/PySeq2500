@@ -214,8 +214,8 @@ class Temperature():
     def reset_ARM9(self):
         """Reset ARM9 controller."""
 
-        T_chiller = self.T_chiller
-        T_fc = self.T_fc
+        T_chiller = self.T_chiller.copy()
+        T_fc = self.T_fc.copy()
         # Reinitialize ARM9
         self.initialize()
 
