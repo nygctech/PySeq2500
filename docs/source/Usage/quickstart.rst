@@ -26,8 +26,8 @@ Interactive Quick Start
     #Move stage to imaging position.
     hs.z.move([21500, 21500, 21500])
     #Move excitation filters to optical density 1.0
-    hs.move_ex('green', 1.0)
-    hs.move_ex('red', 1.0)
+    hs.optics.move_ex('green', 1.0)
+    hs.optics.move_ex('red', 1.0)
     #Find focus
     hs.autofocus(pos)
     True
@@ -39,6 +39,6 @@ Interactive Quick Start
     hs.y.move(pos['y_initial'])
     True
     #Move excitation filters to open position
-    hs.move_ex('green', 'open')
-    hs.move_ex('red', 'open')
+    hs.optics.move_ex('green', 'open')
+    hs.optics.move_ex('red', 'open')
     hs.scan(pos['n_scans'], 1, pos['n_frames'], image_name='FirstHiSeqScan')
