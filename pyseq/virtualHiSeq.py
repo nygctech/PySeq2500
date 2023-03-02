@@ -1112,6 +1112,68 @@ class HiSeq():
         else:
             return False
 
+def expose(self, pos_dict, repeat=1, power=100, OD = 'open'):
+    """Expose ROI to green light.
+
+    TODO: Add support for multiple lasers
+
+       **Parameters:**
+        - pos_dict (dict): Dictionary of stage position information.
+        - repeat (int): Number of times to expose ROI, defeault = 1.
+        - power (int): Green laser power in mW, default = 100 mW.
+        - OD (int, str): Green emission filter OD, default = open.
+
+       **Returns:**
+        - float: Time in minutes to expose ROI.
+
+    """
+
+    self.message(False, f'Begin exposing tissue {repeat} times')
+
+    #x spacing
+    dx = self.tile_width*1000-self.resolution*self.overlap                       # x stage delta in in microns
+    dx = round(dx*self.x.spum)
+
+    # set laser power
+    self.lasers['green'].set_power(power)
+
+    # initialize stage
+    self.y.move(pos_dict['y_initial'])
+    self.x.move(pos_dict['x_initial'])
+    x_pos = pos_dict['x_initial']
+
+    # set optical filter
+    self.optics.move_ex('green', OD)
+    self.message(False, f'Moving green excitation filter to {OD} position')
+    laser_power = self.lasers['green'].get_power()
+    self.message(False, f'Green laser power is {laser_power} mW')
+
+    start_time = time.time()
+    direction = 1
+    for xi in range(pos_dict['n_tiles']):
+        for yi in range(repeat):
+
+            # Open laser shutter
+            self.f.command('SWLSRSHUT 1')
+
+            if direction > 0:
+                self.y.move(pos_dict['y_final'])
+            else:
+                self.y.move(pos_dict['y_initial'])
+
+            direction *= -1
+
+            # Close laser shutter
+            self.f.command('SWLSRSHUT 0')
+
+        self.x.move(self.x.position + dx)
+
+    stop_time = time.time()
+    total_time = round((stop_time - start_time)/60,2)
+    self.message(False, f'Finished exposing tissue in {total_time} minutes')
+
+    return total_time
+
     def obj_stack(self, n_frames = None, velocity = None):
 
         if velocity is None:

@@ -80,6 +80,9 @@ class Flowcell():
        - z_planes (int): Override number of z planes to image in recipe.
        - pre_recipe_path (path): Recipe to run before actually starting experiment
        - pre_recipe (file): File handle for the pre recipe.
+       - user_thread (thread): Thread to get async user response.
+       - user_respone (str): Response from user.
+       - user_message (str): Message to user.
 
     """
 
@@ -113,13 +116,19 @@ class Flowcell():
         self.temperature = None                                                 # Set temperature of flowcell
         self.temp_interval = None                                               # Interval in minutes to check flowcell temperature
         self.z_planes = None                                                    # Override number of z planes to image in recipe.
-        self.pre_recipe_path = None                                              # Recipe to run before actually starting experiment
+        self.pre_recipe_path = None                                             # Recipe to run before actually starting experiment
+        self.user_thread = thread.Thread(target=do_nothing)                     # Thread do get user response
+        self.user_value = None                                                  # Reponse from user
+        self.user_message = None                                                # Message to user
+        self.exposure = {'green': {'power': 200,                                # Exposure parameters
+                                   'filter': 'open'}}
 
         while position not in ['A', 'B']:
             print('Flowcell must be at position A or B')
             position = input('Enter A or B for ' + str(position) + ' : ')
 
         self.position = position
+        self.user_thread.start()
 
 
     def addEvent(self, event, command):
@@ -203,6 +212,20 @@ class Flowcell():
         hs.message(msg)
 
         return False
+
+    def user_input(self):
+        response = userYN(f'Flowcell {self.position}::{self.user_message}')
+        self.user_response = response
+
+    def confirm_message(self):
+        response = userYN(f'Confirm Flowcell {self.position}::{self.user_message}')
+        self.user_response = None
+        if response:
+            return True
+        else:
+            self.user_thread = threading.Thread(target = self.user_input)
+            self.user_thread.start()
+            return False
 
 
 
@@ -923,9 +946,18 @@ def check_instructions():
                     else:
                         print(recipe,'::WARNING::HiSeq will stop until user input at line',
                                line_num)
+            # Make sure temperature command is valid
             elif instrument == 'TEMP':
                 if not command.isdigit():
                     error(recipe,'::Invalid temperature on line', line_num)
+            # Make sure exposure command is valid
+            elif instrument == 'EXPO':
+                    if not command.isdigit():
+                        error(recipe,'::Invalid number of exposures on line', line_num)
+            # Make sure user command is valid
+            elif instrument == 'USER':
+                    if command is not None
+                        error(recipe,'::Invalid user message on line', line_num)
             # # Warn user that HiSeq will completely stop with this command
             # elif instrument == 'STOP':
             #     print('WARNING::HiSeq will stop until user input at line',
@@ -1156,10 +1188,10 @@ def userYN(*args):
     while response:
         answer = input(question + '? Y/N = ')
         answer = answer.upper().strip()
-        if answer == 'Y':
+        if answer in ['Y', 'YES']:
             response = False
             answer = True
-        elif answer == 'N':
+        elif answer in ['N', 'NO']:
             response = False
             answer = False
 
@@ -1468,16 +1500,29 @@ def do_recipe(fc):
             #hs.scan_flag = True
             fc.events_since_IMAG = []
             log_message = 'Imaging flowcell'
-            fc.thread = threading.Thread(target = IMAG,
-                args = (fc,int(command),))
+            fc.thread = threading.Thread(target = IMAG, args = (fc,int(command)))
+
             if fc.cycle <= fc.total_cycles:
                 LED(AorB, 'imaging')
+        # Set Temperature of the Flowcell
         elif instrument == 'TEMP':
             log_message = 'Setting temperature to ' + command + ' °C'
             command  = float(command)
             fc.thread = threading.Thread(target = hs.T.set_fc_T,
                 args = (AorB,command,))
             fc.temperature = command
+        # Expose the flowcell with green light
+        elif instrument == 'EXPO':
+            if hs.scan_flag:
+                hs.message('PySeq::'+AorB+'::Waiting for optics')
+                while hs.scan_flag:
+                    pass
+            log_message = f'Exposing flowcell {command} times'
+            fc.thread = threading.Thread(target = EXPO, args =(fc, int(command)))
+        # Wait for user input
+        elif instrument == 'USER':
+            log_message = f'Waiting for user input'
+            fc.thread = thread.Thread(target = USER, args =(fc, command))
         # Block all further processes until user input
         # elif instrument == 'STOP':
         #     hs.message('PySeq::Paused')
@@ -1622,6 +1667,45 @@ def IMAG(fc, n_Zplanes):
 
     hs.scan_flag = False
 
+def EXPO(fc, N):
+    """Expose the flowcell N times.
+
+       For each section on the flowcell, the entire section is exposed N times
+
+       TODO: ADD support for multiple lasers
+
+       **Parameters:**
+       fc: The flowcell to image.
+       N: Number of times to expose section
+
+       **Returns:**
+       int: Time in minutes to expose the entire section.
+
+    """
+
+    hs.scan_flag = True                                                         #Reserve imaging system
+
+    if fc.exposures is not None: N = fc.exposures                               #Override recipe number of exposures
+    AorB = fc.position
+    start = time.time()
+
+    # scan sections on flowcell
+    hs.message(f'PySeq::{AorB}::Begin exposing flowcell')
+    power = fc.expose.get('green','power')
+    OD = fc.expose.get('green','filter')
+
+    for section in fc.sections:
+        pos = fc.stage[section]
+        hs.message(f'PySeq::{AorB}::Begin exposing section {section} {N} times')
+        hs.expose(pos, N, power, OD)
+        hs.message(f'PySeq::{AorB}::Finished exposing section {section} {N} times')
+
+    total_time = round((time.time() - start) / 60,1)
+    hs.message(f'PySeq::{AorB}::Completed exposing flowcell in {total_time/60} min.')
+
+    hs.scan_flag = False
+
+    return total_time
 
 
 def WAIT(AorB, event):
@@ -1644,6 +1728,13 @@ def WAIT(AorB, event):
     flowcells[signaling_fc].wait_thread.clear()                                 # Reset wait event
     stop = time.time()
     return stop-start
+
+def USER(fc, message):
+    """Ask user to do something."""
+
+    fc.user_message = message
+    fc.user_thread = threading.Thread(target = fc.user_input)
+    fc.user_thread.start()
 
 def do_rinse(fc, port=None):
     """Rinse flowcell with reagent specified in config file.
@@ -1938,6 +2029,20 @@ if __name__ == 'pyseq.main':
                     complete += 1
 
                 check_fc_temp(fc)
+
+                # Check response to a user message
+                if fc.user_thread.is_alive():
+                    if fc.user_response:
+                        fc.confirm_message()
+                    else:
+                        self.user_thread = threading.Thread(target = self.user_input)
+                        self.user_thread.start()
+
+                # Remind user of message
+                if len(flowcells) > 1:
+                    other_fc = 'B' if fc.position == 'A' else 'A'
+                    if flowcells[other_fc].user_thread.is_alive()
+                    hs.message(f'Flowcell {other_fc}::{flowcells[other_fc].user_messsage}')
 
             if stuck == len(flowcells):                                         # Start the first flowcell if they are waiting on each other
                 free_fc()
