@@ -81,7 +81,7 @@ class Flowcell():
        - pre_recipe_path (path): Recipe to run before actually starting experiment
        - pre_recipe (file): File handle for the pre recipe.
        - user_thread (thread): Thread to get async user response.
-       - user_respone (str): Response from user.
+       - user_response (str): Response from user.
        - user_message (str): Message to user.
 
     """
@@ -117,8 +117,9 @@ class Flowcell():
         self.temp_interval = None                                               # Interval in minutes to check flowcell temperature
         self.z_planes = None                                                    # Override number of z planes to image in recipe.
         self.pre_recipe_path = None                                             # Recipe to run before actually starting experiment
-        self.user_thread = thread.Thread(target=do_nothing)                     # Thread do get user response
-        self.user_value = None                                                  # Reponse from user
+        self.user_flag = False
+#         self.user_thread = threading.Thread(target=do_nothing, name = 'Initial')                  # Thread do get user response
+#         self.user_response = None                                               # Reponse from user
         self.user_message = None                                                # Message to user
         self.exposure = {'green': {'power': 200,                                # Exposure parameters
                                    'filter': 'open'}}
@@ -128,7 +129,6 @@ class Flowcell():
             position = input('Enter A or B for ' + str(position) + ' : ')
 
         self.position = position
-        self.user_thread.start()
 
 
     def addEvent(self, event, command):
@@ -213,19 +213,23 @@ class Flowcell():
 
         return False
 
-    def user_input(self):
-        response = userYN(f'Flowcell {self.position}::{self.user_message}')
-        self.user_response = response
+#     def user_input(self):
+        
+#         response = userYN(f'Flowcell {self.position}::{self.user_message}')
+        
+        
+#         return response
 
-    def confirm_message(self):
-        response = userYN(f'Confirm Flowcell {self.position}::{self.user_message}')
-        self.user_response = None
-        if response:
-            return True
-        else:
-            self.user_thread = threading.Thread(target = self.user_input)
-            self.user_thread.start()
-            return False
+#     def confirm_message(self):
+#         response = userYN(f'Confirm Flowcell {self.position}::{self.user_message}')
+     
+#         if response:
+#             self.user_response = None
+#             return True
+#         else:
+# #             self.user_thread = threading.Thread(target = self.user_input)
+# #             self.user_thread.start()
+#             return False
 
 
 
@@ -956,7 +960,7 @@ def check_instructions():
                         error(recipe,'::Invalid number of exposures on line', line_num)
             # Make sure user command is valid
             elif instrument == 'USER':
-                    if command is not None
+                    if command is None:
                         error(recipe,'::Invalid user message on line', line_num)
             # # Warn user that HiSeq will completely stop with this command
             # elif instrument == 'STOP':
@@ -1177,16 +1181,19 @@ def LED(AorB, indicate):
 
     return True
 
-def userYN(*args):
+def userYN(*args, newline=False):
     """Ask a user a Yes/No question and return True if Yes, False if No."""
 
     question = ''
     for a in args:
         question += str(a) + ' '
+    question += '? Y/N = '
+    if newline:
+        question += '\n'
 
     response = True
     while response:
-        answer = input(question + '? Y/N = ')
+        answer = input(question)
         answer = answer.upper().strip()
         if answer in ['Y', 'YES']:
             response = False
@@ -1522,7 +1529,7 @@ def do_recipe(fc):
         # Wait for user input
         elif instrument == 'USER':
             log_message = f'Waiting for user input'
-            fc.thread = thread.Thread(target = USER, args =(fc, command))
+            fc.thread = threading.Thread(target = USER, args =(fc, command))
         # Block all further processes until user input
         # elif instrument == 'STOP':
         #     hs.message('PySeq::Paused')
@@ -1685,24 +1692,31 @@ def EXPO(fc, N):
 
     hs.scan_flag = True                                                         #Reserve imaging system
 
-    if fc.exposures is not None: N = fc.exposures                               #Override recipe number of exposures
+#    if fc.exposures is not None: N = fc.exposures                               #Override recipe number of exposures
     AorB = fc.position
     start = time.time()
 
     # scan sections on flowcell
-    hs.message(f'PySeq::{AorB}::Begin exposing flowcell')
-    power = fc.expose.get('green','power')
-    OD = fc.expose.get('green','filter')
+    power = fc.exposure.get('green').get('power')
+    OD = fc.exposure.get('green').get('filter')
+    
+    roi_time = 0
+    try: 
+        for section in fc.sections:
+            pos = fc.stage[section]
+            hs.message(f'PySeq::{AorB}::Begin exposing section {section} {N} times')
+            roi_time = hs.expose(pos, N, power, OD)
+            hs.message(f'PySeq::{AorB}::Finished exposing section {section} {N} times')
 
-    for section in fc.sections:
-        pos = fc.stage[section]
-        hs.message(f'PySeq::{AorB}::Begin exposing section {section} {N} times')
-        hs.expose(pos, N, power, OD)
-        hs.message(f'PySeq::{AorB}::Finished exposing section {section} {N} times')
+    except Exception as e: 
+        import traceback
+        traceback.print_exc()
+        roi_time = 0
+        hs.message(f'PySeq::{AorB}::Exposure failed')
 
     total_time = round((time.time() - start) / 60,1)
-    hs.message(f'PySeq::{AorB}::Completed exposing flowcell in {total_time/60} min.')
-
+    if roi_time > 0:
+        hs.message(f'PySeq::{AorB}::Completed exposing flowcell in {total_time} min.')
     hs.scan_flag = False
 
     return total_time
@@ -1732,9 +1746,19 @@ def WAIT(AorB, event):
 def USER(fc, message):
     """Ask user to do something."""
 
+    
+    confirmed = False
+    fc.user_flag = True
     fc.user_message = message
-    fc.user_thread = threading.Thread(target = fc.user_input)
-    fc.user_thread.start()
+    start = time.time()
+    while not confirmed:
+        response = userYN(f'Flowcell {fc.position}::{message}', newline = True)
+        if response:
+            confirmed = userYN(f'Flowcell {fc.position}::Confirm {message}', newline = True)
+    fc.user_flag = False
+    fc.user_message = None
+    wait_time = round((time.time() - start) / 60,1)
+    hs.message(f'Flowcell {fc.position}::Waited {wait_time} min. for user')
 
 def do_rinse(fc, port=None):
     """Rinse flowcell with reagent specified in config file.
@@ -2021,6 +2045,13 @@ if __name__ == 'pyseq.main':
             for fc in flowcells.values():
                 if not fc.thread.is_alive():                                    # flowcell not busy, do next step in recipe
                     do_recipe(fc)
+                    
+                    # Remind user of message
+                    if len(flowcells) > 1:
+                        other_fc = 'B' if fc.position == 'A' else 'A'
+                        if flowcells[other_fc].user_flag:
+                            hs.message(f'Flowcell {other_fc}::{flowcells[other_fc].user_message}')
+
 
                 if fc.signal_event:                                             # check if flowcells are waiting on each other
                     stuck += 1
@@ -2030,19 +2061,7 @@ if __name__ == 'pyseq.main':
 
                 check_fc_temp(fc)
 
-                # Check response to a user message
-                if fc.user_thread.is_alive():
-                    if fc.user_response:
-                        fc.confirm_message()
-                    else:
-                        self.user_thread = threading.Thread(target = self.user_input)
-                        self.user_thread.start()
 
-                # Remind user of message
-                if len(flowcells) > 1:
-                    other_fc = 'B' if fc.position == 'A' else 'A'
-                    if flowcells[other_fc].user_thread.is_alive()
-                    hs.message(f'Flowcell {other_fc}::{flowcells[other_fc].user_messsage}')
 
             if stuck == len(flowcells):                                         # Start the first flowcell if they are waiting on each other
                 free_fc()

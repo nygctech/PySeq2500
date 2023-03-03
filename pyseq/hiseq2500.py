@@ -805,7 +805,7 @@ class HiSeq2500():
         else:
             return False
 
-    def expose(self, pos_dict, repeat=1, power=100, OD = 'open'):
+    def expose(self, pos_dict, repeat=1, power=200, OD = 'open'):
         """Expose ROI to green light.
 
         TODO: Add support for multiple lasers
