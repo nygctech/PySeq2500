@@ -1,7 +1,7 @@
 *************
 Method Recipe
 *************
-There are 6 basic actions to build a recipe.
+There are 8 basic actions to build a recipe.
 
 1. **PORT**: *port name* (string)
 =================================
@@ -19,15 +19,15 @@ There are 6 basic actions to build a recipe.
 
     PUMP: 2000
 
-2. **TEMP**: *temperature in degrees Celsius* (float)
+3. **TEMP**: *temperature in degrees Celsius* (float)
 =====================================================
 
- Set temperature of flowcell. 
+ Set temperature of flowcell.
  ::
 
     TEMP: 55.0
 
-3. **HOLD**: *hold time in min.* (integer)
+4. **HOLD**: *hold time in min.* (integer)
 ==========================================
 
  Recipe pauses for specified time. The recipe can also be paused until user
@@ -36,7 +36,7 @@ There are 6 basic actions to build a recipe.
 
     HOLD: 10
 
-4. **WAIT**: **IMAG** or `port name` (string)
+5. **WAIT**: **IMAG** or `port name` (string)
 =============================================
 
  Recipe waits to continue until the other flowcell is imaging (**IMAG**) or
@@ -45,7 +45,7 @@ There are 6 basic actions to build a recipe.
 
     WAIT: water
 
-5. **IMAG**: *z focal planes* (integer)
+6. **IMAG**: *z focal planes* (integer)
 =======================================
 
  The flowcell is imaged at the specified number of z focal planes at the
@@ -53,6 +53,23 @@ There are 6 basic actions to build a recipe.
  ::
 
     IMAG: 15
+
+7. **EXPO**: *n times* (integer)
+=======================================
+
+ The flowcell is exposed with light a specified number times at the
+ sections listed in the experiment config.
+ ::
+
+    EXPO: 10
+
+8. **USER**: *user message* (string)
+=======================================
+
+ Recipe pauses for flowcell until the user confirms the message.
+ ::
+
+    USER: Add Reagent A to Port 1
 
 Example Recipe
 ==============
