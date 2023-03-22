@@ -214,15 +214,15 @@ class Flowcell():
         return False
 
 #     def user_input(self):
-        
+
 #         response = userYN(f'Flowcell {self.position}::{self.user_message}')
-        
-        
+
+
 #         return response
 
 #     def confirm_message(self):
 #         response = userYN(f'Confirm Flowcell {self.position}::{self.user_message}')
-     
+
 #         if response:
 #             self.user_response = None
 #             return True
@@ -1526,10 +1526,12 @@ def do_recipe(fc):
                     pass
             log_message = f'Exposing flowcell {command} times'
             fc.thread = threading.Thread(target = EXPO, args =(fc, int(command)))
+            LED(AorB, 'imaging')
         # Wait for user input
         elif instrument == 'USER':
             log_message = f'Waiting for user input'
             fc.thread = threading.Thread(target = USER, args =(fc, command))
+            LED(AorB, 'user')
         # Block all further processes until user input
         # elif instrument == 'STOP':
         #     hs.message('PySeq::Paused')
@@ -1699,16 +1701,16 @@ def EXPO(fc, N):
     # scan sections on flowcell
     power = fc.exposure.get('green').get('power')
     OD = fc.exposure.get('green').get('filter')
-    
+
     roi_time = 0
-    try: 
+    try:
         for section in fc.sections:
             pos = fc.stage[section]
             hs.message(f'PySeq::{AorB}::Begin exposing section {section} {N} times')
             roi_time = hs.expose(pos, N, power, OD)
             hs.message(f'PySeq::{AorB}::Finished exposing section {section} {N} times')
 
-    except Exception as e: 
+    except Exception as e:
         import traceback
         traceback.print_exc()
         roi_time = 0
@@ -1746,7 +1748,7 @@ def WAIT(AorB, event):
 def USER(fc, message):
     """Ask user to do something."""
 
-    
+
     confirmed = False
     fc.user_flag = True
     fc.user_message = message
@@ -2045,7 +2047,7 @@ if __name__ == 'pyseq.main':
             for fc in flowcells.values():
                 if not fc.thread.is_alive():                                    # flowcell not busy, do next step in recipe
                     do_recipe(fc)
-                    
+
                     # Remind user of message
                     if len(flowcells) > 1:
                         other_fc = 'B' if fc.position == 'A' else 'A'
