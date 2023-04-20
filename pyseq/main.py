@@ -1472,9 +1472,9 @@ def do_recipe(fc):
                 else:
                     fc.thread = threading.Timer(holdTime, fc.endHOLD)
             elif command == 'STOP':
-                log_message = 'Waiting for user input'
-                user_message = 'Press enter to continue'
-                fc.thread = threading.Thread(target = USER, args =(fc, command))
+                log_message = 'Paused'
+                user_message = 'Unpause and continue to next step'
+                fc.thread = threading.Thread(target = USER, args =(fc, user_message))
                 LED(AorB, 'user')
                 # hs.message('PySeq::Paused')
                 # LED(AorB, 'user')
