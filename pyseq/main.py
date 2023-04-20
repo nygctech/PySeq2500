@@ -1472,11 +1472,15 @@ def do_recipe(fc):
                 else:
                     fc.thread = threading.Timer(holdTime, fc.endHOLD)
             elif command == 'STOP':
-                hs.message('PySeq::Paused')
+                log_message = 'Waiting for user input'
+                user_message = 'Press enter to continue'
+                fc.thread = threading.Thread(target = USER, args =(fc, command))
                 LED(AorB, 'user')
-                input("Press enter to continue...")
-                log_message = ('Continuing...')
-                fc.thread = threading.Thread(target = do_nothing)
+                # hs.message('PySeq::Paused')
+                # LED(AorB, 'user')
+                # input("Press enter to continue...")
+                # log_message = ('Continuing...')
+                # fc.thread = threading.Thread(target = do_nothing)
             if fc.cycle <= fc.total_cycles:
                 LED(AorB, 'sleep')
         # Wait for other flowcell to finish event before continuing with current flowcell
