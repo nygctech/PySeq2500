@@ -78,6 +78,12 @@ parser.add_argument('-diagnostics',
                     action = 'store_true',
                     )
 
+# Flag to perform a diagnostic run
+parser.add_argument('-gmail',
+                    help='add gmail account and app key',
+                    action = 'store_true',
+                    )
+
 def get_arguments():
     """Return arguments from command line"""
 
@@ -106,6 +112,72 @@ def get_arguments():
     if args['ports'] is True:
         methods.list_com_ports()
 
+        sys.exit()
+
+    if args['gmail'] is True:
+        from cryptography.fernet import Fernet
+        import base64
+        from getpass import getpass
+        import smtplib, ssl
+
+
+        not_in = True; tries = 0
+        while not_in:
+            # Enter gmail account only USERNAME not @gmail.com
+            loop = True
+            while loop:
+                username = input('Gmail account (skip @gmail.com): ')
+                username = username.strip()
+                loop = not methods.userYN(f'Confirm Gmail account is {username}')
+
+            # Enter appkey that was created in Google Account Security Settings
+            loop = True
+            while loop:
+                appkey = input('App key: ')
+                loop = not methods.userYN(f'Confirm appkey is {appkey}')
+
+            # Test appkey works
+            try:
+                port = 465
+                context = ssl.create_default_context()
+                with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
+                    reponse = server.login(f'{username}@gmail.com', appkey)
+                    not_in = False
+            except:
+                tries += 1
+                if tries > 3:
+                    not_in = False
+                print(f'Username/appkey did not work, attempt {i}/3')
+        if tries >= 3:
+            raise ValueError('Double check username and app keys')
+
+        # Enter PySeq Password, that is password to login to machine
+        loop = True
+        tries = 0
+        while loop:
+            print('Enter PySeq password')
+            password = getpass()
+            print('Re-enter PySeq password')
+            password_ = getpass()
+            MATCH = password == password_
+
+            if not MATCH:
+                print('Password did not match')
+            else:
+                loop = False
+
+
+        encoded_pw = base64.b64encode(password.encode("utf-8"))
+        salt = Fernet.generate_key()
+        key = salt + encoded_pw
+        f = Fernet(key)
+        token = f.encrypt(appkey.encode('utf-8'))
+        config, config_path = methods.get_config(config_type='machine_info')
+        config.read_dict({'DEFAULT':{'token':token.decode('utf-8'),
+                                     'salt':salt.decode('utf-8'),
+                                     'username': username}})
+        with open(config_path,'w') as f:
+            config.write(f)
         sys.exit()
 
     return args

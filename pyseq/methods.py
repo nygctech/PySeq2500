@@ -194,6 +194,27 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
             instrument = False
 
 
+def get_config(config_path = None, config_type = None):
+
+
+    homedir = expanduser('~')
+
+    if config_type == 'machine_info':
+        config_path = join(homedir,'.pyseq2500','machine_info.cfg')
+    elif config_type == 'machine_settings':
+        config_path = join(homedir,'.pyseq2500','machine_settings.cfg')
+
+    if config_path is not None:
+        if isfile(config_path):
+            config = configparser.ConfigParser()
+            with open(config_path,'r') as f:
+                config.read_file(f)
+        else:
+            raise FileNotFoundError(f'Could not find {config_path}')
+
+    return config, config_path
+
+
 
 def get_machine_info(virtual=False):
     """Specify machine model and name."""
@@ -203,12 +224,8 @@ def get_machine_info(virtual=False):
     if not isdir(join(homedir,'.pyseq2500')):
         mkdir(join(homedir,'.pyseq2500'))
 
-    config_path = join(homedir,'.pyseq2500','machine_info.cfg')
-    config = configparser.ConfigParser()
-    NAME_EXISTS = isfile(config_path)
-    if NAME_EXISTS:
-        with open(config_path,'r') as f:
-            config.read_file(f)
+    config = get_config('machine_info')
+    if config is not None:
         model = config['DEFAULT']['model']
         name = config['DEFAULT']['name']
         focus_path = config.get('DEFAULT','focus path', fallback=None)
@@ -234,14 +251,9 @@ def get_machine_info(virtual=False):
     if virtual:
         name = 'virtual'
 
-
     # Check if background and registration data exists
     # Open machine_settings.cfg saved in USERHOME/.pyseq2500
-    machine_settings = configparser.ConfigParser()
-    ms_path = join(homedir,'.pyseq2500','machine_settings.cfg')
-    if isfile(ms_path):
-        with open(ms_path,'r') as f:
-            machine_settings.read_file(f)
+    machine_settings = get_config('machine_settings')
 
     if not machine_settings.has_section(name+'background'):
         if not userYN('Continue experiment without background data for',name):
