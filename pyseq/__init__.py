@@ -127,6 +127,8 @@ class HiSeq():
         - fc_origin: Upper right X and Y stage step position for flowcell slots.
         - scan_flag: True if HiSeq is currently scanning
         - current_view: Block run to show latest images, otherwise is None
+        - email_to: Email recipients to send notifications to
+        - email_password: Password to login to email account
 
     """
 
@@ -179,6 +181,8 @@ class HiSeq():
         self.scan_flag = False                                                  # imaging/scanning flag
         self.current_view = None                                                # latest images
         self.name = name
+        self.email_to = False
+        self.email_password = None
         self.check_COM()
 
 
@@ -727,8 +731,8 @@ class HiSeq():
 
         return total_time
 
-    
-    
+
+
     def autofocus(self, pos_dict):
         """Find optimal objective position for imaging, True if found."""
 

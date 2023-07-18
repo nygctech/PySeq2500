@@ -116,6 +116,8 @@ def get_arguments():
 
     if args['gmail'] is True:
         from cryptography.fernet import Fernet
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
         import base64
         from getpass import getpass
         import smtplib, ssl
@@ -167,14 +169,15 @@ def get_arguments():
                 loop = False
 
 
-        encoded_pw = base64.b64encode(password.encode("utf-8"))
+        encoded_pw = base64.urlsafe_b64encode(password.encode("utf-8"))
         salt = Fernet.generate_key()
-        key = salt + encoded_pw
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt,iterations=480000,)
+        key = base64.urlsafe_b64encode(kdf.derive(encoded_pw))
         f = Fernet(key)
         token = f.encrypt(appkey.encode('utf-8'))
         config, config_path = methods.get_config(config_type='machine_info')
-        config.read_dict({'DEFAULT':{'token':token.decode('utf-8'),
-                                     'salt':salt.decode('utf-8'),
+        config.read_dict({'DEFAULT':{'token':token,
+                                     'salt':salt,
                                      'username': username}})
         with open(config_path,'w') as f:
             config.write(f)

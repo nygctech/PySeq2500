@@ -210,7 +210,8 @@ def get_config(config_path = None, config_type = None):
             with open(config_path,'r') as f:
                 config.read_file(f)
         else:
-            raise FileNotFoundError(f'Could not find {config_path}')
+            print(f'Could not find {config_path}')
+            config = None
 
     return config, config_path
 
@@ -224,10 +225,10 @@ def get_machine_info(virtual=False):
     if not isdir(join(homedir,'.pyseq2500')):
         mkdir(join(homedir,'.pyseq2500'))
 
-    config = get_config('machine_info')
+    config, config_path = get_config(config_type = 'machine_info')
     if config is not None:
-        model = config['DEFAULT']['model']
-        name = config['DEFAULT']['name']
+        model = config.get('DEFAULT','model', fallback = None)
+        name = config.get('DEFAULT','name', fallback = None)
         focus_path = config.get('DEFAULT','focus path', fallback=None)
     else:
         model = None
@@ -253,7 +254,7 @@ def get_machine_info(virtual=False):
 
     # Check if background and registration data exists
     # Open machine_settings.cfg saved in USERHOME/.pyseq2500
-    machine_settings = get_config('machine_settings')
+    machine_settings, config_path = get_config(config_type = 'machine_settings')
 
     if not machine_settings.has_section(name+'background'):
         if not userYN('Continue experiment without background data for',name):
@@ -262,18 +263,18 @@ def get_machine_info(virtual=False):
     #     if not userYN('Continue experiment without registration data for',name):
     #         model = None
 
-    if not NAME_EXISTS and model is not None and name not in [None,'virtual']:
+    if config is not None and model is not None and name not in [None,'virtual']:
         # Save machine info
         config.read_dict({'DEFAULT':{'model':model,'name':name}})
         with open(config_path,'w') as f:
             config.write(f)
 
-    if not NAME_EXISTS and model is not None and name is not None:
+    if config is not None and model is not None and name is not None:
         #Add to list in machine settings
         if not machine_settings.has_section('machines'):
             machine_settings.add_section('machines')
         machine_settings.set('machines', name, time.strftime('%m %d %y'))
-        with open(ms_path,'w') as f:
+        with open(config_path,'w') as f:
             machine_settings.write(f)
 
     return model, name, focus_path
