@@ -6,8 +6,10 @@ Kunal Pandit 3/15/2020
 
 import configparser
 from os.path import expanduser, join, isfile, isdir
-from os import mkdir
+from os import mkdir, makedirs
 import time
+import yaml
+from pathlib import Path
 
 try:
     import importlib.resources as pkg_resources
@@ -194,54 +196,80 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
             instrument = False
 
 
-def get_config(config_path = None, config_type = None):
+# def get_config(config_path = None, config_type = None):
+#
+#
+#     homedir = expanduser('~')
+#
+#     if config_type == 'machine_info':
+#         config_path = join(homedir,'.pyseq2500','machine_info.cfg')
+#     elif config_type == 'machine_settings':
+#         config_path = join(homedir,'.pyseq2500','machine_settings.cfg')
+#
+#     if config_path is not None:
+#         if isfile(config_path):
+#             config = configparser.ConfigParser()
+#             with open(config_path,'r') as f:
+#                 config.read_file(f)
+#         else:
+#             print(f'Could not find {config_path}')
+#             config = None
+#
+#     return config, config_path
+
+def get_config(config_path):
+
+    if isinstance(config_path, str):
+        config_path = Path(config_path)
+
+    if not config_path.exists():
+        raise OSError('config does not exist')
+
+    if config_path.suffix == '.cfg':
+        print(config_path)
+        # Create and read experiment config
+        config = configparser.ConfigParser()
+        config.read(config_path)
+
+        return config
+
+    if config_path.suffix in ['.yaml', '.yml']:
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+
+        return config
 
 
-    homedir = expanduser('~')
-
-    if config_type == 'machine_info':
-        config_path = join(homedir,'.pyseq2500','machine_info.cfg')
-    elif config_type == 'machine_settings':
-        config_path = join(homedir,'.pyseq2500','machine_settings.cfg')
-
-    if config_path is not None:
-        if isfile(config_path):
-            config = configparser.ConfigParser()
-            with open(config_path,'r') as f:
-                config.read_file(f)
-        else:
-            print(f'Could not find {config_path}')
-            config = None
-
-    return config, config_path
-
-
-
-def get_machine_info(virtual=False):
+def get_machine_info(name = None, virtual=False):
     """Specify machine model and name."""
 
     # Open machine_info.cfg save in USERHOME/.pyseq2500
     homedir = expanduser('~')
-    if not isdir(join(homedir,'.pyseq2500')):
-        mkdir(join(homedir,'.pyseq2500'))
 
-    config, config_path = get_config(config_type = 'machine_info')
-    if config is not None:
-        model = config.get('DEFAULT','model', fallback = None)
-        name = config.get('DEFAULT','name', fallback = None)
-        focus_path = config.get('DEFAULT','focus path', fallback=None)
+    makedirs(join(homedir,'.config','pyseq2500'), exist_ok = True)
+
+    config_path = join(homedir,'.config','pyseq2500','machine_settings.yaml')
+    config = get_config(config_path)
+
+    if config is not None and machine_name is not None:
+        model = config.get(machine_name,'model', fallback = None)
+        focus_path = config.get(machine_name,'focus path', fallback=None)
     else:
         model = None
         name = None
         focus_path = None
+        config = {}
 
 
     # Get machine model from user
     while model is None:
         if userYN('Is this a HiSeq2500'):
             model = 'HiSeq2500'
-            if model not in ['HiSeq2500']:
-                model = None
+        elif userYN('Is this a HiSeqX'):
+            model = 'HiSeqX'
+
+        if model not in ['HiSeq2500', 'HiSeqX']:
+            model = None
 
     # Get machine name from user
     while name is None and not virtual:
@@ -254,28 +282,29 @@ def get_machine_info(virtual=False):
 
     # Check if background and registration data exists
     # Open machine_settings.cfg saved in USERHOME/.pyseq2500
-    machine_settings, config_path = get_config(config_type = 'machine_settings')
+    # machine_settings, config_path = get_config(config_type = 'machine_settings')
 
-    if not machine_settings.has_section(name+'background'):
+    if 'background' not in config[name].keys():
         if not userYN('Continue experiment without background data for',name):
             model = None
     # if not machine_settings.has_section(name+'registration') and model is not None:
     #     if not userYN('Continue experiment without registration data for',name):
     #         model = None
 
-    if config is not None and model is not None and name not in [None,'virtual']:
-        # Save machine info
-        config.read_dict({'DEFAULT':{'model':model,'name':name}})
-        with open(config_path,'w') as f:
-            config.write(f)
+    # if config is not None and model is not None and name not in [None,'virtual']:
+    #     # Save machine info
+    #     config.read_dict({'DEFAULT':{'model':model,'name':name}})
+    #     with open(config_path,'w') as f:
+    #         config.write(f)
 
     if config is not None and model is not None and name is not None:
+        config.update({'name':name, 'model':model, 'focus_path':focus_path})
         #Add to list in machine settings
-        if not machine_settings.has_section('machines'):
-            machine_settings.add_section('machines')
-        machine_settings.set('machines', name, time.strftime('%m %d %y'))
+        # if not machine_settings.has_section('machines'):
+        #     machine_settings.add_section('machines')
+        # machine_settings.set('machines', name, time.strftime('%m %d %y'))
         with open(config_path,'w') as f:
-            machine_settings.write(f)
+            yaml.dump(config, f, sort_keys = True)
 
     return model, name, focus_path
 
