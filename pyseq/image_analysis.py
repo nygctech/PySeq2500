@@ -421,20 +421,25 @@ def compute_background(image_path=None, common_name = ''):
     if config.get(im.machine,{}).get('background', None) is not None:
         print('Current background correction settings')
         print('Max Pixel Value  = ', config[im.machine]['max_pixel_value'])
-        print(tabulate.tabulate(config[im.machine]['background'].items(config_section),
+        print()
+        print(tabulate.tabulate(config[im.machine]['background'].items(),
               tablefmt='presto',headers=['channel','background']))
-        print(tabulate.tabulate(config[im.machine]['dark group'].items(config_section),
+        print()
+        print(tabulate.tabulate(config[im.machine]['dark group'].items(),
               tablefmt='presto',headers=['channel','background']))
+        print()
         if not userYN('Calculate new background correction for '+im.machine):
             bg_dict = {}
 
     if bg_dict:
+        print()
         print('Analyzing ', im.im.name)
         max_px = int(im.im.max().values)
         print('Max Pixel Value', max_px)
         bg_dict[im.machine]['max_pixel_value'] = max_px
         # Loop over channels then sensor group and find mean of channel and min of sensor group
-        for ch in list(im.im.channel.values):
+        channels = [int(ch) for ch in im.im.channel.values]                     # Int conversion in list comprehension needed for correct formatting
+        for ch in channels:
             min_ = []
             for i in range(8):
                 sensor = im.im.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
@@ -514,10 +519,10 @@ def get_machine_config(machine, extra_config_path = ''):
 
     if config_path is None:
         print(f'Config not found')
-        config_path = config_paths[0] + '.yaml'
+        config_path = Path(config_paths[0] + '.yaml')
         config = None
-
-    config = get_config(config_path)
+    else:
+        config = get_config(config_path)
 
     if config_path.suffix in ['yaml', 'yml']:
         config = config.get(machine, None)
