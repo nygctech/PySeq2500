@@ -121,14 +121,17 @@ def get_arguments():
         import base64
         from getpass import getpass
         import smtplib, ssl
+        import yaml
 
+        config_path = methods.get_config_path()
+        model, name, focus_path = methods.get_machine_info(config_path)
 
         not_in = True; tries = 0
         while not_in:
             # Enter gmail account only USERNAME not @gmail.com
             loop = True
             while loop:
-                username = input('Gmail account (skip @gmail.com): ')
+                username = input('Gmail account (do not include @gmail.com): ')
                 username = username.strip()
                 loop = not methods.userYN(f'Confirm Gmail account is {username}')
 
@@ -175,12 +178,13 @@ def get_arguments():
         key = base64.urlsafe_b64encode(kdf.derive(encoded_pw))
         f = Fernet(key)
         token = f.encrypt(appkey.encode('utf-8'))
-        config, config_path = methods.get_config(config_type='machine_info')
-        config.read_dict({'DEFAULT':{'token':token,
-                                     'salt':salt,
-                                     'username': username}})
+        config = methods.get_config()
+        config[name].update({'email':{'token':token,
+                                      'salt':salt,
+                                      'username': username}})
+
         with open(config_path,'w') as f:
-            config.write(f)
+            yaml.dump(config, f, sort_keys = True)
         sys.exit()
 
     return args

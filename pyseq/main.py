@@ -586,13 +586,17 @@ def email_login(hs, config):
             password = base64.b64encode(password.encode('utf-8'))
             exp_name = config.get('experiment', 'experiment name')
             message = f'Notifications about {exp_name} will be sent to you'
-            if send_mail(message, password, hs.email_to):
+            logged_in = send_mail(message, password, hs.email_to)
+            if logged_in == 1:
                 loop = False
                 hs.email_password = password
             else:
-                tries += 1
+                print(f'Email login failed, no notifications will be sent')
+                if logged_in == 0:
+                    tries += 1
+                else:
+                    tries = 4
                 if tries >= 3:
-                    print(f'Email login failed, no notifications will be sent')
                     loop = False
                     hs.email_to = False
     return hs
@@ -1729,35 +1733,39 @@ def send_mail(message, password, to):
     """
 
     # Get username, salt, and token
-    config, config_path = methods.get_config(config_type = 'machine_info')
-    username = config.get('DEFAULT', 'username')
-    salt =  bytes(config.get('DEFAULT', 'salt')[2:-1].encode('utf-8'))
-    token =  bytes(config.get('DEFAULT', 'token')[2:-1].encode('utf-8'))
-    # Decode password
-    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=480000,)
-    key = base64.urlsafe_b64encode(kdf.derive(password))
-    f = Fernet(key)
-    try:
-        appkey = f.decrypt(token).decode('utf-8')
+    config = methods.get_config()
+    name = config.get('name')
+    username = config[name].get('email', {}}.get('username',None)
+    if username is not None:
+        salt = config[name]['email']['salt']
+        token =  config[name]['email']['token']
+        # Decode password
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=480000,)
+        key = base64.urlsafe_b64encode(kdf.derive(password))
+        f = Fernet(key)
+        try:
+            appkey = f.decrypt(token).decode('utf-8')
 
 
-        # notification is the message in the body of the email
-        email = MIMEText(message, 'plain')
-        email["Subject"] = f'PySeq::{hs.name}'
-        email["From"] = f'{username}@gmail.com'
-        email["To"] = to
+            # notification is the message in the body of the email
+            email = MIMEText(message, 'plain')
+            email["Subject"] = f'PySeq::{hs.name}'
+            email["From"] = f'{username}@gmail.com'
+            email["To"] = to
 
-        port = 465
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-            server.login(f'{username}@gmail.com', appkey)
-            server.send_message(email)
+            port = 465
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
+                server.login(f'{username}@gmail.com', appkey)
+                server.send_message(email)
 
-            return True
-    except InvalidToken:
-        print('Incorrect Password')
-
-        return False
+            return 1
+        except InvalidToken:
+            print('Incorrect Password')
+            return 0
+    else:
+        print('Email not configured')
+        return -1
 
 def EXPO(fc, N):
     """Expose the flowcell N times.

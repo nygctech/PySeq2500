@@ -400,7 +400,6 @@ def compute_background(image_path=None, common_name = ''):
 
     im = get_HiSeqImages(image_path, common_name)
     config = im.config
-    print(im.machine)
     # config, config_path = get_machine_config(im.machine)
 
     if config is None or not isinstance(config, dict):
@@ -417,7 +416,7 @@ def compute_background(image_path=None, common_name = ''):
         sensor_size = 256 # pixels
 
     # Check if background data exists and check with user to overwrite
-    bg_dict = {im.machine : {'background':{}, 'dark group':{}}}
+    bg_dict = {'background':{}, 'dark group':{}}
     if config.get(im.machine,{}).get('background', None) is not None:
         print('Current background correction settings')
         print('Max Pixel Value  = ', config[im.machine]['max_pixel_value'])
@@ -455,9 +454,8 @@ def compute_background(image_path=None, common_name = ''):
         if userYN('Save new background data for '+im.machine):
             bg_dict[im.machine]['updated'] = time.strftime('%m %d %y')
             # Save background correction values in config file
-            config.update(bg_dict)
+            config[im.machine].update(bg_dict)
             ### Write YAML
-            makedirs(im.config_path.parent, exist_ok = True)
             with open(im.config_path,'w') as f:
                     yaml.dump(config, f, sort_keys = True)
 

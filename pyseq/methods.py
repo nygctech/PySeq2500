@@ -217,13 +217,19 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
 #
 #     return config, config_path
 
-def get_config(config_path):
+def get_config(config_path = None):
+
+    # Default config at USERHOME/config/pyseq2500/machine_settings.yaml
+    if config_path is None:
+        config_path = get_config_path()
+        makedirs(config_path.parents[0], exist_ok = True)
 
     if isinstance(config_path, str):
         config_path = Path(config_path)
 
     if not config_path.exists():
-        raise OSError('config does not exist')
+        print('Config does not exist')
+        return None
 
     if config_path.suffix == '.cfg':
         print(config_path)
@@ -239,21 +245,19 @@ def get_config(config_path):
 
         return config
 
+def get_config_path():
+    homedir = expanduser('~')
+    return Path(join(homedir,'.config','pyseq2500','machine_settings.yaml'))
 
 def get_machine_info(name = None, virtual=False):
     """Specify machine model and name."""
 
-    # Open machine_info.cfg save in USERHOME/.pyseq2500
-    homedir = expanduser('~')
-
-    makedirs(join(homedir,'.config','pyseq2500'), exist_ok = True)
-
-    config_path = join(homedir,'.config','pyseq2500','machine_settings.yaml')
     config = get_config(config_path)
 
-    if config is not None and machine_name is not None:
-        model = config.get(machine_name,'model', fallback = None)
-        focus_path = config.get(machine_name,'focus path', fallback=None)
+    if config is not None and name is not None:
+        name = config.get('name', None)
+        model = config.get(name).get('model', None)
+        focus_path = config.get(name).get('focus path', None)
     else:
         model = None
         name = None
@@ -297,8 +301,9 @@ def get_machine_info(name = None, virtual=False):
     #     with open(config_path,'w') as f:
     #         config.write(f)
 
-    if config is not None and model is not None and name is not None:
-        config.update({'name':name, 'model':model, 'focus_path':focus_path})
+    if len(config) > 0:
+        config.update({'name':name})
+        config[name].update({'model':model, 'focus_path':focus_path})
         #Add to list in machine settings
         # if not machine_settings.has_section('machines'):
         #     machine_settings.add_section('machines')
