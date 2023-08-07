@@ -1735,7 +1735,7 @@ def send_mail(message, password, to):
     # Get username, salt, and token
     config = methods.get_config()
     name = config.get('name')
-    username = config[name].get('email', {}}.get('username',None)
+    username = config[name].get('email', {}).get('username',None)
     if username is not None:
         salt = config[name]['email']['salt']
         token =  config[name]['email']['token']

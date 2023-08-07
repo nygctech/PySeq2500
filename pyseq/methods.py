@@ -252,7 +252,7 @@ def get_config_path():
 def get_machine_info(name = None, virtual=False):
     """Specify machine model and name."""
 
-    config = get_config(config_path)
+    config = get_config()
 
     if config is not None and name is not None:
         name = config.get('name', None)
@@ -308,6 +308,7 @@ def get_machine_info(name = None, virtual=False):
         # if not machine_settings.has_section('machines'):
         #     machine_settings.add_section('machines')
         # machine_settings.set('machines', name, time.strftime('%m %d %y'))
+        config_path = get_config_path()
         with open(config_path,'w') as f:
             yaml.dump(config, f, sort_keys = True)
 
