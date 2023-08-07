@@ -435,7 +435,7 @@ def compute_background(image_path=None, common_name = ''):
         print('Analyzing ', im.im.name)
         max_px = int(im.im.max().values)
         print('Max Pixel Value', max_px)
-        bg_dict[im.machine]['max_pixel_value'] = max_px
+        bg_dict['max_pixel_value'] = max_px
         # Loop over channels then sensor group and find mean of channel and min of sensor group
         channels = [int(ch) for ch in im.im.channel.values]                     # Int conversion in list comprehension needed for correct formatting
         for ch in channels:
@@ -446,13 +446,13 @@ def compute_background(image_path=None, common_name = ''):
 
             mean = int(im.im.sel(channel = ch).mean().values.round())
             print('Channel', ch,':: Average background', mean)
-            bg_dict[im.machine]['background'][ch] = mean
+            bg_dict['background'][ch] = mean
             print('Channel', ch,':: Sensor Minimum ',*min_)
-            bg_dict[im.machine]['dark group'][ch] = min_
+            bg_dict['dark group'][ch] = min_
 
 
         if userYN('Save new background data for '+im.machine):
-            bg_dict[im.machine]['updated'] = time.strftime('%m %d %y')
+            bg_dict['updated'] = time.strftime('%m %d %y')
             # Save background correction values in config file
             config[im.machine].update(bg_dict)
             ### Write YAML

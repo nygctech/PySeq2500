@@ -31,6 +31,7 @@ setup(
                       'scipy',
                       'imageio',
                       'tabulate',
+                      'cryptography==41.0.2',
                       'dask', 'xarray', 'zarr', 'qtpy','napari',
                       'scikit-image >= 0.17',
                       'wmi',

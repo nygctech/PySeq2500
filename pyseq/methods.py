@@ -254,10 +254,11 @@ def get_machine_info(name = None, virtual=False):
 
     config = get_config()
 
-    if config is not None and name is not None:
-        name = config.get('name', None)
-        model = config.get(name).get('model', None)
-        focus_path = config.get(name).get('focus path', None)
+    if config is not None:
+        if name is None:
+            name = config.get('name', None)
+        model = config.get(name, {}).get('model', None)
+        focus_path = config.get(name, {}).get('focus path', None)
     else:
         model = None
         name = None
@@ -303,7 +304,7 @@ def get_machine_info(name = None, virtual=False):
 
     if len(config) > 0:
         config.update({'name':name})
-        config[name].update({'model':model, 'focus_path':focus_path})
+        config[name].update({'model':model, 'focus path':focus_path})
         #Add to list in machine settings
         # if not machine_settings.has_section('machines'):
         #     machine_settings.add_section('machines')
