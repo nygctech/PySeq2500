@@ -741,14 +741,8 @@ def autofocus(hs, pos_dict):
     if old_obj_pos is None:
         try:
             af.message('Analyzing out of focus image')
-            mean_bg = af.rough_ims.config.get(af.rough_ims.machine+'background','mean', fallback=None)
-            if mean_bg is not None:
-                mean_bg = list(map(int,mean_bg.split(',')))
-            std_bg = af.rough_ims.config.get(af.rough_ims.machine+'background','std', fallback=None)
-
-            if std_bg is not None:
-                std_bg = list(map(int,std_bg.split(',')))
-
+            mean_bg = af.rough_ims.config.get('background',None)
+            std_bg = af.rough_ims.config.get('std', None)
             # Sum channels with signal
             sum_im = IA.sum_images(af.rough_ims.im, logger=hs.logger,  mean=mean_bg, std=std_bg)
         except:

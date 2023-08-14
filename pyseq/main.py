@@ -414,7 +414,7 @@ def configure_instrument(IMAG_counter, port_dict):
     global n_errors
 
 
-    model, name, focus_path = methods.get_machine_info(args_['virtual'])
+    model, name, focus_path = methods.get_machine_info(virtual = args_['virtual'])
     if model is not None:
         config['experiment']['machine'] = model+'::'+name
     experiment = config['experiment']

@@ -76,13 +76,13 @@ def sum_images(images, logger = None, **kwargs):
     # Calculate modified kurtosis
     channels = images.channel.values
     k_dict = {}
-    for i, ch in enumerate(channels):
+    for ch in enumerate(channels):
         if mean_ is not None:
-            mean = mean_[i]
+            mean = mean_[ch]
         else:
             mean = None
         if std_ is not None:
-            std = std_[i]
+            std = std_[cd]
         else:
             std = None
 
@@ -416,7 +416,7 @@ def compute_background(image_path=None, common_name = ''):
         sensor_size = 256 # pixels
 
     # Check if background data exists and check with user to overwrite
-    bg_dict = {'background':{}, 'dark group':{}}
+    bg_dict = {'background':{}, 'dark group':{}, 'std':{}}
     if config.get(im.machine,{}).get('background', None) is not None:
         print('Current background correction settings')
         print('Max Pixel Value  = ', config[im.machine]['max_pixel_value'])
@@ -440,13 +440,18 @@ def compute_background(image_path=None, common_name = ''):
         channels = [int(ch) for ch in im.im.channel.values]                     # Int conversion in list comprehension needed for correct formatting
         for ch in channels:
             min_ = []
+            std_ = []
             for i in range(8):
                 sensor = im.im.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
                 min_.append(int(sensor.min().values))
+                std_.append(int(sensor.std().values))
 
             mean = int(im.im.sel(channel = ch).mean().values.round())
+            std = int(np.array(std_).mean())
             print('Channel', ch,':: Average background', mean)
             bg_dict['background'][ch] = mean
+            print('Channel', ch,':: Background standard deviation', std)
+            bg_dict['std'][ch] = std
             print('Channel', ch,':: Sensor Minimum ',*min_)
             bg_dict['dark group'][ch] = min_
 
@@ -522,7 +527,7 @@ def get_machine_config(machine, extra_config_path = ''):
     else:
         config = get_config(config_path)
 
-    if config_path.suffix in ['yaml', 'yml']:
+    if config_path.suffix in ['.yaml', '.yml']:
         config = config.get(machine, None)
     elif config_path.suffix == 'cfg':
         machine = str(machine).lower()
