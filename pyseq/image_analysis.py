@@ -76,7 +76,7 @@ def sum_images(images, logger = None, **kwargs):
     # Calculate modified kurtosis
     channels = images.channel.values
     k_dict = {}
-    for ch in enumerate(channels):
+    for ch in channels:
         if mean_ is not None:
             mean = mean_[ch]
         else:
@@ -1215,6 +1215,7 @@ class HiSeqImages():
         im = im.assign_attrs(first_group = 0, machine = self.machine, scale=1,
                              overlap=0, fixed_bg = 0)
         self.im = im.sel(row=slice(64,None))
+        self.name = 'RoughScan'
 
         return len(fn_comp_sets[2])
 
