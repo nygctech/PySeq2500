@@ -739,7 +739,8 @@ class HiSeq():
         image_path = self.image_path
         try:
             opt_obj_pos = focus.autofocus(self, pos_dict)
-        except:
+        except Exception as error:
+            self.message('HiSeq::Autofocus::',error)
             opt_obj_pos = False
 
         if opt_obj_pos:

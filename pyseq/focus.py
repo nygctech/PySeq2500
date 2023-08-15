@@ -264,7 +264,7 @@ class Autofocus():
 
         # Scale & Normalize partial focus image
         self.message(name_+'Scaling & Normalizing images')
-        im = IA.HiSeqImages(image_path = im_path, RoughScan=True)
+        im = IA.HiSeqImages(image_path = im_path, RoughScan=True, logger = hs.logger)
         im.correct_background()
         im.downscale()
         #im.normalize()
@@ -312,7 +312,7 @@ class Autofocus():
 
         # Stitch rough focus image
         self.message(name_+'Stitching & Normalizing images')
-        im = IA.HiSeqImages(image_path = im_path, RoughScan=True)
+        im = IA.HiSeqImages(image_path = im_path, RoughScan=True, logger = hs.logger)
         im.correct_background()
         im.remove_overlap(overlap=self.hs.overlap, direction=self.hs.overlap_dir)
         im.downscale()
@@ -363,7 +363,7 @@ class Autofocus():
             focus_stack = hs.obj_stack()
             if not hs.virtual:
                 focus_stack = IA.HiSeqImages(image_path = self.image_path,
-                                             obj_stack=focus_stack)
+                                             obj_stack=focus_stack, logger = hs.logger)
 
             focus_stack.correct_background()
 

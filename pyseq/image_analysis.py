@@ -88,7 +88,6 @@ def sum_images(images, logger = None, **kwargs):
 
         k = kurt(images.sel(channel=ch), mean=mean, std=std)
         message(logger, name_, 'Channel',ch, 'k = ', k)
-        print(name_, 'Channel',ch, 'k = ', k)
         k_dict[ch] = k
 
     # Pick kurtosis threshold
@@ -1232,6 +1231,7 @@ class HiSeqImages():
         im = im.assign_attrs(first_group = 0, machine = self.machine, scale=1,
                              overlap=0, fixed_bg = 0)
         self.im = im
+        self.name = 'ObjStack'
 
         return obj_stack.shape[0]
 
