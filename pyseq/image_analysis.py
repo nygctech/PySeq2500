@@ -9,7 +9,7 @@ xr.set_options(keep_attrs=True)
 import zarr
 import napari
 from math import log2, ceil, floor
-from os import listdir, stat, path, getcwd, mkdir
+from os import listdir, stat, path, getcwd, mkdir, makedirs
 from scipy import stats
 from scipy.spatial.distance import cdist
 import imageio
@@ -19,6 +19,8 @@ import time
 import tabulate
 from qtpy.QtCore import QTimer
 from skimage.registration import phase_cross_correlation
+from pathlib import Path
+import yaml
 
 try:
     import importlib.resources as pkg_resources
@@ -26,7 +28,7 @@ except ImportError:
     # Try backported to PY<37 `importlib_resources`.
     import importlib_resources as pkg_resources
 from . import resources
-from .methods import userYN
+from .methods import userYN, get_config
 
 def message(logger, *args):
     """Print output text to logger or console.
@@ -74,13 +76,13 @@ def sum_images(images, logger = None, **kwargs):
     # Calculate modified kurtosis
     channels = images.channel.values
     k_dict = {}
-    for i, ch in enumerate(channels):
+    for ch in channels:
         if mean_ is not None:
-            mean = mean_[i]
+            mean = mean_[ch]
         else:
             mean = None
         if std_ is not None:
-            std = std_[i]
+            std = std_[cd]
         else:
             std = None
 
@@ -89,7 +91,6 @@ def sum_images(images, logger = None, **kwargs):
 
         k = kurt(images.sel(channel=ch), mean=mean, std=std)
         message(logger, name_, 'Channel',ch, 'k = ', k)
-        print(name_, 'Channel',ch, 'k = ', k)
         k_dict[ch] = k
 
     # Pick kurtosis threshold
@@ -347,12 +348,65 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
     return ord_points
 
 
+# def compute_background(image_path=None, common_name = ''):
+#
+#
+#     im = get_HiSeqImages(image_path, common_name)
+#     config, config_path = get_machine_config(im.machine)
+#     config_section = im.machine+'background'
+#     try:
+#         im = im[0] # In case there are multiple sections in image_path
+#     except:
+#         pass
+#
+#     if im.machine == 'virtual':
+#         sensor_size = 32
+#     else:
+#         sensor_size = 256 # pixels
+#
+#     # Check if background data exists and check with user to overwrite
+#     bg_dict = True
+#     if config.has_section(config_section):
+#         print('Current background correction')
+#         print(tabulate.tabulate(config.items(config_section),
+#               tablefmt='presto',headers=['channel','background correction']))
+#         if not userYN('Calculate new background correction for '+im.machine):
+#             bg_dict = None
+#
+#     if bg_dict:
+#         print('Analyzing ', im.im.name)
+#         bg_dict = {}
+#         # Loop over channels then sensor group and find mode of sensor group
+#         for ch in im.im.channel.values:
+#             background = []
+#             for i in range(8):
+#                 sensor = im.im.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
+#                 background.append(stats.mode(sensor, axis=None)[0][0])
+#             avg_background = int(round(np.mean(background)))
+#             print('Channel', ch,'::Average background', avg_background)
+#
+#             for i in range(8):
+#                 background[i] = avg_background-background[i]                    # Calculate background correction
+#             print('Channel', ch,'::',*background)
+#             bg_dict[ch] = ','.join(map(str, background))                        # Format backround correction
+#
+#         if userYN('Save new background data for '+im.machine):
+#             # Save background correction values in config file
+#             config.read_dict({config_section:bg_dict})
+#             with open(config_path,'w') as f:
+#                     config.write(f)
+#
+#     return bg_dict
+
 def compute_background(image_path=None, common_name = ''):
 
-
     im = get_HiSeqImages(image_path, common_name)
-    config, config_path = get_machine_config(im.machine)
-    config_section = im.machine+'background'
+    config = im.config
+    # config, config_path = get_machine_config(im.machine)
+
+    if config is None or not isinstance(config, dict):
+        config = {}
+
     try:
         im = im[0] # In case there are multiple sections in image_path
     except:
@@ -364,39 +418,55 @@ def compute_background(image_path=None, common_name = ''):
         sensor_size = 256 # pixels
 
     # Check if background data exists and check with user to overwrite
-    bg_dict = True
-    if config.has_section(config_section):
-        print('Current background correction')
-        print(tabulate.tabulate(config.items(config_section),
-              tablefmt='presto',headers=['channel','background correction']))
+    bg_dict = {'background':{}, 'dark group':{}, 'std':{}}
+    if config.get(im.machine,{}).get('background', None) is not None:
+        print('Current background correction settings')
+        print('Max Pixel Value  = ', config[im.machine]['max_pixel_value'])
+        print()
+        print(tabulate.tabulate(config[im.machine]['background'].items(),
+              tablefmt='presto',headers=['channel','background']))
+        print()
+        print(tabulate.tabulate(config[im.machine]['dark group'].items(),
+              tablefmt='presto',headers=['channel','background']))
+        print()
         if not userYN('Calculate new background correction for '+im.machine):
-            bg_dict = None
+            bg_dict = {}
 
     if bg_dict:
+        print()
         print('Analyzing ', im.im.name)
-        bg_dict = {}
-        # Loop over channels then sensor group and find mode of sensor group
-        for ch in im.im.channel.values:
-            background = []
+        max_px = int(im.im.max().values)
+        print('Max Pixel Value', max_px)
+        bg_dict['max_pixel_value'] = max_px
+        # Loop over channels then sensor group and find mean of channel and min of sensor group
+        channels = [int(ch) for ch in im.im.channel.values]                     # Int conversion in list comprehension needed for correct formatting
+        for ch in channels:
+            min_ = []
+            std_ = []
             for i in range(8):
                 sensor = im.im.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
-                background.append(stats.mode(sensor, axis=None)[0][0])
-            avg_background = int(round(np.mean(background)))
-            print('Channel', ch,'::Average background', avg_background)
+                min_.append(int(sensor.min().values))
+                std_.append(int(sensor.std().values))
 
-            for i in range(8):
-                background[i] = avg_background-background[i]                    # Calculate background correction
-            print('Channel', ch,'::',*background)
-            bg_dict[ch] = ','.join(map(str, background))                        # Format backround correction
+            mean = int(im.im.sel(channel = ch).mean().values.round())
+            std = int(np.array(std_).mean())
+            print('Channel', ch,':: Average background', mean)
+            bg_dict['background'][ch] = mean
+            print('Channel', ch,':: Background standard deviation', std)
+            bg_dict['std'][ch] = std
+            print('Channel', ch,':: Sensor Minimum ',*min_)
+            bg_dict['dark group'][ch] = min_
+
 
         if userYN('Save new background data for '+im.machine):
+            bg_dict['updated'] = time.strftime('%m %d %y')
             # Save background correction values in config file
-            config.read_dict({config_section:bg_dict})
-            with open(config_path,'w') as f:
-                    config.write(f)
+            config[im.machine].update(bg_dict)
+            ### Write YAML
+            with open(im.config_path,'w') as f:
+                    yaml.dump(config, f, sort_keys = True)
 
     return bg_dict
-
 
 
 
@@ -415,26 +485,59 @@ def get_HiSeqImages(image_path=None, common_name='', logger = None):
         return None
 
 
-def get_machine_config(machine):
+def get_machine_config(machine, extra_config_path = ''):
+    '''Get machine settings config from default location.
 
+      Default locations in order of preference:
+      - ~/.config/pyseq2500/machine_settings.yaml
+      - ~/.config/pyseq2500/machine_settings.cfg
+      - ~/.pyseq2500/machine_settings.yaml
+      - ~/.pyseq2500/machine_settings.cfg
 
-    machine = str(machine).lower()
+      Parameters:
+      machine (str): Name of machine
+      extra_config_path (str): Path to machine setting if not in default location
 
-    config = configparser.ConfigParser()
-    #config_path = pkg_resources.path(resources, 'background.cfg')
+      Returns:
+      config: Machine settings config (ConfigParser or YAML)
+      config_path: Machine settings config path (str)
+    '''
+
     homedir = path.expanduser('~')
-    config_path = path.join(homedir,'.pyseq2500','machine_settings.cfg')
 
-    if path.exists(config_path):
-        with open(config_path,'r') as config_path_:
-            config.read_file(config_path_)
+    config_paths = [path.join(homedir,'.config', 'pyseq2500', 'machine_settings'),
+                    path.join(homedir,'.pyseq2500','machine_settings')]
+    if len(extra_config_path) > 0:
+        config_paths.insert(0, extra_config_path)
 
-        if machine not in config.options('machines'):
-            print('Settings for', machine, 'do not exist')
-            config = None
-    else:
-        print(config_path, 'not found')
+    config_path = None
+    for p in config_paths:
+        if path.exists(p+'.yaml'):
+            config_path = Path(p+'.yaml')
+            break
+        elif path.exists(p+'.cfg'):
+            config_path = Path(p+'.cfg')
+            break
+        elif path.exists(p):
+            config_path = Path(p)
+            break
+
+    if config_path is None:
+        print(f'Config not found')
+        config_path = Path(config_paths[0] + '.yaml')
         config = None
+    else:
+        config = get_config(config_path)
+
+    if config_path.suffix in ['.yaml', '.yml']:
+        config = config.get(machine, None)
+    elif config_path.suffix == 'cfg':
+        machine = str(machine).lower()
+        if machine not in config.options('machines'):
+            config = None
+
+    if config is None:
+        print('Settings for', machine, 'do not exist')
 
     return config, config_path
 
@@ -594,6 +697,7 @@ class HiSeqImages():
         self.resolution = 0.375                                                 # um/px
         self.x_spum = 0.4096                                                    #steps per um
         self.config  = None
+        self.config_path = None
         self.machine = None
 
         if im is None:
@@ -605,12 +709,12 @@ class HiSeqImages():
             name_path = path.join(image_path,'machine_name.txt')
             if path.exists(name_path):
                 with open(name_path,'r') as f:
-                    machine = f.readline().strip()
-                self.config, config_path = get_machine_config(machine)
-            if self.config is not None:
-                self.machine = machine
-            if self.machine is None:
-                self.machine = ''
+                    self.machine = f.readline().strip()
+                self.config, self.config_path = get_machine_config(self.machine)
+            # if self.config is not None:
+            #     self.machine = machine
+            # # if self.machine is None:
+            # #     self.machine = ''
 
             if len(common_name) > 0:
                 common_name = '*'+common_name
@@ -654,39 +758,79 @@ class HiSeqImages():
             self.im = im
 
 
+    # def correct_background(self):
+    #
+    #     machine = self.machine
+    #     if not bool(self.im.fixed_bg) and machine is not None:
+    #         bg_dict = {}
+    #         for ch in self.im.channel.values:
+    #             values  = self.config.get(str(machine)+'background', str(ch))
+    #             values = list(map(int,values.split(',')))
+    #             bg_dict[int(ch)]=values
+    #
+    #         ch_list = []
+    #         ncols = len(self.im.col)
+    #         for ch in self.im.channel.values:
+    #             bg_ = np.zeros(ncols)
+    #             i = 0
+    #             for c in range(int(ncols/256)):
+    #                 if c == 0:
+    #                     i = self.im.first_group
+    #                 if i == 8:
+    #                     i = 0
+    #                 bg = bg_dict[ch][i]
+    #                 bg_[c*256:(c+1)*256] = bg
+    #                 i += 1
+    #             ch_list.append(self.im.sel(channel=ch)+bg_)
+    #         self.im = xr.concat(ch_list,dim='channel')
+    #         self.im.attrs['fixed_bg'] = 1
+    #
+    #     else:
+    #         pre_msg='CorrectBackground::'
+    #         if bool(self.im.fixed_bg):
+    #             message(self.logger, pre_msg+'Image already background corrected.')
+    #         elif machine is None:
+    #             message(self.logger, pre_msg+'Unknown machine')
+
     def correct_background(self):
+        '''Rescale pixel values for each group to the average background.'''
 
-        machine = self.machine
-        if not bool(self.im.fixed_bg) and machine is not None:
-            bg_dict = {}
-            for ch in self.im.channel.values:
-                values  = self.config.get(str(machine)+'background', str(ch))
-                values = list(map(int,values.split(',')))
-                bg_dict[int(ch)]=values
 
-            ch_list = []
-            ncols = len(self.im.col)
-            for ch in self.im.channel.values:
-                bg_ = np.zeros(ncols)
-                i = 0
-                for c in range(int(ncols/256)):
-                    if c == 0:
-                        i = self.im.first_group
-                    if i == 8:
-                        i = 0
-                    bg = bg_dict[ch][i]
-                    bg_[c*256:(c+1)*256] = bg
-                    i += 1
-                ch_list.append(self.im.sel(channel=ch)+bg_)
-            self.im = xr.concat(ch_list,dim='channel')
-            self.im.attrs['fixed_bg'] = 1
+        new_min_dict = self.config.get('background')
+        dark_dict = self.config.get('dark group')
+        max_px = self.config.get('max_pixel_value')
 
-        else:
-            pre_msg='CorrectBackground::'
-            if bool(self.im.fixed_bg):
-                message(self.logger, pre_msg+'Image already background corrected.')
-            elif machine is None:
-                message(self.logger, pre_msg+'Unknown machine')
+        pre_msg = 'CorrectBackgroundRescale'
+        self.logger.debug(f'{pre_msg} :: max px :: {max_px}')
+
+        ncols = len(self.im.col)
+        ntiles = int(ncols/2048)
+        gs = 256 if max_px == 4095 else 512
+        max_px_ = da.from_array([max_px] * ncols)
+        ngroups = int(2048/gs)
+
+        ch_list = []
+        for ch in self.im.channel.values:
+            new_min = new_min_dict[ch]
+            new_min_ = da.from_array([new_min] * ncols)
+            self.logger.debug(f'{pre_msg} :: channel {ch} min px :: {new_min}')
+
+            group_min_ = np.zeros(ncols)
+            for t in range(ntiles):
+                for g in range(ngroups):
+                    group_min_[t*2048 + g*gs : t*2048 + (g+1)*gs] = dark_dict[ch][g]
+            group_min_ = da.array(group_min_)
+
+            old_contrast = max_px_ - group_min_
+            new_contrast = da.from_array([max_px - new_min] * ncols)
+            plane = self.im.sel(channel=ch)
+            corrected = (((plane-group_min_).clip(min=0)/old_contrast * new_contrast) +  new_min_).astype('uint16')
+            ch_list.append(corrected)
+
+        self.im = xr.concat(ch_list, dim='channel')
+        self.im.name = self.name
+
+        return self.im
 
 
     def register_channels(self, image=None):
@@ -1072,6 +1216,7 @@ class HiSeqImages():
         im = im.assign_attrs(first_group = 0, machine = self.machine, scale=1,
                              overlap=0, fixed_bg = 0)
         self.im = im.sel(row=slice(64,None))
+        self.name = 'RoughScan'
 
         return len(fn_comp_sets[2])
 
@@ -1089,6 +1234,7 @@ class HiSeqImages():
         im = im.assign_attrs(first_group = 0, machine = self.machine, scale=1,
                              overlap=0, fixed_bg = 0)
         self.im = im
+        self.name = 'ObjStack'
 
         return obj_stack.shape[0]
 

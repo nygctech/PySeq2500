@@ -1033,6 +1033,8 @@ class HiSeq():
         self.speed_up = 10
         self.current_view = None
         self.name = name
+        self.email_to = False
+        self.email_password = None
 
     def initializeCams(self, Logger=None):
         """Initialize all cameras."""

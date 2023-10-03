@@ -264,7 +264,7 @@ class Autofocus():
 
         # Scale & Normalize partial focus image
         self.message(name_+'Scaling & Normalizing images')
-        im = IA.HiSeqImages(image_path = im_path, RoughScan=True)
+        im = IA.HiSeqImages(image_path = im_path, RoughScan=True, logger = hs.logger)
         im.correct_background()
         im.downscale()
         #im.normalize()
@@ -312,7 +312,7 @@ class Autofocus():
 
         # Stitch rough focus image
         self.message(name_+'Stitching & Normalizing images')
-        im = IA.HiSeqImages(image_path = im_path, RoughScan=True)
+        im = IA.HiSeqImages(image_path = im_path, RoughScan=True, logger = hs.logger)
         im.correct_background()
         im.remove_overlap(overlap=self.hs.overlap, direction=self.hs.overlap_dir)
         im.downscale()
@@ -363,7 +363,7 @@ class Autofocus():
             focus_stack = hs.obj_stack()
             if not hs.virtual:
                 focus_stack = IA.HiSeqImages(image_path = self.image_path,
-                                             obj_stack=focus_stack)
+                                             obj_stack=focus_stack, logger = hs.logger)
 
             focus_stack.correct_background()
 
@@ -741,14 +741,8 @@ def autofocus(hs, pos_dict):
     if old_obj_pos is None:
         try:
             af.message('Analyzing out of focus image')
-            mean_bg = af.rough_ims.config.get(af.rough_ims.machine+'background','mean', fallback=None)
-            if mean_bg is not None:
-                mean_bg = list(map(int,mean_bg.split(',')))
-            std_bg = af.rough_ims.config.get(af.rough_ims.machine+'background','std', fallback=None)
-
-            if std_bg is not None:
-                std_bg = list(map(int,std_bg.split(',')))
-
+            mean_bg = af.rough_ims.config.get('background',None)
+            std_bg = af.rough_ims.config.get('std', None)
             # Sum channels with signal
             sum_im = IA.sum_images(af.rough_ims.im, logger=hs.logger,  mean=mean_bg, std=std_bg)
         except:

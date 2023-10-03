@@ -12,6 +12,14 @@ import configparser
 import threading
 import argparse
 import shutil
+import smtplib, ssl
+from email.mime.text import MIMEText
+import base64
+from getpass import getpass
+
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 from . import methods
 from . import args
@@ -83,7 +91,6 @@ class Flowcell():
        - user_thread (thread): Thread to get async user response.
        - user_response (str): Response from user.
        - user_message (str): Message to user.
-
     """
 
     def __init__(self, position):
@@ -123,6 +130,7 @@ class Flowcell():
         self.user_message = None                                                # Message to user
         self.exposure = {'green': {'power': 200,                                # Exposure parameters
                                    'filter': 'open'}}
+
 
         while position not in ['A', 'B']:
             print('Flowcell must be at position A or B')
@@ -406,7 +414,7 @@ def configure_instrument(IMAG_counter, port_dict):
     global n_errors
 
 
-    model, name, focus_path = methods.get_machine_info(args_['virtual'])
+    model, name, focus_path = methods.get_machine_info(virtual = args_['virtual'])
     if model is not None:
         config['experiment']['machine'] = model+'::'+name
     experiment = config['experiment']
@@ -561,7 +569,36 @@ def configure_instrument(IMAG_counter, port_dict):
             file.write(hs.name)
     else:
         hs.focus_path = log_path
+    # Assign email
+    hs.email_to = method.get('email to', fallback=False)
 
+    return hs
+
+def email_login(hs, config):
+    """Login to email and send test notification."""
+
+    # Setup email notifications
+    if hs.email_to:
+        loop = True; tries = 0
+        while loop:
+            print('Enter PySeq password for emails')
+            password = getpass()
+            password = base64.b64encode(password.encode('utf-8'))
+            exp_name = config.get('experiment', 'experiment name')
+            message = f'Notifications about {exp_name} will be sent to you'
+            logged_in = send_mail(message, password, hs.email_to)
+            if logged_in == 1:
+                loop = False
+                hs.email_password = password
+            else:
+                print(f'Email login failed, no notifications will be sent')
+                if logged_in == 0:
+                    tries += 1
+                else:
+                    tries = 4
+                if tries >= 3:
+                    loop = False
+                    hs.email_to = False
     return hs
 
 def confirm_settings(recipe_z_planes = []):
@@ -602,6 +639,8 @@ def confirm_settings(recipe_z_planes = []):
     print('focus path:', hs.focus_path)
     print('enable z stage:', hs.z.active)
     print('machine:', experiment['machine'])
+    if hs.email_to:
+        print('email notifications:', hs.email_to)
     print()
     if not userYN('Confirm experiment'):
         sys.exit()
@@ -759,6 +798,7 @@ def confirm_settings(recipe_z_planes = []):
 
         if not userYN('Confirm imaging settings'):
             sys.exit()
+
 
     # Check if previous focus positions have been found, and confirm to use
     if os.path.exists(join(hs.focus_path, 'focus_config.cfg')):
@@ -1679,6 +1719,53 @@ def IMAG(fc, n_Zplanes):
 
     hs.scan_flag = False
 
+def send_mail(message, password, to):
+    """Send email message.
+
+       **Parameters:**
+       message: Message to email
+       password: Password for email account to
+       to: Email addresses to send mail to seperated by commas
+
+       **Returns:**
+       bool: If message successfully sent.
+    """
+
+    # Get username, salt, and token
+    config = methods.get_config()
+    name = config.get('name')
+    username = config[name].get('email', {}).get('username',None)
+    if username is not None:
+        salt = config[name]['email']['salt']
+        token =  config[name]['email']['token']
+        # Decode password
+        kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=480000,)
+        key = base64.urlsafe_b64encode(kdf.derive(password))
+        f = Fernet(key)
+        try:
+            appkey = f.decrypt(token).decode('utf-8')
+
+
+            # notification is the message in the body of the email
+            email = MIMEText(message, 'plain')
+            email["Subject"] = f'PySeq::{hs.name}'
+            email["From"] = f'{username}@gmail.com'
+            email["To"] = to
+
+            port = 465
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
+                server.login(f'{username}@gmail.com', appkey)
+                server.send_message(email)
+
+            return 1
+        except InvalidToken:
+            print('Incorrect Password')
+            return 0
+    else:
+        print('Email not configured')
+        return -1
+
 def EXPO(fc, N):
     """Expose the flowcell N times.
 
@@ -1756,6 +1843,8 @@ def USER(fc, message):
     fc.user_flag = True
     fc.user_message = message
     start = time.time()
+    if hs.email_to:
+        send_mail(f'Flowcell {fc.position}::{message}', hs.email_password, hs.email_to)
     while not confirmed:
         response = userYN(f'Flowcell {fc.position}::{message}', newline = True)
         if response:
@@ -2026,6 +2115,7 @@ if __name__ == 'pyseq.main':
     first_line, IMAG_counter, z_planes = check_instructions()                   # Checks instruction file is correct and makes sense
     flowcells = setup_flowcells(first_line, IMAG_counter)                       # Create flowcells
     hs = configure_instrument(IMAG_counter, port_dict)
+    hs = email_login(hs, config)
     confirm_settings(z_planes)
     hs = initialize_hs(IMAG_counter)                                            # Initialize HiSeq, takes a few minutes
 

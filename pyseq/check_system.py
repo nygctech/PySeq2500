@@ -377,7 +377,7 @@ try:
         focus_path = None
     else:
         import pyseq
-        model, name, focus_path = methods.get_machine_info()
+        # model, name, focus_path = methods.get_machine_info()
         hs = pyseq.HiSeq(name, Logger=logger)
 
     # Assign focus Directory
