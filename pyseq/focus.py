@@ -768,6 +768,9 @@ def autofocus(hs, pos_dict):
             ord_points = IA.get_focus_points(sum_im, af.scale, n_markers*10,hs.logger)
         af.message('Found',len(ord_points),'focus positions')
 
+        # Move to focus filters
+        for i, color in enumerate(hs.optics.colors):
+            hs.optics.move_ex(color,hs.optics.focus_filters[i])
         # Get stage positions on in-focus points
         af.message('Finding optimal focus')
         if not n_markers % 2: n_markers += 1                                    # make sure n_markers is odd, to ensure median is a point and not average

@@ -84,6 +84,9 @@ def sum_images(images, logger = None, **kwargs):
         else:
             std = None
 
+        if ch in [558, 687]:
+            mean = 2000; std = 500
+
         k = kurt(images.sel(channel=ch), mean=mean, std=std)
         message(logger, name_, 'Channel',ch, 'k = ', k)
         print(name_, 'Channel',ch, 'k = ', k)
