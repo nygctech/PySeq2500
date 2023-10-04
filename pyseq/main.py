@@ -757,6 +757,7 @@ def confirm_settings(recipe_z_planes = []):
         sys.exit()
     print()
 
+
     if IMAG_counter > 0:
         print('-'*80)
         print()
@@ -1648,7 +1649,7 @@ def IMAG(fc, n_Zplanes):
             if obj_pos is None:
                 # Move to focus filters
                 for i, color in enumerate(hs.optics.colors):
-                    hs.optics.move_ex(color,hs.optics.cycle_dict[color][int(cycle)])
+                    hs.optics.move_ex(color,hs.optics.focus_filters[i])
                 hs.message(msg + 'Start Autofocus')
                 try:
                     if hs.autofocus(pos):                                       # Moves to optimal objective position
