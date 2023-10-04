@@ -281,6 +281,8 @@ def get_machine_info(name = None, virtual=False):
         name = input('Name of '+model+' = ')
         if not userYN('Name this '+model+' '+name):
             name = None
+        else:
+            config[name] = {}
 
     if virtual:
         name = 'virtual'
