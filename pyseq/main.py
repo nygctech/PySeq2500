@@ -568,7 +568,7 @@ def configure_instrument(IMAG_counter, port_dict):
         with open(join(focus_path,'machine_name.txt'),'w') as file:
             file.write(hs.name)
     else:
-        hs.focus_path = log_path
+        hs.focus_path = image_path
     # Assign email
     hs.email_to = method.get('email to', fallback=False)
 
