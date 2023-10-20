@@ -358,9 +358,6 @@ def test_cameras():
     return status
 
 
-
-
-
 try:
     timestamp = time.strftime('%Y%m%d%H%M')
     image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
@@ -448,7 +445,9 @@ except:
     print(table)
 
 # Compute background pixel group values
-bg_dict = ia.compute_background(hs.image_path, common_name = 'Dark')
+bit_depth = hs.cam1.getPropertyValue('bit_per_channel')[0]
+max_px_value = 2**bit_depth-1
+bg_dict = ia.compute_background(hs.image_path, common_name = 'Dark',max_px = max_px_value)
 
 # Signal diagnostics are complete
 if instrument_status['FPGA']:

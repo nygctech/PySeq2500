@@ -345,65 +345,14 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
     return ord_points
 
 
-# def compute_background(image_path=None, common_name = ''):
-#
-#
-#     im = get_HiSeqImages(image_path, common_name)
-#     config, config_path = get_machine_config(im.machine)
-#     config_section = im.machine+'background'
-#     try:
-#         im = im[0] # In case there are multiple sections in image_path
-#     except:
-#         pass
-#
-#     if im.machine == 'virtual':
-#         sensor_size = 32
-#     else:
-#         sensor_size = 256 # pixels
-#
-#     # Check if background data exists and check with user to overwrite
-#     bg_dict = True
-#     if config.has_section(config_section):
-#         print('Current background correction')
-#         print(tabulate.tabulate(config.items(config_section),
-#               tablefmt='presto',headers=['channel','background correction']))
-#         if not userYN('Calculate new background correction for '+im.machine):
-#             bg_dict = None
-#
-#     if bg_dict:
-#         print('Analyzing ', im.im.name)
-#         bg_dict = {}
-#         # Loop over channels then sensor group and find mode of sensor group
-#         for ch in im.im.channel.values:
-#             background = []
-#             for i in range(8):
-#                 sensor = im.im.sel(channel=ch, col=slice(i*sensor_size,(i+1)*sensor_size))
-#                 background.append(stats.mode(sensor, axis=None)[0][0])
-#             avg_background = int(round(np.mean(background)))
-#             print('Channel', ch,'::Average background', avg_background)
-#
-#             for i in range(8):
-#                 background[i] = avg_background-background[i]                    # Calculate background correction
-#             print('Channel', ch,'::',*background)
-#             bg_dict[ch] = ','.join(map(str, background))                        # Format backround correction
-#
-#         if userYN('Save new background data for '+im.machine):
-#             # Save background correction values in config file
-#             config.read_dict({config_section:bg_dict})
-#             with open(config_path,'w') as f:
-#                     config.write(f)
-#
-#     return bg_dict
-
-def compute_background(image_path=None, common_name = ''):
+def compute_background(image_path=None, common_name = '', max_px = 4095):
 
     im = get_HiSeqImages(image_path, common_name)
-    config = im.config
-    # config, config_path = get_machine_config(im.machine)
+    config = get_config(im.config_path)
 
     if config is None or not isinstance(config, dict):
         config = {}
-
+        
     try:
         im = im[0] # In case there are multiple sections in image_path
     except:
@@ -426,13 +375,11 @@ def compute_background(image_path=None, common_name = ''):
         print(tabulate.tabulate(config[im.machine]['dark group'].items(),
               tablefmt='presto',headers=['channel','background']))
         print()
-        if not userYN('Calculate new background correction for '+im.machine):
-            bg_dict = {}
+
 
     if bg_dict:
         print()
         print('Analyzing ', im.im.name)
-        max_px = int(im.im.max().values)
         print('Max Pixel Value', max_px)
         bg_dict['max_pixel_value'] = max_px
         # Loop over channels then sensor group and find mean of channel and min of sensor group
@@ -454,11 +401,13 @@ def compute_background(image_path=None, common_name = ''):
             print('Channel', ch,':: Sensor Minimum ',*min_)
             bg_dict['dark group'][ch] = min_
 
-
         if userYN('Save new background data for '+im.machine):
             bg_dict['updated'] = time.strftime('%m %d %y')
             # Save background correction values in config file
-            config[im.machine].update(bg_dict)
+            machine_config = config.get(im.machine,{})
+            machine_config.update(bg_dict) 
+            config.update({im.machine:machine_config})
+
             ### Write YAML
             with open(im.config_path,'w') as f:
                     yaml.dump(config, f, sort_keys = True)

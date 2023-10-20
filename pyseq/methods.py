@@ -253,18 +253,16 @@ def get_machine_info(name = None, virtual=False):
     """Specify machine model and name."""
 
     config = get_config()
-
     if config is not None:
         if name is None:
             name = config.get('name', None)
         model = config.get(name, {}).get('model', None)
-        focus_path = config.get(name, {}).get('focus path', None)
+        focus_path = config.get('focus path', None)
     else:
         model = None
         name = None
         focus_path = None
         config = {}
-
 
     # Get machine model from user
     while model is None:
@@ -285,38 +283,24 @@ def get_machine_info(name = None, virtual=False):
     if virtual:
         name = 'virtual'
 
-    # Check if background and registration data exists
-    # Open machine_settings.cfg saved in USERHOME/.pyseq2500
-    # machine_settings, config_path = get_config(config_type = 'machine_settings')
-
-    if 'background' not in config[name].keys():
+    # Check if background data exists 
+    if 'background' not in config.get(name,{}).keys():
         if not userYN('Continue experiment without background data for',name):
             model = None
-    # if not machine_settings.has_section(name+'registration') and model is not None:
-    #     if not userYN('Continue experiment without registration data for',name):
-    #         model = None
 
-    # if config is not None and model is not None and name not in [None,'virtual']:
-    #     # Save machine info
-    #     config.read_dict({'DEFAULT':{'model':model,'name':name}})
-    #     with open(config_path,'w') as f:
-    #         config.write(f)
 
-    if len(config) > 0:
+    if len(config) == 0:
         config.update({'name':name})
-        config[name].update({'model':model, 'focus path':focus_path})
-        #Add to list in machine settings
-        # if not machine_settings.has_section('machines'):
-        #     machine_settings.add_section('machines')
-        # machine_settings.set('machines', name, time.strftime('%m %d %y'))
+        config.update({'focus path':focus_path})
+        config[name] = {'model':model}
+
         config_path = get_config_path()
         with open(config_path,'w') as f:
             yaml.dump(config, f, sort_keys = True)
-
+            
     return model, name, focus_path
 
-
-
+            
 def userYN(*args):
     """Ask a user a Yes/No question and return True if Yes, False if No."""
 
