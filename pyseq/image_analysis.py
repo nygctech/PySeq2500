@@ -82,7 +82,7 @@ def sum_images(images, logger = None, **kwargs):
         else:
             mean = None
         if std_ is not None:
-            std = std_[cd]
+            std = std_[ch]
         else:
             std = None
 

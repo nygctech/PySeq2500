@@ -219,7 +219,7 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
 
 def get_config(config_path = None):
 
-    # Default config at USERHOME/config/pyseq2500/machine_settings.yaml
+    # Default config at USERHOME/.config/pyseq2500/machine_settings.yaml
     if config_path is None:
         config_path = get_config_path()
         makedirs(config_path.parents[0], exist_ok = True)
