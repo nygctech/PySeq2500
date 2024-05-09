@@ -45,6 +45,7 @@
 
 import time
 import warnings
+from .image_analysis import get_machine_config
 
 
 class Optics():
@@ -96,7 +97,7 @@ class Optics():
                          4.5 : -36,
                          3.8 : -71,
                          3.5 : -107,
-                         'open'  : 143,
+                         'open' : 143,
                          1.0 : 107,
                          2.0 : 71,
                          4.0 : 36},
@@ -111,6 +112,10 @@ class Optics():
                          0.6 : -36,
                          0.5: -71}
                         }
+
+        config, config_path = get_machine_config()
+        for c in colors:
+            self.ex_dict[c].update(config.get('optics', {}).get(c,{}))
 
 
     def initialize(self):

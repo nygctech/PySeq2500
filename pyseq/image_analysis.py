@@ -352,7 +352,7 @@ def compute_background(image_path=None, common_name = '', max_px = 4095):
 
     if config is None or not isinstance(config, dict):
         config = {}
-        
+
     try:
         im = im[0] # In case there are multiple sections in image_path
     except:
@@ -405,7 +405,7 @@ def compute_background(image_path=None, common_name = '', max_px = 4095):
             bg_dict['updated'] = time.strftime('%m %d %y')
             # Save background correction values in config file
             machine_config = config.get(im.machine,{})
-            machine_config.update(bg_dict) 
+            machine_config.update(bg_dict)
             config.update({im.machine:machine_config})
 
             ### Write YAML
@@ -431,7 +431,7 @@ def get_HiSeqImages(image_path=None, common_name='', logger = None):
         return None
 
 
-def get_machine_config(machine, extra_config_path = ''):
+def get_machine_config(machine = None, extra_config_path = ''):
     '''Get machine settings config from default location.
 
       Default locations in order of preference:
@@ -474,6 +474,9 @@ def get_machine_config(machine, extra_config_path = ''):
         config = None
     else:
         config = get_config(config_path)
+
+    if machine is None:
+        machine = config.get('name')
 
     if config_path.suffix in ['.yaml', '.yml']:
         config = config.get(machine, None)
