@@ -45,7 +45,6 @@
 
 import time
 import warnings
-from .image_analysis import get_machine_config
 
 
 class Optics():
@@ -67,7 +66,7 @@ class Optics():
 
 
 
-    def __init__(self, fpga, logger = None, colors = ['green','red']):
+    def __init__(self, fpga, logger = None, colors = ['green','red'], config = {}):
         """Constructor for the optics.
 
            **Parameters:**
@@ -112,10 +111,10 @@ class Optics():
                          0.6 : -36,
                          0.5: -71}
                         }
+        self.config = config.get('optics', {})
 
-        config, config_path = get_machine_config()
         for c in colors:
-            self.ex_dict[c].update(config.get('optics', {}).get(c,{}))
+            self.ex_dict[c].update(self.config.get(c,{}))
 
 
     def initialize(self):
@@ -127,9 +126,23 @@ class Optics():
 
         """
 
-        #Home Excitation Filters
-        for color in self.colors:
-            self.move_ex(color, 'home')
+        current = self.config.get('current', None)
+        velocity = self.config.get('velocity', None)
+
+        for i, c in enumerate(self.colors):
+            #Set Filter current
+            if current is not None
+                self.command(f'EX{i+1}CUR {current}')
+            # Set Filter velocity
+            if velocity is not
+                self.command(f'EX{i+1}VL {velocity}')
+
+            # Home Excitation Filters
+            self.move_ex(c, 'home')
+
+        # #Home Excitation Filters
+        # for color in self.colors:
+        #     self.move_ex(color, 'home')
 
         # Move emission filter into light path
         self.move_em_in(True)

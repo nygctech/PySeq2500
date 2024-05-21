@@ -78,9 +78,15 @@ parser.add_argument('-diagnostics',
                     action = 'store_true',
                     )
 
-# Flag to perform a diagnostic run
+# Flag to add machine gmail account
 parser.add_argument('-gmail',
                     help='add gmail account and app key',
+                    action = 'store_true',
+                    )
+
+# Flag to machine in idle mode
+parser.add_argument('-idle',
+                    help='12 C chillers and intermittent pumping',
                     action = 'store_true',
                     )
 
@@ -112,6 +118,12 @@ def get_arguments():
     if args['ports'] is True:
         methods.list_com_ports()
 
+        sys.exit()
+
+    if args['idle'] is True:
+
+        from pyseq import idle
+        idle.main()
         sys.exit()
 
     if args['gmail'] is True:
