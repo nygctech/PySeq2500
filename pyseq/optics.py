@@ -131,10 +131,10 @@ class Optics():
 
         for i, c in enumerate(self.colors):
             #Set Filter current
-            if current is not None
+            if current is not None:
                 self.command(f'EX{i+1}CUR {current}')
             # Set Filter velocity
-            if velocity is not
+            if velocity is not None:
                 self.command(f'EX{i+1}VL {velocity}')
 
             # Home Excitation Filters

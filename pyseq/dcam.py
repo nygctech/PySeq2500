@@ -454,14 +454,14 @@ class HamamatsuCamera():
         if self.right_emission is None:
             self.right_emission = 'Right'
 
-        left_name = 'c' + str(self.left_emission)+'_'+image_name+'.tiff'
-        right_name = 'c' + str(self.right_emission)+'_'+image_name+'.tiff'
+        left_name = f'c{self.left_emission}_{image_name}.tiff'
+        right_name = f'c{self.right_emission}_{image_name}.tiff'
 
-        imageio.imwrite(join(image_path,left_name), left_image)
-        imageio.imwrite(join(image_path,right_name), right_image)
+        imageio.imwrite(image_path/left_name, left_image)
+        imageio.imwrite(image_path/right_name, right_image)
 
         n_bytes = self.frame_bytes*f
-        self.message(str(n_bytes) + ' bytes saved from camera ' + str(self.camera_id))
+        self.message(f'{n_bytes} bytes saved from camera {self.camera_id}')
 
         return n_bytes
 

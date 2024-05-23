@@ -1678,18 +1678,16 @@ def IMAG(fc, n_Zplanes):
         else:
             obj_start = hs.obj.position
 
-        image_name = AorB
-        image_name += '_s' + str(section)
-        image_name += '_r' + cycle
+        image_name = f'{AorB}_s{section}_r{cycle}'
         if fc.IMAG_counter is not None:
-            image_name += '_' + str(fc.IMAG_counter)
+            image_name += f'_{fc.IMAG_counter}'
 
         # Scan section on flowcell
         hs.y.move(pos['y_initial'])
         hs.x.move(pos['x_initial'])
         hs.obj.move(obj_start)
-        n_tiles = pos['n_tiles']
-        n_frames = pos['n_frames']
+#         n_tiles = pos['n_tiles']
+#         n_frames = pos['n_frames']
 
         # Set filters
         for color in hs.optics.cycle_dict.keys():
@@ -1702,7 +1700,7 @@ def IMAG(fc, n_Zplanes):
         hs.message(msg + 'Start Imaging')
 
         try:
-            scan_time = hs.scan(n_tiles, n_Zplanes, n_frames, image_name)
+            scan_time = hs.scan(n_Zplanes, image_name = image_name, pos_dict = pos)
             scan_time = str(int(scan_time/60))
             hs.message(msg + 'Imaging completed in', scan_time, 'minutes')
         except:
@@ -1793,7 +1791,6 @@ def EXPO(fc, N):
     power = fc.exposure.get('green').get('power')
     OD = fc.exposure.get('green').get('filter')
 
-    roi_time = 0
     try:
         for section in fc.sections:
             pos = fc.stage[section]

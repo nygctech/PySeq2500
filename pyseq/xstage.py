@@ -43,6 +43,9 @@ class Xstage():
 
     """
 
+    # TODO
+    # make seperate command and query communication methods
+    
     # Make Xstage object
     def __init__(self, com_port, baudrate = 9600, logger = None):
         """The constructor for the xstage.

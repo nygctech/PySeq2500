@@ -40,6 +40,8 @@ class Ystage():
 
     """
 
+    #TODO 
+    # make seperate command and query communication methods
 
     def __init__(self, com_port, baudrate = 9600, logger = None):
         """The constructor for the ystage.
@@ -81,8 +83,10 @@ class Ystage():
         self.mode = None
         self.velocity = None
         self.gains = None
-        self.configurations = {'imaging':{'g':'5,10,5,2,0'  ,'v':0.15400},
-                               'moving': {'g':'5,10,7,1.5,0','v':1}
+        self.configurations = {'imaging':{'g':'5,10,5,2,0', 'v':0.15400, 'vcheck':'*0.154\n',
+                                          'gcheck':'*GF5.00 GI10.00 GP5.00 GV2.00 FT0\n'},
+                               'moving': {'g':'5,10,7,1.5,0', 'v':1, 'vcheck':'*1.000\n',
+                                          'gcheck':'*GF5.00 GI10.00 GP7.00 GV1.50 FT0\n' }
                                }
         self.logger = logger
 
@@ -154,7 +158,7 @@ class Ystage():
             - int: 1 if ystage is in position, 0 if it is not in position.
 
         """
-        
+
         try:
             ip = int(self.command('R(IP)')[1:])
         except:
