@@ -114,7 +114,7 @@ class Optics():
         self.config = config.get('optics', {})
 
         for c in colors:
-            self.ex_dict[c].update(self.config.get(c,{}))
+            self.ex_dict[c].update(self.config.get(c, {}))
 
 
     def initialize(self):
@@ -159,7 +159,7 @@ class Optics():
 
         """
 
-        response = self.fpga.command(text,'optics')
+        response = self.fpga.command(text, 'optics')
         # text = text + self.suffix
         # self.serial_port.write(text)                                            # Write to serial port
         # self.serial_port.flush()                                                # Flush serial port
@@ -199,7 +199,7 @@ class Optics():
             warnings.warn('Laser color is invalid.')
         elif position in self.ex_dict[color].keys():
             index = self.colors.index(color)
-            self.command('EX' + str(index+1)+ 'HM')                               # Home Filter
+            self.command('EX' + str(index+1) + 'HM')                               # Home Filter
             self.ex[index] = position
             if position != 'home':
                 time.sleep(2)
