@@ -258,7 +258,7 @@ class Autofocus():
             im_path = path.join(self.image_path, 'partial')
         else:
             im_path = self.image_path
-        hs.scan(1, 1, pos_dict['n_frames'], image_name)
+        hs.scan(1, n_frames=1, image_name=image_name, pos_dict=self.pos_dict, )
         hs.y.move(y_initial)
         hs.x.move(x_initial)
 
@@ -291,7 +291,6 @@ class Autofocus():
 
         name_ = 'FullScan::'
         hs = self.hs
-        pos_dict = self.pos_dict
 
         x_initial = hs.x.position
         y_initial = hs.y.position
@@ -306,7 +305,7 @@ class Autofocus():
             im_path = path.join(self.image_path,'full')
         else:
             im_path = self.image_path
-        hs.scan(pos_dict['n_tiles'], 1, pos_dict['n_frames'], image_name)
+        hs.scan(1, image_name = image_name, pos_dict = self.pos_dict)
         hs.y.move(y_initial)
         hs.x.move(x_initial)
 
@@ -369,11 +368,10 @@ class Autofocus():
 
             f_fs = self.format_focus(focus_stack.im, filename = filename)
             if f_fs is not False:
-               obj_pos = self.fit_mixed_gaussian(f_fs)
-               if obj_pos:
-                   self.message(name_+'Found focus point ', n_obj+1)
-                   self.message(False, name_+'Point at x =', x_pos,
-                                       'y =',y_pos,'obj =', obj_pos )
+                obj_pos = self.fit_mixed_gaussian(f_fs)
+                if obj_pos:
+                    self.logger.info(f'{name_}Found focus point {n_obj+1}')
+                    self.logger.debug(f'{name_}Point at x={x_pos}, y={y_pos}, obj={obj_pos}')
 
                    ##################################################################
                    # Save in focus frame
@@ -386,16 +384,15 @@ class Autofocus():
     ##                         z_pos+str(px_pt[0])+'_'+str(px_pt[1])+'.jpeg'))
                    ##################################################################
 
-                   focus_points[n_obj,:] = [x_pos, y_pos, obj_pos, i]
-                   n_obj += 1
-               else:
-                   self.message(False, name_+'No Focus at x =', x_pos,
-                                                     'and y =',y_pos)
+                    focus_points[n_obj,:] = [x_pos, y_pos, obj_pos, i]
+                    n_obj += 1
+                else:
+                    self.logger.debug(f'{name_}No Focus at x={x_pos}, y={y_pos}')
 
             # Check if at end of potential marker list
             if i == len(px_points)-1:
                 focus_points = focus_points[focus_points[:,3]>-1,:]
-                self.message(name_+'Only found',n_obj+1,'focus points')
+                self.logger.info(f'{name_}Only found {n_obj+1} focus points')
                 break
             else:
                 i += 1
@@ -406,14 +403,14 @@ class Autofocus():
                 if n_obj == n_markers_:
                     fp = focus_points[:,2]
                     fp_med = np.median(fp, axis = None)
-                    self.message(False, name_,'Median objective focus step::', fp_med)
+                    self.message(f'{name_}Median objective focus step::{fp_med}')
                     for j, fp_ in enumerate(fp):
                         if abs(fp_-fp_med) > hs.obj.spum*hs.focus_tol:
                             del_j.append(j)
                             #self.message(name_+'Removed point', j)
-                            self.message(False, name_,'Bad point::', focus_points[j,:])
+                            self.logger.debug(f'{name_}Bad point::{focus_points[j,:]}')
                         else:
-                            self.message(False, name_,'Good  point::', focus_points[j,:])
+                            self.logger.debug(f'{name_}Good  point::{focus_points[j,:]}')
                     #focus_points = np.delete(focus_points, del_j, 0)            # remove points points far from median
                     #n_obj = focus_points.shape[0]
                     # focus_points = np.append(focus_points,
@@ -455,9 +452,9 @@ class Autofocus():
             print(msg)
         else:
             if screen:
-                self.logger.log(21, msg)
-            else:
                 self.logger.info(msg)
+            else:
+                self.logger.debug(msg)
 
     def delete_focus_images(self):
         """Delete images used for focusing."""
@@ -487,10 +484,10 @@ class Autofocus():
         name_ = 'FormatFocus::'
         hs = self.hs
 
-        if hs.cam1.getFrameInterval() != hs.cam2.getFrameInterval():
+        if hs.cams[0].getFrameInterval() != hs.cams[1].getFrameInterval():
             message(hs.logger,name_,'Frame interval mismatch')
 
-        frame_interval = hs.cam1.getFrameInterval()
+        frame_interval = hs.cams[0].getFrameInterval()
         spf = hs.obj.v*1000*hs.obj.spum*frame_interval # steps/frame
 
         # Remove frames after objective stops moving
@@ -598,7 +595,7 @@ class Autofocus():
                 self.message(False,name_,results.message)
             else:
                 R2 = 1 - np.sum(results.fun**2)/SST
-                self.message(False,name_,'R2=',R2,'with',len(amp),'peaks')
+                self.logger.debug(f'{name_}R2={R2} with {len(amp)} peaks')
 
 
             if results.success and R2 > tolerance:
@@ -607,7 +604,7 @@ class Autofocus():
                 _focus = gaussian(_objsteps, results.x)
                 optobjstep = int(_objsteps[np.argmax(_focus)])
                 if optobjstep in (hs.obj.focus_start, hs.obj.focus_stop):
-                    self.message(False, name_, 'Peak at endpoint: ', optobjstep)
+                    self.logger.debug(f'{name_}Peak at endpoint: {optobjstep}')
                     optobjstep = False
             else:
                 optobjstep = False
@@ -757,9 +754,9 @@ def autofocus(hs, pos_dict):
         n_markers = int((px_rows*px_cols*af.scale**2)**0.5*hs.resolution/1000)
         n_markers += 3
         if 'partial' in hs.AF:
-            ord_points = IA.get_focus_points_partial(sum_im, af.scale, n_markers*10,hs.logger)
+            ord_points = IA.get_focus_points_partial(sum_im, af.scale, n_markers*10, logger=hs.logger)
         else:
-            ord_points = IA.get_focus_points(sum_im, af.scale, n_markers*10,hs.logger)
+            ord_points = IA.get_focus_points(sum_im, af.scale, n_markers*10, logger=hs.logger)
         af.message('Found',len(ord_points),'focus positions')
 
         # Get stage positions on in-focus points
@@ -972,24 +969,24 @@ def gaussian(x, *args):
 
     name_ = 'Gaussian::'
     if len(args) == 1:
-      args = args[0]
+        args = args[0]
 
     n_peaks = int(len(args)/3)
 
 
     if len(args) - n_peaks*3 != 0:
-      print('Unequal number of parameters')
+        print('Unequal number of parameters')
     else:
-      for i in range(n_peaks):
-        amp = args[0:n_peaks]
-        cen = args[n_peaks:n_peaks*2]
-        sigma = args[n_peaks*2:n_peaks*3]
+        for i in range(n_peaks):
+            amp = args[0:n_peaks]
+            cen = args[n_peaks:n_peaks*2]
+            sigma = args[n_peaks*2:n_peaks*3]
 
-      g_sum = 0
-      for i in range(len(amp)):
-          g_sum += amp[i]*(1/(sigma[i]*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen[i])/sigma[i])**2)))
+        g_sum = 0
+        for i in range(len(amp)):
+            g_sum += amp[i]*(1/(sigma[i]*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-cen[i])/sigma[i])**2)))
 
-      return g_sum
+        return g_sum
 
 def res_gaussian(args, xfun, yfun):
     """Gaussian residual function for curve fitting."""

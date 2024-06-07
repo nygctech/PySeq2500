@@ -64,16 +64,12 @@ from . import ystage
 from . import zstage
 from . import focus
 from . import temperature
-from . import idle
 from .image_analysis import get_machine_config
 
 import time
-from os.path import getsize, join, isfile
 from os import getcwd
 import threading
 import numpy as np
-import imageio
-from scipy.optimize import curve_fit
 from math import ceil
 import configparser
 from serial.tools.list_ports import comports
@@ -114,6 +110,7 @@ class HiSeq():
         - T (temperature): ARM9 CHEM for stage and temperature control.
         - logger (logger): Logger object to log communication with HiSeq.
         - image_path (path): Directory to store images in.
+        - preview_path (path): Directory to store preview images ni
         - log_path (path): Directory to write log files in.
         - tile_width (float): Width of field of view in mm.
         - resolution (float): Scale of pixels in microns per pixel.
@@ -143,6 +140,18 @@ class HiSeq():
             com_ports = get_com_ports('HiSeq2500')
 
         self.config, self._config_path = get_machine_config()
+        
+        if Logger is None:
+            # Create a custom logger
+            Logger = logging.getLogger(__name__)
+            Logger.setLevel(logging.DEBUG)
+            # Create console handler
+            c_handler = logging.StreamHandler()
+            c_handler.setLevel(logging.INFO)
+            # Create formatters and add it to handlers
+            c_format = logging.Formatter('%(asctime)s - %(message)s', datefmt = '%Y-%m-%d %H:%M')
+            c_handler.setFormatter(c_format)
+            Logger.addHandler(c_handler)
 
         self.y = ystage.Ystage(com_ports['ystage'], logger = Logger)
         self.f = fpga.FPGA(com_ports['fpgacommand'], com_ports['fpgaresponse'], logger = Logger)
@@ -169,6 +178,7 @@ class HiSeq():
         self.image_path = Path(getcwd())                                                # path to save images in
         self.log_path = Path(getcwd())                                                  # path to save logs in
         self.focus_path = Path(getcwd())                                                # path to save focus data in
+        self.preview_path = Path(getcwd())                                              # path to save preview images in
         self.fc_origin = {'A':[17571,-180000],
                           'B':[43310,-180000]}
         self.tile_width = 0.769                                                 #mm
@@ -304,7 +314,7 @@ class HiSeq():
         self.y.position = self.y.read_position()
         self.f.write_position(0)
 
-        self.message(msg+'Initialized!')
+        self.logger.info(msg+'Initialized!')
 
         return homed
 
@@ -363,7 +373,7 @@ flowcell B {self.T.T_fc[1]} °C
         # Set mode and bundle height
         if cam.sensor_mode != 'TDI':
             cam.setTDI()
-            cam.setPropertyValue("sensor_mode_line_bundle_height", hs.bundle_height)
+            cam.setPropertyValue("sensor_mode_line_bundle_height", self.bundle_height)
 
 
         # Allocate memory for image data
@@ -417,14 +427,14 @@ flowcell B {self.T.T_fc[1]} °C
     def sync_stage(self):
         """Sync Ystage with FPGA."""
         
-        msg = 'HiSeq::TakePicture::'
+
         #Make sure TDI is synced with Ystage
         y_pos = self.y.position
         if abs(y_pos - self.f.read_position()) > 10:
-            self.message(msg+'Attempting to sync TDI and stage')
+            self.logger.debug('HiSeq::Attempting to sync TDI and stage')
             self.f.write_position(self.y.position)
         else:
-            self.message(False, msg+'TDI and stage are synced')
+            self.logger.debug('HiSeq::TDI and stage are synced')
         self.y.set_mode('imaging')
         
         return self.y.mode
@@ -444,14 +454,14 @@ flowcell B {self.T.T_fc[1]} °C
 
         # Set Gains
         command = f'{self.y.prefix}GAINS({gains}){self.y.suffix}'
-        self.y.logger.info(f'Ystage::txmt::{command}')
+        self.y.logger.debug(f'Ystage::txmt::{command}')
         self.y.serial_port.write(command)                                            # Write to serial port
         self.y.serial_port.flush()  
         g_response = self.y.command('GAINS')
 
         # Set Velocity
         command = f'{self.y.prefix}V{velocity}{self.y.suffix}'
-        self.y.logger.info(f'Ystage::txmt::{command}')
+        self.y.logger.debug(f'Ystage::txmt::{command}')
         self.y.serial_port.write(command)                                            # Write to serial port
         self.y.serial_port.flush()  
         v_response = self.y.command('V')
@@ -476,11 +486,11 @@ flowcell B {self.T.T_fc[1]} °C
             
             # Move Y Stage
             command = f'{self.y.prefix}D{y_pos}{self.y.suffix}'
-            self.y.logger.info(f'Ystage::txmt::{command}')
+            self.y.logger.debug(f'Ystage::txmt::{command}')
             self.y.serial_port.write(command) 
             self.y.serial_port.flush()
             command = f'{self.y.prefix}G{self.y.suffix}'
-            self.y.logger.info(f'Ystage::txmt::{command}')
+            self.y.logger.debug(f'Ystage::txmt::{command}')
             self.y.serial_port.write(command)
             self.y.serial_port.flush()
  
@@ -501,7 +511,7 @@ flowcell B {self.T.T_fc[1]} °C
         """
         
         command = f'MA {x_pos}{self.x.suffix}'
-        self.x.logger.info(f'Xstage::txmt::{command}')
+        self.x.logger.debug(f'Xstage::txmt::{command}')
         self.x.serial_port.write(command)                                           
         self.x.serial_port.flush()       
 
@@ -514,7 +524,7 @@ flowcell B {self.T.T_fc[1]} °C
         return x_pos == self.x.position                                        # Return TRUE if in position or False if not
         
 
-    def take_picture(self, n_frames = None, image_name = None, pos_dict = None):
+    def take_picture(self, n_frames=None, image_name=None, pos_dict=None):
             """Take a picture using all the cameras and save as a tiff.
 
                The section to be imaged should already be in position and
@@ -537,10 +547,7 @@ flowcell B {self.T.T_fc[1]} °C
             """
 
             y = self.y
-            x = self.x
-            obj = self.obj
             f = self.f
-            op = self.optics
             cam1 = self.cams[0]
             cam2 = self.cams[1]
 
@@ -551,11 +558,11 @@ flowcell B {self.T.T_fc[1]} °C
             meta_path = self.image_path / f'meta_{image_name}.txt'
             
             try: 
-                if isinstance(pos_dict, dict):
-                    y_pos = pos_dict.get('y_initial', self.y.position)
-                    if n_frames is None:
-                        n_frames = pos_dict.get('n_frames', n_frames)
+                y_pos = pos_dict.get('y_initial', self.y.position)
+                if n_frames is None:
+                    n_frames = pos_dict.get('n_frames', n_frames)
             except:
+                self.logger.debug('Could not get y_initial from position dictionary')
                 y_pos = self.y.position
 
             setup_threads = []
@@ -570,18 +577,15 @@ flowcell B {self.T.T_fc[1]} °C
             for t in setup_threads:
                 t.join()
 
-
-
             #Arm stage triggers
             #
             #TODO check trigger y values are reasonable
             n_triggers = n_frames * self.bundle_height 
             end_y_pos = int(y_pos - n_triggers*self.resolution*y.spum - 300000)
-            self.message(f'{msg}end y pos = {end_y_pos}')
-            self.message(f'{msg}n triggers = {n_triggers}')
+            self.logger.debug(f'{msg}end y pos = {end_y_pos}')
+            self.logger.debug(f'{msg}n triggers = {n_triggers}')
             f.TDIYPOS(y_pos)
             f.TDIYARM3(n_triggers, y_pos)
-
 
             ################################
             ### Start Imaging ##############
@@ -595,14 +599,11 @@ flowcell B {self.T.T_fc[1]} °C
             # move ystage (blocking)
             y.move(end_y_pos)
 
-
-
             ################################
             ### Stop Imaging ###############
             ################################
             # Close laser shutter
             f.command('SWLSRSHUT 0')
-
 
             y_thread = threading.Thread(target = self.y_move, args = (y_pos,))
             y_thread.start()
@@ -611,7 +612,6 @@ flowcell B {self.T.T_fc[1]} °C
             save_threads.append(threading.Thread(target = self.save_cam, args = (0, n_frames, image_name, meta_path, meta_file_lock)))
             save_threads.append(threading.Thread(target = self.save_cam, args = (1, n_frames, image_name, meta_path, meta_file_lock)))
             save_threads.append(threading.Thread(target = self.save_TDI_meta, args = (meta_path, meta_file_lock)))
-
 
             for t in save_threads:
                 t.start()
@@ -713,19 +713,19 @@ flowcell B {self.T.T_fc[1]} °C
         stack_time = (obj.focus_stop - obj.focus_start)/obj.spum/1000/velocity
 
         while obj.check_position() != obj.focus_stop:
-           now = time.time()
+            now = time.time()
 
-           if now - start_time > stack_time*10:
-               self.message(msg,'Objective took too long to move.')
-               break
+            if now - start_time > stack_time*10:
+                self.message(msg,'Objective took too long to move.')
+                break
 
         # Wait for imaging
         start_time = time.time()
         while cam1.getFrameCount() + cam2.getFrameCount() != 2*n_frames:
-           now = time.time()
-           if now - start_time > stack_time*20:
-               self.message(msg, 'Imaging took too long.')
-               break
+            now = time.time()
+            if now - start_time > stack_time*20:
+                self.message(msg, 'Imaging took too long.')
+                break
 
         # Close laser shutters
         f.command('SWLSRSHUT 0')
@@ -884,82 +884,82 @@ flowcell B {self.T.T_fc[1]} °C
 
         return success
 
-    def autolevel(self, focal_points, obj_focus):
-        """Tilt the stage motors so the focal points are on a level plane.
+#     def autolevel(self, focal_points, obj_focus):
+#         """Tilt the stage motors so the focal points are on a level plane.
 
-            # TODO: Improve autolevel, only makes miniscule improvement
+#             # TODO: Improve autolevel, only makes miniscule improvement
 
-           Parameters:
-           - focal_points [int, int, int]: List of focus points.
-           - obj_focus: Objective step of the level plane.
+#            Parameters:
+#            - focal_points [int, int, int]: List of focus points.
+#            - obj_focus: Objective step of the level plane.
 
-           Returns:
-           - [int, int, int]: Z stage positions for a level plane.
+#            Returns:
+#            - [int, int, int]: Z stage positions for a level plane.
 
-        """
+#         """
 
-        # Find point closest to midpoint of imaging plane
-        obj_step_distance = abs(obj_focus - focal_points[:,2])
-        min_obj_step_distance = np.min(obj_step_distance)
-        p_ip = np.where(obj_step_distance == min_obj_step_distance)
-        offset_distance = obj_focus - focal_points[p_ip,2]
+#         # Find point closest to midpoint of imaging plane
+#         obj_step_distance = abs(obj_focus - focal_points[:,2])
+#         min_obj_step_distance = np.min(obj_step_distance)
+#         p_ip = np.where(obj_step_distance == min_obj_step_distance)
+#         offset_distance = obj_focus - focal_points[p_ip,2]
 
-        # Convert stage step position microns
-        focal_points[:,0] = focal_points[:,0]/self.x.spum
-        focal_points[:,1] = focal_points[:,1]/self.y.spum
-        focal_points[:,2] = focal_points[:,2]/self.obj.spum
-        offset_distance = offset_distance/self.obj.spum
+#         # Convert stage step position microns
+#         focal_points[:,0] = focal_points[:,0]/self.x.spum
+#         focal_points[:,1] = focal_points[:,1]/self.y.spum
+#         focal_points[:,2] = focal_points[:,2]/self.obj.spum
+#         offset_distance = offset_distance/self.obj.spum
 
-        # Find normal vector of imaging plane
-        u_ip = focal_points[1,:] - focal_points[0,:]
-        v_ip = focal_points[2,:] - focal_points[0,:]
-        n_ip = np.cross(u_ip, v_ip)
+#         # Find normal vector of imaging plane
+#         u_ip = focal_points[1,:] - focal_points[0,:]
+#         v_ip = focal_points[2,:] - focal_points[0,:]
+#         n_ip = np.cross(u_ip, v_ip)
 
-        # Imaging plane correction
-        correction = [0, 0, n_ip[2]] - n_ip
+#         # Imaging plane correction
+#         correction = [0, 0, n_ip[2]] - n_ip
 
-        # Find normal vector of stage plane
-        mp = np.array(self.z.get_motor_points())
-        mp[:,0] = mp[:,0] / self.x.spum
-        mp[:,1] = mp[:,1] / self.y.spum
-        mp[:,2] = mp[:,2] / self.z.spum
-        u_mp = mp[1,:] - mp[0,:]
-        v_mp = mp[2,:] - mp[0,:]
-        n_mp = np.cross(u_sp, v_sp)
+#         # Find normal vector of stage plane
+#         mp = np.array(self.z.get_motor_points())
+#         mp[:,0] = mp[:,0] / self.x.spum
+#         mp[:,1] = mp[:,1] / self.y.spum
+#         mp[:,2] = mp[:,2] / self.z.spum
+#         u_mp = mp[1,:] - mp[0,:]
+#         v_mp = mp[2,:] - mp[0,:]
+#         n_mp = np.cross(u_sp, v_sp)
 
-        # Pick reference motor
-        if correction[0] >= 0:
-            p_mp = 0 # right motor
-        elif correction[1] >= 0:
-            p_mp = 2 # left back motors
-        else:
-            p_mp = 1 # left front motor
+#         # Pick reference motor
+#         if correction[0] >= 0:
+#             p_mp = 0 # right motor
+#         elif correction[1] >= 0:
+#             p_mp = 2 # left back motors
+#         else:
+#             p_mp = 1 # left front motor
 
-        # Target normal of level stage plane
-        n_tp = n_mp + correction
+#         # Target normal of level stage plane
+#         n_tp = n_mp + correction
 
-        # Solve system equations for level plane
-        # A = np.array([[v_mp[1]-u_mp[1], -v_mp[1], u_mp[1]],
-        #               [u_mp[0]-v_mp[0], v_mp[0], u_mp[0]],
-        #               [0, 0, 0]])
-        A = np.array([[mp[2,1]-mp[1,1], mp[0,1]-mp[2,1], mp[1,1]-mp[0,1]],
-                      [mp[1,0]-mp[2,0], mp[2,0]-mp[0,0], mp[0,0]-mp[1,0]],
-                      [0,0,0]])
-        A[2, p_sp] = 1
-        #offset_distance = int(offset_distance*self.z.spum)
-        offset_distance += self.z.position[p_sp]/self.z.spum
-        B = np.array([n_tp[0], n_tp[1], offset_distance])
-        z_pos = np.linalg.solve(A,B)
-        z_pos = int(z_pos * self.z.spum)
-        z_pos = z_pos.astype('int')
+#         # Solve system equations for level plane
+#         # A = np.array([[v_mp[1]-u_mp[1], -v_mp[1], u_mp[1]],
+#         #               [u_mp[0]-v_mp[0], v_mp[0], u_mp[0]],
+#         #               [0, 0, 0]])
+#         A = np.array([[mp[2,1]-mp[1,1], mp[0,1]-mp[2,1], mp[1,1]-mp[0,1]],
+#                       [mp[1,0]-mp[2,0], mp[2,0]-mp[0,0], mp[0,0]-mp[1,0]],
+#                       [0,0,0]])
+#         A[2, p_sp] = 1
+#         #offset_distance = int(offset_distance*self.z.spum)
+#         offset_distance += self.z.position[p_sp]/self.z.spum
+#         B = np.array([n_tp[0], n_tp[1], offset_distance])
+#         z_pos = np.linalg.solve(A,B)
+#         z_pos = int(z_pos * self.z.spum)
+#         z_pos = z_pos.astype('int')
 
-        self.z.move(z_pos)
+#         self.z.move(z_pos)
 
-        return z_pos
+#         return z_pos
     
     
 
-    def zstack(self, n_Zplanes, n_frames = None, image_name=None, obj_direction = 1, pos_dict = None, x_thread = None):
+    def zstack(self, n_Zplanes, n_frames=None, image_name=None, obj_direction=1, pos_dict=None, x_thread=None):
         """Take a zstack/tile of images.
 
            Takes images from all channels at incremental z planes at the same
@@ -988,7 +988,7 @@ flowcell B {self.T.T_fc[1]} °C
         # Thread to move y stage, created in take_picture()
         y_thread = None 
         
-        self.message(f'ZSTACK::obj_direction = {obj_direction}')
+        self.logger.debug(f'ZSTACK::obj_direction = {obj_direction}')
         for n in range(n_Zplanes):
             im_name = f'{image_name}_o{self.obj.position}'
             image_complete = False
@@ -999,12 +999,12 @@ flowcell B {self.T.T_fc[1]} °C
                 y_thread.join()
                 
             while not image_complete:
-                image_complete, y_thread = self.take_picture(image_name = im_name, n_frames = n_frames, pos_dict = pos_dict)
-                self.message(f'ZSTACK::obj move = {self.obj.position + self.nyquist_obj*obj_direction}')
+                image_complete, y_thread = self.take_picture(image_name=im_name, n_frames=n_frames, pos_dict=pos_dict)
+                self.logger.debug(f'ZSTACK::obj move = {self.obj.position + self.nyquist_obj*obj_direction}')
                 if image_complete and n < n_Zplanes-1:
                     self.obj.move(self.obj.position + self.nyquist_obj*obj_direction)
-                else:
-                    self.message('HiSeq::ZStack::WARNING::Image not taken')
+                elif not image_complete:
+                    self.logger.warning('HiSeq::ZStack::WARNING::Image not taken')
                 
 
         stop = time.time()
@@ -1013,7 +1013,7 @@ flowcell B {self.T.T_fc[1]} °C
     
 
 
-    def scan(self, n_Zplanes, n_frames = None, n_tiles = None, image_name=None, obj_direction = 1, pos_dict = None):
+    def scan(self, n_Zplanes, n_frames=None, n_tiles=None, image_name=None, obj_direction = 1, pos_dict=None):
         """Image a volume.
 
            Images a zstack at incremental x positions.
@@ -1049,21 +1049,19 @@ flowcell B {self.T.T_fc[1]} °C
         for tile in range(n_tiles):
             if tile > 0:
                 x_pos = self.x.position + dx
-                x_thread = threading.Thread(target = self.x_move, args = (x_pos, ))                       # Move to next x position
+                x_thread = threading.Thread(target=self.x_move, args=(x_pos, ))                       # Move to next x position
                 x_thread.start()
             else:
                 x_thread = None
                 x_pos = self.x.position
             self.message(f'HiSeq::Scan::Tile {tile+1} / {n_tiles}')
             im_name = f'{image_name}_x{x_pos}'
-             # Take a zstack
-            self.message(f'SCAN::obj_direction = {obj_direction}')
-            stack_time = self.zstack(n_Zplanes, 
-                                     n_frames = n_frames, 
-                                     image_name = im_name, 
-                                     obj_direction = obj_direction, 
-                                     pos_dict = pos_dict, 
-                                     x_thread = x_thread)    
+            stack_time = self.zstack(n_Zplanes,
+                                     n_frames=n_frames,
+                                     image_name=im_name,
+                                     obj_direction=obj_direction,
+                                     pos_dict=pos_dict,
+                                     x_thread=x_thread)    
             obj_direction *= -1                                                                           # switch stack direction
             
         stop = time.time()
@@ -1079,9 +1077,9 @@ flowcell B {self.T.T_fc[1]} °C
         """
 
         for i in range(n):
-            hs.take_picture(50, 128, y_pos = 6500000, x_pos = 11900,
+            self.take_picture(50, 128, y_pos = 6500000, x_pos = 11900,
                 obj_pos = 45000)
-            hs.take_picture(50, 128, y_pos = 6250000, x_pos = 11500,
+            self.take_picture(50, 128, y_pos = 6250000, x_pos = 11500,
                 obj_pos = 45000)
 
 
@@ -1299,9 +1297,9 @@ flowcell B {self.T.T_fc[1]} °C
             print(msg)
         else:
             if screen:
-                self.logger.log(21,msg)
-            else:
                 self.logger.info(msg)
+            else:
+                self.logger.debug(msg)
 
 def _1gaussian(x, amp1,cen1,sigma1):
     """Gaussian function for curve fitting."""

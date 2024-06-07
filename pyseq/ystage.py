@@ -120,8 +120,8 @@ class Ystage():
         self.serial_port.flush()                                                # Flush serial port
         response = self.serial_port.readline()
         if self.logger is not None:
-            self.logger.info('Ystage::txmt::'+text)
-            self.logger.info('Ystage::rcvd::'+response)
+            self.logger.debug('Ystage::txmt::'+text)
+            self.logger.debug('Ystage::rcvd::'+response)
 
         return  response
 

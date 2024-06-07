@@ -5,9 +5,8 @@ Kunal Pandit 3/15/2020
 '''
 
 import configparser
-from os.path import expanduser, join, isfile, isdir
-from os import mkdir, makedirs
-import time
+from os.path import expanduser, join
+from os import makedirs
 import yaml
 from pathlib import Path
 
@@ -72,17 +71,13 @@ def print_method(method):
     methods = get_methods()
     if method in methods:
         # Print out method configuration
-        print()
-        print(method + ' configuration:')
-        print()
+        print(f'\n {method} configuration: \n')
         f = pkg_resources.open_text(recipes, method+'.cfg')
         for line in f:
             print(line[0:-1])
 
         # Print out method recipe
-        print()
-        print(method + ' recipe:')
-        print()
+        print(f'\n {method} recipe: \n')
         config = configparser.ConfigParser()
         with pkg_resources.path(recipes, method+'.cfg') as config_path:
             config.read(config_path)
@@ -93,8 +88,7 @@ def print_method(method):
             print(line[0:-1])
 
 
-
-def list_settings(instrument = 'HiSeq2500'):
+def list_settings(instrument='HiSeq2500'):
     """Print all possible setting keywords and descriptions."""
 
     settings = configparser.ConfigParser()
@@ -103,12 +97,10 @@ def list_settings(instrument = 'HiSeq2500'):
 
     settings = settings[instrument]
     for s in settings:
-        print(s,':', settings[s])
-        print()
+        print(f'{s} : {settings[s]}')
 
 
-
-def get_settings(instrument = 'HiSeq2500'):
+def get_settings(instrument='HiSeq2500'):
     """Return all possible setting keywords."""
 
     settings = configparser.ConfigParser()
@@ -120,8 +112,7 @@ def get_settings(instrument = 'HiSeq2500'):
     return settings
 
 
-
-def check_settings(input_settings, instrument = 'HiSeq2500'):
+def check_settings(input_settings, instrument='HiSeq2500'):
     """Check setting keywords in config file are valid."""
 
     settings = get_settings(instrument)
@@ -129,14 +120,13 @@ def check_settings(input_settings, instrument = 'HiSeq2500'):
     all_clear = True
     for s in input_settings:
         if s not in [*settings.keys()]:
-            print(s, 'is not a valid setting')
+            print(f'{s} is not a valid setting')
             all_clear = False
 
     return all_clear
 
 
-
-def list_com_ports(instrument = 'HiSeq2500'):
+def list_com_ports(instrument='HiSeq2500'):
     """Print and return COM Ports of instruments."""
 
     com_ports = configparser.ConfigParser()
@@ -145,13 +135,12 @@ def list_com_ports(instrument = 'HiSeq2500'):
 
     com_ports = com_ports[instrument]
     for port_name in com_ports:
-        print(port_name,':', com_ports[port_name])
+        print(f'{port_name} : {com_ports[port_name]}')
 
     return com_ports
 
 
-
-def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
+def assign_com_ports(instrument=False, machine='HiSeq2500'):
     """Change COM ports of instruments."""
 
     com_ports = list_com_ports()
@@ -160,7 +149,6 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
         keep_assigning = True
     else:
         keep_assigning = False
-
 
     while keep_assigning:
         if not instrument:
@@ -185,12 +173,12 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
                 default_com_ports.read(config_path)
 
             # Overide default COM port
-            updated_com_ports = {machine:com_ports}
+            updated_com_ports = {machine: com_ports}
             default_com_ports.read_dict(updated_com_ports)
 
             # write new config file
             with pkg_resources.path(resources, 'com_ports.cfg') as config_path:
-                f = open(config_path,mode='w')
+                f = open(config_path, mode='w')
                 default_com_ports.write(f)
         else:
             instrument = False
@@ -217,12 +205,12 @@ def assign_com_ports(instrument = False, machine = 'HiSeq2500'):
 #
 #     return config, config_path
 
-def get_config(config_path = None):
+def get_config(config_path=None):
 
     # Default config at USERHOME/.config/pyseq2500/machine_settings.yaml
     if config_path is None:
         config_path = get_config_path()
-        makedirs(config_path.parents[0], exist_ok = True)
+        makedirs(config_path.parents[0], exist_ok=True)
 
     if isinstance(config_path, str):
         config_path = Path(config_path)
@@ -245,11 +233,13 @@ def get_config(config_path = None):
 
         return config
 
+
 def get_config_path():
     homedir = expanduser('~')
-    return Path(join(homedir,'.config','pyseq2500','machine_settings.yaml'))
+    return Path(join(homedir, '.config', 'pyseq2500', 'machine_settings.yaml'))
 
-def get_machine_info(name = None, virtual=False):
+
+def get_machine_info(name=None, virtual=False):
     """Specify machine model and name."""
 
     config = get_config()
@@ -257,7 +247,7 @@ def get_machine_info(name = None, virtual=False):
         if name is None:
             name = config.get('name', None)
         model = config.get(name, {}).get('model', None)
-        focus_path = config.get('focus path', None)
+        focus_path = Path(config.get('focus path', None))
     else:
         model = None
         name = None
@@ -276,31 +266,30 @@ def get_machine_info(name = None, virtual=False):
 
     # Get machine name from user
     while name is None and not virtual:
-        name = input('Name of '+model+' = ')
-        if not userYN('Name this '+model+' '+name):
+        name = input(f'Name of {model} = ')
+        if not userYN(f'Name this {model} {name} '):
             name = None
 
     if virtual:
         name = 'virtual'
 
-    # Check if background data exists 
-    if 'background' not in config.get(name,{}).keys():
-        if not userYN('Continue experiment without background data for',name):
+    # Check if background data exists
+    if 'background' not in config.get(name, {}).keys():
+        if not userYN('Continue experiment without background data for', name):
             model = None
 
-
     if len(config) == 0:
-        config.update({'name':name})
-        config.update({'focus path':focus_path})
-        config[name] = {'model':model}
+        config.update({'name': name})
+        config.update({'focus path': focus_path})
+        config[name] = {'model': model}
 
         config_path = get_config_path()
-        with open(config_path,'w') as f:
-            yaml.dump(config, f, sort_keys = True)
-            
+        with open(config_path, 'w') as f:
+            yaml.dump(config, f, sort_keys=True)
+
     return model, name, focus_path
 
-            
+
 def userYN(*args):
     """Ask a user a Yes/No question and return True if Yes, False if No."""
 
@@ -312,10 +301,10 @@ def userYN(*args):
     while response:
         answer = input(question + '? Y/N = ')
         answer = answer.upper().strip()
-        if answer in ['Y','YES','TRUE']:
+        if answer in ['Y', 'YES', 'TRUE']:
             response = False
             answer = True
-        elif answer in ['N', 'NO','FALSE']:
+        elif answer in ['N', 'NO', 'FALSE']:
             response = False
             answer = False
 

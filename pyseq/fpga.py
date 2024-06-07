@@ -101,7 +101,7 @@ class FPGA():
         response = self.command('RESET')
         response = self.serial_port.readline()                                    # Initialize FPGA
         if self.logger is not None:
-            self.logger.info('FPGA::rcvd::'+response)
+            self.logger.debug('FPGA::rcvd::'+response)
         else:
             print(response)
         self.command('EX1HM')                                                   # Home excitation filter on laser line 1
@@ -132,8 +132,8 @@ class FPGA():
         self.serial_port.flush()                                        # Flush serial port
         response = self.serial_port.readline()
         if self.logger is not None:
-            self.logger.info(instrument+'::txmt::'+text)
-            self.logger.info(instrument+'::rcvd::'+response)
+            self.logger.debug(instrument+'::txmt::'+text)
+            self.logger.debug(instrument+'::rcvd::'+response)
         else:
             print(response)
 

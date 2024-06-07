@@ -184,8 +184,8 @@ class Xstage():
         self.serial_port.flush()                                                # Flush serial port
         response = self.serial_port.readline()
         if self.logger is not None:
-            self.logger.info('Xstage::txmt::'+text)
-            self.logger.info('Xstage::rcvd::'+response)
+            self.logger.debug('Xstage::txmt::'+text)
+            self.logger.debug('Xstage::rcvd::'+response)
         else:
             print(response)
 

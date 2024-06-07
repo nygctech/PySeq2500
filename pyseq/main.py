@@ -7,10 +7,11 @@ import time
 import logging
 import os
 from os.path import join
+from pathlib import Path
 import sys
+import traceback
 import configparser
 import threading
-import argparse
 import shutil
 import smtplib, ssl
 from email.mime.text import MIMEText
@@ -24,6 +25,7 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from . import methods
 from . import args
 from . import focus
+from . import image_analysis as ia
 
                                                                                 # Global int to track # of errors during start up
 def error(*args):
@@ -39,7 +41,7 @@ def error(*args):
     msg = 'ERROR::'
     for a in args[i:]:
         msg = msg + str(a) + ' '
-    if i is 0:
+    if i == 0:
         print(msg)
     else:
         logger.log(21, msg)
@@ -157,7 +159,7 @@ class Flowcell():
         self.history[1].append(event)                                           # event (valv, pump, hold, wait, imag)
         self.history[2].append(command)                                         # details such hold time, buffer, event to wait for
         self.events_since_IMAG.append(event)
-        if event is 'PORT':
+        if event == 'PORT':
             self.events_since_IMAG.append(command)
         if event in ['IMAG', 'STOP']:
             self.events_since_IMAG.append(event)
@@ -370,25 +372,25 @@ def setup_logger():
     experiment = config['experiment']
     experiment_name = experiment['experiment name']
     # Make directory to save data
-    save_path = join(experiment['save path'],experiment_name)
-    if not os.path.exists(save_path):
+    save_path = Path(experiment['save path']) / experiment_name
+    if not save_path.exists():
         os.mkdir(save_path)
     # Make directory to save logs
-    log_path = join(save_path, experiment['log path'])
-    if not os.path.exists(log_path):
+    log_path = save_path / experiment['log path']
+    if not log_path.exists():
         os.mkdir(log_path)
 
     # Create a custom logger
     logger = logging.getLogger(__name__)
-    logger.setLevel(10)
+    logger.setLevel(logging.DEBUG)
 
     # Create console handler
     c_handler = logging.StreamHandler()
-    c_handler.setLevel(21)
+    c_handler.setLevel(logging.INFO)
     # Create file handler
-    f_log_name = join(log_path,experiment_name + '.log')
+    f_log_name = log_path / f'{experiment_name}.log'
     f_handler = logging.FileHandler(f_log_name)
-    f_handler.setLevel(logging.INFO)
+    f_handler.setLevel(logging.DEBUG)
 
     # Create formatters and add it to handlers
     c_format = logging.Formatter('%(asctime)s - %(message)s', datefmt = '%Y-%m-%d %H:%M')
@@ -415,8 +417,7 @@ def configure_instrument(IMAG_counter, port_dict):
 
 
     model, name, focus_path = methods.get_machine_info(virtual = args_['virtual'])
-    if model is not None:
-        config['experiment']['machine'] = model+'::'+name
+    config['experiment']['machine'] = model+'::'+name
     experiment = config['experiment']
     method = experiment['method']
     method = config[method]
@@ -539,33 +540,31 @@ def configure_instrument(IMAG_counter, port_dict):
     hs.bundle_height = int(method.get('bundle height', fallback = 128))
 
     # Assign output directory
-    save_path = experiment['save path']
+    save_path = Path(experiment['save path'])
     experiment_name = experiment['experiment name']
-    save_path = join(experiment['save path'], experiment['experiment name'])
-    if not os.path.exists(save_path):
-        try:
-            os.mkdir(save_path)
-        except:
-            error('ConfigFile:: Save path not valid.')
+    save_path = save_path / experiment_name
+    os.makedirs(save_path, exist_ok = True)
     # Assign image directory
-    image_path = join(save_path, experiment['image path'])
-    if not os.path.exists(image_path):
-        os.mkdir(image_path)
-    with open(join(image_path,'machine_name.txt'),'w') as file:
+    image_path = save_path / experiment['image path']
+    os.makedirs(image_path, exist_ok = True)
+    with open(image_path/'machine_name.txt','w') as file:
         file.write(hs.name)
     hs.image_path = image_path
+    # Assign preview directory
+    preview_path = save_path / experiment['preview path']
+    os.makedirs(preview_path, exist_ok = True)
+    hs.preview_path = preview_path
     # Assign log directory
-    log_path = join(save_path, experiment['log path'])
-    if not os.path.exists(log_path):
-        os.mkdir(log_path)
+    log_path = save_path / experiment['log path']
+    os.makedirs(log_path, exist_ok = True)
     hs.log_path = log_path
     # Assign focus Directory
     if focus_path is not None:
-        focus_path = join(focus_path, experiment['experiment name'])
-        if not os.path.exists(focus_path):
-            os.mkdir(focus_path)
+        focus_path = Path(focus_path)
+        focus_path = focus_path / experiment['experiment name']
+        os.makedirs(focus_path, exist_ok = True)
         hs.focus_path = focus_path
-        with open(join(focus_path,'machine_name.txt'),'w') as file:
+        with open(focus_path/'machine_name.txt','w') as file:
             file.write(hs.name)
     else:
         hs.focus_path = image_path
@@ -591,7 +590,7 @@ def email_login(hs, config):
                 loop = False
                 hs.email_password = password
             else:
-                print(f'Email login failed, no notifications will be sent')
+                print('Email login failed, no notifications will be sent')
                 if logged_in == 0:
                     tries += 1
                 else:
@@ -854,12 +853,12 @@ def initialize_hs(IMAG_counter):
     method = experiment['method']
     method = config[method]
 
-    if n_errors is 0:
+    if n_errors == 0:
 
         if not userYN('Initialize HiSeq'):
             sys.exit()
 
-        hs.initializeCams(logger)
+        hs.initializeCams()
         x_homed = hs.initializeInstruments()
         if not x_homed:
             error('HiSeq:: X-Stage did not home correctly')
@@ -956,13 +955,13 @@ def check_instructions():
                           'is not listed as a reagent')
 
                 #Find line to start at for first cycle
-                if first_line == 0 and first_port is not None and recipe is 'Recipe':
+                if first_line == 0 and first_port is not None and recipe == 'Recipe':
                     if command.find(first_port) != -1:
                         first_line = line_num
 
             # Make sure pump volume is a number
             elif instrument == 'PUMP':
-                if command.isdigit() == False:
+                if command.isdigit() is False:
                     error(recipe,'::Invalid volume on line', line_num)
 
             # Make sure wait command is valid
@@ -977,14 +976,14 @@ def check_instructions():
                 # Flag to make check WAIT is used before IMAG for 2 flowcells
                 if wait_counter >= IMAG_counter:
                     IMAG_counter = float(IMAG_counter)
-                if command.isdigit() == False:
+                if command.isdigit() is False:
                     error(recipe,'::Invalid number of z planes on line', line_num)
                 else:
                     z_planes.append(command)
 
             # Make sure hold time (minutes) is a number
             elif instrument == 'HOLD':
-                if command.isdigit() == False:
+                if command.isdigit() is False:
                     if command != 'STOP':
                         error(recipe,'::Invalid time on line', line_num)
                     else:
@@ -996,12 +995,12 @@ def check_instructions():
                     error(recipe,'::Invalid temperature on line', line_num)
             # Make sure exposure command is valid
             elif instrument == 'EXPO':
-                    if not command.isdigit():
-                        error(recipe,'::Invalid number of exposures on line', line_num)
+                if not command.isdigit():
+                    error(recipe,'::Invalid number of exposures on line', line_num)
             # Make sure user command is valid
             elif instrument == 'USER':
-                    if command is None:
-                        error(recipe,'::Invalid user message on line', line_num)
+                if command is None:
+                    error(recipe,'::Invalid user message on line', line_num)
             # # Warn user that HiSeq will completely stop with this command
             # elif instrument == 'STOP':
             #     print('WARNING::HiSeq will stop until user input at line',
@@ -1170,7 +1169,7 @@ def check_filters(cycle_dict, ex_dict):
     for cycle in range(start_cycle,last_cycle):
         for laser in colors:
             if cycle not in cycle_dict[laser]:
-                 cycle_dict[laser][cycle] = default_filters[laser]
+                cycle_dict[laser][cycle] = default_filters[laser]
 
     return cycle_dict
 
@@ -1258,7 +1257,6 @@ def do_flush():
     while not confirm:
         flush_ports = input("Flush all, some, or none of the lines? ")
         if flush_ports.strip().lower() == 'all':
-            flush_all = True
             flush_ports = [*port_dict.keys()]
             for vp in hs.v24[AorB_].variable_ports:
                 if vp in flush_ports:
@@ -1558,9 +1556,9 @@ def do_recipe(fc):
         # Set Temperature of the Flowcell
         elif instrument == 'TEMP':
             log_message = 'Setting temperature to ' + command + ' °C'
-            command  = float(command)
+            command = float(command)
             fc.thread = threading.Thread(target = hs.T.set_fc_T,
-                args = (AorB,command,))
+                args = (AorB, command,))
             fc.temperature = command
         # Expose the flowcell with green light
         elif instrument == 'EXPO':
@@ -1573,7 +1571,7 @@ def do_recipe(fc):
             LED(AorB, 'imaging')
         # Wait for user input
         elif instrument == 'USER':
-            log_message = f'Waiting for user input'
+            log_message = 'Waiting for user input'
             fc.thread = threading.Thread(target = USER, args =(fc, command))
             LED(AorB, 'user')
         # Block all further processes until user input
@@ -1605,7 +1603,7 @@ def do_recipe(fc):
 ##########################################################
 ## Image flowcell ########################################
 ##########################################################
-def IMAG(fc, n_Zplanes):
+def IMAG(fc, n_Zplanes, make_previews = True):
     """Image the flowcell at a number of z planes.
 
        For each section on the flowcell, the stage is first positioned
@@ -1625,8 +1623,7 @@ def IMAG(fc, n_Zplanes):
 
     hs.scan_flag = True
     AorB = fc.position
-    cycle = str(fc.cycle)
-    start = time.time()
+    cycle = fc.cycle
 
     # Manual focus ALL sections across flowcells
     if hs.AF == 'manual':
@@ -1643,24 +1640,24 @@ def IMAG(fc, n_Zplanes):
         hs.obj.move(hs.obj.focus_rough)
 
         # Autofocus
-        msg = 'PySeq::' + AorB + '::cycle' + cycle+ '::' + str(section) + '::'
+        msg = f'PySeq::{AorB}::cycle{cycle}::{section}::'
         if hs.AF and not isinstance(hs.AF, int):
             obj_pos = focus.get_obj_pos(hs, section, cycle)
             if obj_pos is None:
                 # Move to focus filters
                 for i, color in enumerate(hs.optics.colors):
                     hs.optics.move_ex(color,hs.optics.focus_filters[i])
-                hs.message(msg + 'Start Autofocus')
+                hs.logger.info(f'{msg}Start Autofocus')
                 try:
                     if hs.autofocus(pos):                                       # Moves to optimal objective position
-                        hs.message(msg + 'Autofocus complete')
+                        hs.logger.info(f'{msg}Autofocus complete')
                         pos['obj_pos'] = hs.obj.position
                     else:                                                       # Moves to rough focus objective position
-                        hs.message(msg + 'Autofocus failed')
+                        hs.logger.warning(f'{msg}Autofocus not found')
                         pos['obj_pos'] = None
                 except:
-                    hs.message(msg + 'Autofocus failed')
-                    print(sys.exc_info()[0])
+                    hs.logger.critical(f'{msg}Autofocus failed')
+                    hs.logger.critical(traceback.format_exc())
                     pos['obj_pos'] = None
             else:
                 hs.obj.move(obj_pos)
@@ -1691,24 +1688,29 @@ def IMAG(fc, n_Zplanes):
 
         # Set filters
         for color in hs.optics.cycle_dict.keys():
-            filter = hs.optics.cycle_dict[color][fc.cycle]
-            if color is 'em':
-                hs.optics.move_em_in(filter)
+            filt = hs.optics.cycle_dict[color][cycle]
+            if color == 'em':
+                hs.optics.move_em_in(filt)
             else:
-                hs.optics.move_ex(color, filter)
+                hs.optics.move_ex(color, filt)
 
         hs.message(msg + 'Start Imaging')
 
         try:
-            scan_time = hs.scan(n_Zplanes, image_name = image_name, pos_dict = pos)
+            scan_time = hs.scan(n_Zplanes, image_name=image_name, pos_dict=pos)
             scan_time = str(int(scan_time/60))
-            hs.message(msg + 'Imaging completed in', scan_time, 'minutes')
+            hs.logger.info(f'{msg}Imaging completed in {scan_time} minutes')
         except:
-            error('Imaging failed.')
+            hs.logger.critical(f'{msg}Imaging failed')
+            hs.logger.critical(traceback.format_exc())
+            
+        # Make preview iamge
+        preview_thread = threading.Thread(target = make_preview, args=(hs.preview_path, section, cycle))
+        preview_thread.start()
 
     # Reset filters
     for color in hs.optics.cycle_dict.keys():
-        if color is 'em':
+        if color == 'em':
             hs.optics.move_em_in(True)
         else:
             hs.optics.move_ex(color, 'home')
@@ -1718,6 +1720,22 @@ def IMAG(fc, n_Zplanes):
 
     hs.scan_flag = False
 
+                                              
+def make_preview(preview_path, section, cycle):
+    """Write small jpegs of images."""
+
+    
+    try:
+        im = ia.get_HiSeqImages(hs.image_path, common_name=section, logger=hs.logger)
+        im.preview_jpeg(image_path=preview_path, cycle=cycle)
+        hs.logger.info(f'{section} cycle {cycle} preview images at {preview_path}')
+    except:
+        hs.logger.warning(f'No cycle {cycle} images for {section} found')
+        hs.logger.warning(traceback.format_exc())
+        
+                                                          
+                                              
+                                     
 def send_mail(message, password, to):
     """Send email message.
 
@@ -2012,12 +2030,13 @@ def get_config(args):
 
     # Defaults that can be overided
     config.read_dict({'experiment' : {'log path': 'logs',
-                                      'image path': 'images'}
+                                      'image path': 'images',
+                                      'preview path': 'preview'}
                       })
     # Open config file
     if os.path.isfile(args['config']):
-         config_path = args['config']
-         config.read(config_path)
+        config_path = args['config']
+        config.read(config_path)
     elif args['config'] in methods.get_methods():
         config_path, recipe_path = methods.return_method(args['config'])
         config.read(config_path)
@@ -2117,7 +2136,7 @@ if __name__ == 'pyseq.main':
     confirm_settings(z_planes)
     hs = initialize_hs(IMAG_counter)                                            # Initialize HiSeq, takes a few minutes
 
-    if n_errors is 0:
+    if n_errors == 0:
         flush_YorN = do_flush()                                                 # Ask to flush out lines
         do_prime(flush_YorN)                                                    # Ask to prime lines
         if not userYN('Start experiment'):

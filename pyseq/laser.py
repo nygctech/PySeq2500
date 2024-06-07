@@ -106,8 +106,8 @@ class Laser():
         self.serial_port.flush()                                        # Flush serial port
         response = self.serial_port.readline()
         if self.logger is not None:
-            self.logger.info(self.color+'Laser::txmt::'+text)
-            self.logger.info(self.color+'Laser::rcvd::'+response)
+            self.logger.debug(self.color+'Laser::txmt::'+text)
+            self.logger.debug(self.color+'Laser::rcvd::'+response)
 
         return  response
 

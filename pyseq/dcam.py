@@ -256,9 +256,9 @@ class HamamatsuCamera():
     #
     def message(self, text):
         """Log communication with camera or print to console."""
-        text = 'Cam' + str(self.camera_id) + '::' + str(text)
+        text = f'Cam{self.camera_id}::{text}'
         if self.logger is not None:
-            self.logger.info(text)
+            self.logger.debug(text)
         else:
             print(text)
 
