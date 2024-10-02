@@ -74,6 +74,7 @@ from math import ceil
 import configparser
 from serial.tools.list_ports import comports
 from pathlib import Path
+import logging
 
 try:
     import importlib.resources as pkg_resources
@@ -408,7 +409,7 @@ flowcell B {self.T.T_fc[1]} °C
                 lock = threading.Lock()
             with lock:
                 with open(meta_path, 'a') as meta_f:
-                    meta_f.write('frame count 1 ' + str(actual_frames) +'\n')
+                    meta_f.write(f'frame count {index} {actual_frames} \n')
 
         return actual_frames
 
@@ -454,14 +455,14 @@ flowcell B {self.T.T_fc[1]} °C
 
         # Set Gains
         command = f'{self.y.prefix}GAINS({gains}){self.y.suffix}'
-        self.y.logger.debug(f'Ystage::txmt::{command}')
+        self.y.logger.debug(f'HiSeqYstage::txmt::{command}')
         self.y.serial_port.write(command)                                            # Write to serial port
         self.y.serial_port.flush()  
         g_response = self.y.command('GAINS')
 
         # Set Velocity
         command = f'{self.y.prefix}V{velocity}{self.y.suffix}'
-        self.y.logger.debug(f'Ystage::txmt::{command}')
+        self.y.logger.debug(f'HiSeqYstage::txmt::{command}')
         self.y.serial_port.write(command)                                            # Write to serial port
         self.y.serial_port.flush()  
         v_response = self.y.command('V')
@@ -478,7 +479,7 @@ flowcell B {self.T.T_fc[1]} °C
         except:
             self.y.logger.debug('Ystage::FAILED to change to moving mode')
 
-        # Move Y Stage within 100 steps of position within 3 steps.
+        # Move Y Stage within 100 steps of position within 3 attempts.
         # Don't need to be precise because triggering camera based oh ROI
         # NOT on initial y position
         attempts = 0
@@ -486,18 +487,21 @@ flowcell B {self.T.T_fc[1]} °C
             
             # Move Y Stage
             command = f'{self.y.prefix}D{y_pos}{self.y.suffix}'
-            self.y.logger.debug(f'Ystage::txmt::{command}')
+            self.y.logger.debug(f'HiSeqYstage::txmt::{command}')
             self.y.serial_port.write(command) 
             self.y.serial_port.flush()
             command = f'{self.y.prefix}G{self.y.suffix}'
-            self.y.logger.debug(f'Ystage::txmt::{command}')
+            self.y.logger.debug(f'HiSeqYstage::txmt::{command}')
             self.y.serial_port.write(command)
             self.y.serial_port.flush()
  
+            # Wait till Y Stage is in position
+            time.sleep(1)
+            while not self.y.check_position():
+                time.sleep(1)
             # Update Y Stage position
-            while not self.y.check_position(): 
-                attempts += 1
-                self.y.read_position() 
+            attempts += 1
+            self.y.read_position() 
                 
         self.y.logger.debug(f'Ystage::Yposition::{self.y.position}')
         
@@ -620,6 +624,10 @@ flowcell B {self.T.T_fc[1]} °C
 
             # If expected number of frames acquired sentinel = True
             good_image = self._cam_frames_sentinel[0] + self._cam_frames_sentinel[1] == 2
+
+            if not good_image:
+                self.logger.debug(f'{msg} Missing Images, resetting FPGA')
+                f.reset()
             
             return good_image, y_thread
     
@@ -766,7 +774,7 @@ flowcell B {self.T.T_fc[1]} °C
     def reset_stage(self):
         """Home ystage and sync with TDI through the FPGA."""
 
-        self.message('HiSeq::Resetting FPGA and syncing with stage')
+        self.logger.debug('HiSeq::Resetting FPGA and syncing with stage')
         self.y.move(self.y.home)
         self.f.initialize()
         self.f.write_position(self.y.home)
@@ -1000,13 +1008,14 @@ flowcell B {self.T.T_fc[1]} °C
                 
             while not image_complete:
                 image_complete, y_thread = self.take_picture(image_name=im_name, n_frames=n_frames, pos_dict=pos_dict)
-                self.logger.debug(f'ZSTACK::obj move = {self.obj.position + self.nyquist_obj*obj_direction}')
                 if image_complete and n < n_Zplanes-1:
-                    self.obj.move(self.obj.position + self.nyquist_obj*obj_direction)
+                    obj_pos = self.obj.position + self.nyquist_obj*obj_direction
+                    self.logger.debug(f'ZSTACK::obj move = {obj_pos}')
+                    self.obj.move(obj_pos)
                 elif not image_complete:
-                    self.logger.warning('HiSeq::ZStack::WARNING::Image not taken')
-                
+                    self.logger.warning('HiSeq::ZStack::WARNING::Image not taken')      
 
+        y_thread.join()
         stop = time.time()
 
         return stop-start

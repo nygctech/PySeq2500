@@ -952,9 +952,12 @@ class HiSeqImages():
             self.hs_napari(dataset)
 
     def downscale(self, scale=None):
+        pre_msg = 'downscale'
         if scale is None:
-            size_Mb = self.im.size*16/8/(1e6)
-            scale = int(2**round(log2(size_Mb)-10))
+            size_MB = np.product(self.im.shape, dtype=np.uint64)*16/8/(1e6)
+            self.logger.debug(f'{pre_msg} :: image size = {size_MB} MB')
+            scale = int(2**round(log2(size_MB)-10))
+            self.logger.debug(f'{pre_msg} :: downcaling by factor of {scale}')
 
         if scale > 256:
             scale = 256

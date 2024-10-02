@@ -258,7 +258,7 @@ class Autofocus():
             im_path = path.join(self.image_path, 'partial')
         else:
             im_path = self.image_path
-        hs.scan(1, n_frames=1, image_name=image_name, pos_dict=self.pos_dict, )
+        hs.scan(1, n_tiles=1, image_name=image_name, pos_dict=self.pos_dict, )
         hs.y.move(y_initial)
         hs.x.move(x_initial)
 
@@ -302,7 +302,7 @@ class Autofocus():
         # Take rough focus image
         self.message(name_+'Scanning section')
         if hs.virtual:
-            im_path = path.join(self.image_path,'full')
+            im_path = path.join(self.image_path, 'full')
         else:
             im_path = self.image_path
         hs.scan(1, image_name = image_name, pos_dict = self.pos_dict)

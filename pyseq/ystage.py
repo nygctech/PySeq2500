@@ -183,12 +183,14 @@ class Ystage():
         mode_changed = True
         if self.mode != mode:
             if mode in self.configurations.keys():
+                message = f'Ystage::set to {mode} configuration'
+                self.logger.debug(message)
                 gains = str(self.configurations[mode]['g'])
                 _gains = [float(g) for g in gains.split(',')]
                 velocity = self.configurations[mode]['v']
                 all_true = False
                 while not all_true:
-                    self.command('GAINS('+gains+')')
+                    self.command(f'GAINS({gains})')
                     time.sleep(1)
                     try:
                         gains_ = self.command('GAINS').strip()[1:].split(' ')       # format reponse
@@ -197,7 +199,7 @@ class Ystage():
                         all_true = False
                 velocity_ = None
                 while velocity_ != float(velocity):
-                    self.command('V'+str(velocity))
+                    self.command(f'V{velocity}')
                     time.sleep(1)
                     try:
                         velocity_ = float(self.command('V').strip()[1:])
@@ -208,9 +210,9 @@ class Ystage():
                 self.gains = gains
             else:
                 mode_change = False
-                message = 'Ystage::ERROR::Invalid configuration::'+str(mode)
+                message = f'Ystage::ERROR::Invalid configuration::{mode}'
                 if self.logger is not None:
-                    self.logger.info(message)
+                    self.logger.warning(message)
                 else:
                     print(message)
 
