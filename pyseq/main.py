@@ -646,17 +646,22 @@ def confirm_settings(recipe_z_planes = []):
     print()
 
     # Flowcell summary
-    table = {}
     for fc in flowcells:
-        table[fc] = flowcells[fc].sections.keys()
-    print('-'*80)
-    print()
-    print('Flowcells:')
-    print()
-    if print_table:
-        print(tabulate.tabulate(table, headers = 'keys', tablefmt = 'presto'))
-    else:
-        print(table)
+        table = {'roi':[], 'area mm^2':[]}
+        #.sections is dictionary with section  names as keys and
+        # a list of float coordinated in mm: LLx, LLy, URx, URy
+        for s, coords in flowcells[fc].sections.items():
+            table['sections'].append(s)
+            # calculate area of roi
+            table['aream mm^2'].append((coords[0]-coords[2])*(coords[1]-coords[3]))
+        print('-'*80)
+        print()
+        print(f'Flowcell:{fc}')
+        print()
+        if print_table:
+            print(tabulate.tabulate(table, headers = 'keys', tablefmt = 'presto'))
+        else:
+            print(table)
     print()
     if not userYN('Confirm flowcells'):
         sys.exit()
