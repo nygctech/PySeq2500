@@ -651,9 +651,9 @@ def confirm_settings(recipe_z_planes = []):
         #.sections is dictionary with section  names as keys and
         # a list of float coordinated in mm: LLx, LLy, URx, URy
         for s, coords in flowcells[fc].sections.items():
-            table['sections'].append(s)
+            table['roi'].append(s)
             # calculate area of roi
-            table['aream mm^2'].append((coords[0]-coords[2])*(coords[1]-coords[3]))
+            table['area mm^2'].append((coords[0]-coords[2])*(coords[1]-coords[3]))
         print('-'*80)
         print()
         print(f'Flowcell:{fc}')

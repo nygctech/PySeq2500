@@ -6,7 +6,7 @@ import dask.array as da
 from dask.diagnostics import ProgressBar
 import xarray as xr
 xr.set_options(keep_attrs=True)
-import napari
+#import napari
 from math import log2, ceil, floor
 from os import path, getcwd, mkdir
 from scipy import stats
@@ -15,7 +15,7 @@ import imageio
 import glob
 import time
 import tabulate
-from qtpy.QtCore import QTimer
+#from qtpy.QtCore import QTimer
 from skimage.registration import phase_cross_correlation
 from pathlib import Path
 import yaml
@@ -888,73 +888,12 @@ class HiSeqImages():
 
 
 
-    def quit(self):
-        if self.stop:
-            self.app.quit()
-            self.viewer.close()
-            self.viewer = None
 
-
-
-    def hs_napari(self, dataset):
-
-        with napari.gui_qt() as app:
-            viewer = napari.Viewer()
-            self.viewer = viewer
-            self.app = app
-
-            self.update_viewer(dataset)
-            start = time.time()
-
-            # timer for exiting napari
-            timer = QTimer()
-            timer.timeout.connect(self.quit)
-            timer.start(1000*1)
-
-            @viewer.bind_key('x')
-            def crop(viewer):
-                if 'Shapes' in viewer.layers:
-                    bound_box = np.array(viewer.layers['Shapes'].data).squeeze()
-                else:
-                    bound_box = np.array(False)
-
-                if bound_box.shape[0] == 4:
-
-                    #crop full dataset
-                    self.crop_section(bound_box)
-                    #save current selection
-                    selection = {}
-                    for d in self.im.dims:
-                        if d not in ['row', 'col']:
-                            if d in dataset.dims:
-                                selection[d] = dataset[d]
-                            else:
-                                selection[d] = dataset.coords[d].values
-                    # update viewer
-                    cropped = self.im.sel(selection)
-                    self.update_viewer(cropped)
-
-
-    def show(self, selection = {}, show_progress = True):
-        """Display a section from the dataset.
-
-           **Parameters:**
-            - selection (dict): Dimension and dimension coordinates to display
-
-        """
-
-        dataset  = self.im.sel(selection)
-
-        if show_progress:
-            with ProgressBar() as pbar:
-                self.hs_napari(dataset)
-        else:
-            self.hs_napari(dataset)
 
     def downscale(self, scale=None):
         pre_msg = 'downscale'
         if scale is None:
-            size_MB = np.product(self.im.shape, dtype=np.uint64)*16/8/(1e6)
+            size_MB = np.prod(self.im.shape, dtype=np.uint64)*16/8/(1e6)
             self.logger.debug(f'{pre_msg} :: image size = {size_MB} MB')
             scale = int(2**round(log2(size_MB)-10))
             self.logger.debug(f'{pre_msg} :: downcaling by factor of {scale}')

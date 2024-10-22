@@ -1007,7 +1007,7 @@ def get_jpeg_size(obj_stack):
     ch_max_px = obj_stack.max(dim=['frame', 'row', 'col'])
     # Get background pixel value (mode) in channel stack
     for i, ch in enumerate(obj_stack.channel.values):
-        ch_bg[i] = stats.mode(obj_stack.sel(channel = ch), axis=None)[0][0]
+        ch_bg[i] = stats.mode(obj_stack.sel(channel = ch), axis=None)[0]
 
     for ci, ch in enumerate(obj_stack.channel.values):
         size_ = np.empty(shape=(n_frames,))

@@ -75,6 +75,7 @@ import configparser
 from serial.tools.list_ports import comports
 from pathlib import Path
 import logging
+import traceback
 
 try:
     import importlib.resources as pkg_resources
@@ -876,6 +877,7 @@ flowcell B {self.T.T_fc[1]} °C
         try:
             opt_obj_pos = focus.autofocus(self, pos_dict)
         except Exception as error:
+            print(traceback.format_exc())
             self.message('HiSeq::Autofocus::',error)
             opt_obj_pos = False
 
