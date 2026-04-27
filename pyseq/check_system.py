@@ -4,6 +4,7 @@ import time
 import os
 import sys
 from os.path import join
+from pathlib import Path
 from . import image_analysis as ia
 from . import methods
 
@@ -19,14 +20,14 @@ def setup_logger(log_path):
 
     # Create a custom logger
     logger = logging.getLogger(__name__)
-    logger.setLevel(10)
+    logger.setLevel(logging.DEBUG)
 
     # Create console handler
     c_handler = logging.StreamHandler()
-    c_handler.setLevel(21)
+    c_handler.setLevel(logging.INFO)
     # Create file handler
     f_handler = logging.FileHandler(log_path)
-    f_handler.setLevel(logging.INFO)
+    f_handler.setLevel(logging.DEBUG)
 
     # Create formatters and add it to handlers
     c_format = logging.Formatter('%(asctime)s - %(message)s', datefmt = '%Y-%m-%d %H:%M')
@@ -327,17 +328,17 @@ def test_cameras():
     image_name = 'A_sDark_r0_x'+str(hs.x.position)+'_o'+str(hs.obj.position)
 
     try:
-        hs.initializeCams(logger)
+        hs.initializeCams()
 
         cam_pass = []
-        cam_pass.append(hs.cam1.setAREA())
-        cam_pass.append(hs.cam2.setAREA())
+        for cam in hs.cams.values():
+            cam_pass.append(cam.setAREA())
         if not all(cam_pass):
             error('Unable to set cameras to AREA mode')
 
         cam_pass = []
-        cam_pass.append(hs.cam1.setTDI())
-        cam_pass.append(hs.cam2.setTDI())
+        for cam in hs.cams.values():
+            cam_pass.append(cam.setTDI())
         if not all(cam_pass):
             error('Unable to set cameras to TDI mode')
 
@@ -360,7 +361,7 @@ def test_cameras():
 
 try:
     timestamp = time.strftime('%Y%m%d%H%M')
-    image_path = join(os.getcwd(),timestamp+'_HiSeqCheck')
+    image_path = Path(join(os.getcwd(),timestamp+'_HiSeqCheck'))
     os.mkdir(image_path)
     log_path = join(image_path,timestamp+'_HiSeqCheck.log')
     logger = setup_logger(log_path)
@@ -445,7 +446,7 @@ except:
     print(table)
 
 # Compute background pixel group values
-bit_depth = hs.cam1.getPropertyValue('bit_per_channel')[0]
+bit_depth = hs.cams[0].getPropertyValue('bit_per_channel')[0]
 max_px_value = 2**bit_depth-1
 bg_dict = ia.compute_background(hs.image_path, common_name = 'Dark',max_px = max_px_value)
 
