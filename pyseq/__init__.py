@@ -582,7 +582,7 @@ flowcell B {self.T.T_fc[1]} °C
             for t in setup_threads:
                 t.join()
 
-            #Arm stage triggers
+            #Arm stage trigger
             #
             #TODO check trigger y values are reasonable
             n_triggers = n_frames * self.bundle_height 

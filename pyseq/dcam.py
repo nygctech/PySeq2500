@@ -128,6 +128,7 @@ class DCAMException(Exception):
 #
 # Initialization
 #
+n_cameras = 0
 try:
     dcam = ctypes.windll.dcamapi
     temp = ctypes.c_int32(0)
