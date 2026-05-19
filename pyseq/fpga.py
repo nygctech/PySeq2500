@@ -98,18 +98,21 @@ class FPGA():
     def initialize(self):
         """Initialize the FPGA."""
 
-        response = self.command('RESET')
-        response = self.serial_port.readline()                                    # Initialize FPGA
-        if self.logger is not None:
-            self.logger.info('FPGA::rcvd::'+response)
-        else:
-            print(response)
+        self.reset()
         self.command('EX1HM')                                                   # Home excitation filter on laser line 1
         self.command('EX2HM')                                                   # Home excitation filter on laser line 2
         self.command('EM2I')                                                    # Move emission filter into light path
         self.command('SWLSRSHUT 0')                                             # Shutter lasers
         self.LED(1,'off')
         self.LED(2,'off')
+
+    def reset(self):
+        response = self.command('RESET')
+        response = self.serial_port.readline()                                    # Initialize FPGA
+        if self.logger is not None:
+            self.logger.debug('FPGA::rcvd::'+response)
+        else:
+            print(response)
 
     def command(self, text, instrument='FPGA'):
         """Send commands to the FPGA and return the response.
@@ -132,8 +135,8 @@ class FPGA():
         self.serial_port.flush()                                        # Flush serial port
         response = self.serial_port.readline()
         if self.logger is not None:
-            self.logger.info(instrument+'::txmt::'+text)
-            self.logger.info(instrument+'::rcvd::'+response)
+            self.logger.debug(instrument+'::txmt::'+text)
+            self.logger.debug(instrument+'::rcvd::'+response)
         else:
             print(response)
 

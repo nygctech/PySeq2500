@@ -133,8 +133,8 @@ class Pump():
         self.serial_port.flush()                                                # Flush serial port
         response = self.serial_port.readline()                                  # Get the response
         if self.logger is not None:                                             # Write command and response to log
-            self.logger.info(self.name+'::txmt::'+text)
-            self.logger.info(self.name+'::rcvd::'+response)
+            self.logger.debug(self.name+'::txmt::'+text)
+            self.logger.debug(self.name+'::rcvd::'+response)
 
         return  response
 

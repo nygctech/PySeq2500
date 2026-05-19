@@ -128,6 +128,7 @@ class DCAMException(Exception):
 #
 # Initialization
 #
+n_cameras = 0
 try:
     dcam = ctypes.windll.dcamapi
     temp = ctypes.c_int32(0)
@@ -159,7 +160,7 @@ class HCamData():
     # @param size The size of the data object in bytes.
     #
     def __init__(self, size):
-        self.np_array = np.ascontiguousarray(np.empty(np.int(size/2), dtype=np.uint16))
+        self.np_array = np.ascontiguousarray(np.empty(int(size/2), dtype=np.uint16))
         self.size = size
 
     ## __getitem__
@@ -256,9 +257,9 @@ class HamamatsuCamera():
     #
     def message(self, text):
         """Log communication with camera or print to console."""
-        text = 'Cam' + str(self.camera_id) + '::' + str(text)
+        text = f'Cam{self.camera_id}::{text}'
         if self.logger is not None:
-            self.logger.info(text)
+            self.logger.debug(text)
         else:
             print(text)
 
@@ -454,14 +455,14 @@ class HamamatsuCamera():
         if self.right_emission is None:
             self.right_emission = 'Right'
 
-        left_name = 'c' + str(self.left_emission)+'_'+image_name+'.tiff'
-        right_name = 'c' + str(self.right_emission)+'_'+image_name+'.tiff'
+        left_name = f'c{self.left_emission}_{image_name}.tiff'
+        right_name = f'c{self.right_emission}_{image_name}.tiff'
 
-        imageio.imwrite(join(image_path,left_name), left_image)
-        imageio.imwrite(join(image_path,right_name), right_image)
+        imageio.imwrite(image_path/left_name, left_image)
+        imageio.imwrite(image_path/right_name, right_image)
 
         n_bytes = self.frame_bytes*f
-        self.message(str(n_bytes) + ' bytes saved from camera ' + str(self.camera_id))
+        self.message(f'{n_bytes} bytes saved from camera {self.camera_id}')
 
         return n_bytes
 

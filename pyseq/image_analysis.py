@@ -6,21 +6,21 @@ import dask.array as da
 from dask.diagnostics import ProgressBar
 import xarray as xr
 xr.set_options(keep_attrs=True)
-import zarr
-import napari
+#import napari
 from math import log2, ceil, floor
-from os import listdir, stat, path, getcwd, mkdir, makedirs
+from os import path, getcwd, mkdir
 from scipy import stats
 from scipy.spatial.distance import cdist
 import imageio
 import glob
-import configparser
 import time
 import tabulate
-from qtpy.QtCore import QTimer
+#from qtpy.QtCore import QTimer
 from skimage.registration import phase_cross_correlation
 from pathlib import Path
 import yaml
+from math import log
+from dask_image.ndinterp import affine_transform
 
 try:
     import importlib.resources as pkg_resources
@@ -29,6 +29,7 @@ except ImportError:
     import importlib_resources as pkg_resources
 from . import resources
 from .methods import userYN, get_config
+
 
 def message(logger, *args):
     """Print output text to logger or console.
@@ -68,7 +69,6 @@ def sum_images(images, logger = None, **kwargs):
     """
 
     name_ = 'SumImages:'
-    sum_im = None
     thresh = [1, 9, 27, 81]
 
     mean_ = kwargs.get('mean', None)
@@ -85,9 +85,10 @@ def sum_images(images, logger = None, **kwargs):
             std = std_[ch]
         else:
             std = None
-
+            
+        logger.debug(f'{name_}Channel {ch}::mean={mean}, std={std}')
         k = kurt(images.sel(channel=ch), mean=mean, std=std)
-        message(logger, name_, 'Channel',ch, 'k = ', k)
+        logger.debug(f'{name_}Channel {ch}::k={k}')
         k_dict[ch] = k
 
     # Pick kurtosis threshold
@@ -95,7 +96,7 @@ def sum_images(images, logger = None, **kwargs):
     thresh_ind = np.where(max_k>np.array(thresh))[0]
     if len(thresh_ind) > 0:
         thresh = thresh[max(thresh_ind)]
-        message(logger, name_, 'kurtosis threshold (k) = ', thresh)
+        logger.debug(f'{name_}kurtosis threshold (k)={thresh}')
 
         # keep channels with high kurtosis
         keep_ch = [ch for ch in channels if k_dict[ch] > thresh]
@@ -111,7 +112,7 @@ def sum_images(images, logger = None, **kwargs):
 
 def kurt(im, mean=None, std=None):
     """Return kurtosis = mean((image-mode)/2)^4). """
-    print(mean, std)
+    
     if mean is None:
         mean = stats.mode(im, axis = None)[0][0]
     if std is None:
@@ -122,7 +123,7 @@ def kurt(im, mean=None, std=None):
 
     return k
 
-def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
+def get_focus_points(im, scale, min_n_markers, logger=None, p_sat = 99.9):
     """Get potential points to focus on.
 
        First 1000 of the brightest, unsaturated pixels are found.
@@ -135,7 +136,7 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
        - scale (int): Factor at which the image is scaled down.
        - min_n_markers (int): Minimun number of points desired, max is 1000.
        - p_sat (float): Percentile to call pixels saturated.
-       - log (logger): Logger object to record process.
+       - logger (logger): Logger object to record process.
 
 
        **Returns:**
@@ -161,45 +162,43 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
         im_[im > px_sat] = 0
         #Remove Edges
         if edge_width < px_cols/2:
-          im_[:, px_cols-edge_width:px_cols] = 0
-          im_[:,0:edge_width] = 0
+            im_[:, px_cols-edge_width:px_cols] = 0
+            im_[:, 0:edge_width] = 0
         if edge_width < px_rows/2:
-          im_[0:edge_width,:] = 0
-          im_[px_rows-edge_width:px_rows, :] = 0
+            im_[0:edge_width, :] = 0
+            im_[px_rows-edge_width:px_rows, :] = 0
 
         px_score_thresh -= 0.5
-
-
+        
     px_score_thresh += 0.5
-    message(log, name_, 'Used', px_score_thresh, 'pixel score threshold')
+    logger.debug(f'{name_}Used {px_score_thresh} pixel score threshold')
     markers = np.argwhere(im_ != 0)
-
 
     # Subset to 1000 points
     n_markers = len(markers)
-    message(log, name_, 'Found', n_markers, 'markers')
+    logger.debug(f'{name_}Found {n_markers} markers')
     if n_markers > 1000:
-      rand_markers = np.random.choice(range(n_markers), size = 1000)
-      markers = markers[rand_markers,:]
-      n_markers = 1000
+        rand_markers = np.random.choice(range(n_markers), size = 1000)
+        markers = markers[rand_markers,:]
+        n_markers = 1000
 
     # Compute contrast
     c_score = np.zeros_like(markers[:,1])
     for row in range(n_markers):
-      mark = markers[row,:]
-      if edge_width < px_cols/2:
-        frame = im[mark[0],mark[1]-edge_width:mark[1]+edge_width]
-      else:
-        frame = im[mark[0],:]
-      c_score[row] = np.max(frame) - np.min(frame)
+        mark = markers[row,:]
+        if edge_width < px_cols/2:
+            frame = im[mark[0],mark[1]-edge_width:mark[1]+edge_width]
+        else:
+            frame = im[mark[0],:]
+        c_score[row] = np.max(frame) - np.min(frame)
 
 
     # Get the minimum number of markers needed with the highest contrast
     if n_markers > min_n_markers:
-      p_top = (1 - min_n_markers/n_markers)*100
+        p_top = (1 - min_n_markers/n_markers)*100
     else:
-      p_top = 0
-    message(log, name_, 'Used', p_top, 'percentile cutoff')
+        p_top = 0
+    logger.debug(f'{name_}Used {p_top} percentile cutoff')
     c_cutoff = np.percentile(c_score, p_top)
     c_markers = markers[c_score >= c_cutoff,:]
 
@@ -220,19 +219,19 @@ def get_focus_points(im, scale, min_n_markers, log=None, p_sat = 99.9):
         dist = np.delete(dist,[prev2,prev1],1)
         _markers = np.delete(_markers,[prev2,prev1], axis=0)
         for i in range(2,n_markers):
-          dist2 = np.array([dist[prev2,:],dist[prev1,:]])
-          ind = np.argmax(np.sum(dist2,axis=0))
-          ord_points[i,:] = _markers[ind,:]
-          dist = np.delete(dist,ind,1)
-          _markers = np.delete(_markers,ind, axis=0)
-          prev2 = prev1
-          prev1 = ind
+            dist2 = np.array([dist[prev2,:],dist[prev1,:]])
+            ind = np.argmax(np.sum(dist2,axis=0))
+            ord_points[i,:] = _markers[ind,:]
+            dist = np.delete(dist,ind,1)
+            _markers = np.delete(_markers,ind, axis=0)
+            prev2 = prev1
+            prev1 = ind
     else:
         ord_points = c_markers
 
     return ord_points
 
-def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
+def get_focus_points_partial(im, scale, min_n_markers, logger=None, p_sat = 99.9):
     """Get potential points to focus on.
 
        First 1000 of the brightest, unsaturated pixels are found.
@@ -271,17 +270,17 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
         im_[im > px_sat] = 0
         #Remove Edges
         if edge_width < px_cols/2:
-          im_[:, px_cols-edge_width:px_cols] = 0
-          im_[:,0:edge_width] = 0
+            im_[:, px_cols-edge_width:px_cols] = 0
+            im_[:,0:edge_width] = 0
         if edge_width < px_rows/2:
-          im_[0:edge_width,:] = 0
-          im_[px_rows-edge_width:px_rows, :] = 0
+            im_[0:edge_width,:] = 0
+            im_[px_rows-edge_width:px_rows, :] = 0
 
         px_score_thresh -= 0.5
 
 
     px_score_thresh += 0.5
-    message(log, name_, 'Used', px_score_thresh, 'pixel score threshold')
+    message(logger, name_, 'Used', px_score_thresh, 'pixel score threshold')
     markers = np.argwhere(im_ != 0)
 
     #Subset to unique y positions
@@ -289,26 +288,26 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
 
     # Subset to 1000 points
     n_markers = len(markers)
-    message(log, name_, 'Found', n_markers, 'markers')
+    message(logger, name_, 'Found', n_markers, 'markers')
     if n_markers > 1000:
-      rand_markers = np.random.choice(range(n_markers), size = 1000)
-      markers = markers[rand_markers]
-      n_markers = 1000
+        rand_markers = np.random.choice(range(n_markers), size = 1000)
+        markers = markers[rand_markers]
+        n_markers = 1000
 
 
 
     # Compute contrast
     c_score = np.zeros_like(markers)
     for row in range(n_markers):
-      frame = im[markers[row]]
-      c_score[row] = np.max(frame) - np.min(frame)
+        frame = im[markers[row]]
+        c_score[row] = np.max(frame) - np.min(frame)
 
     # Get the minimum number of markers needed with the highest contrast
     if n_markers > min_n_markers:
-      p_top = (1 - min_n_markers/n_markers)*100
+        p_top = (1 - min_n_markers/n_markers)*100
     else:
-      p_top = 0
-    message(log, name_, 'Used', p_top, 'percentile cutoff')
+        p_top = 0
+    message(logger, name_, 'Used', p_top, 'percentile cutoff')
     c_cutoff = np.percentile(c_score, p_top)
     c_markers = markers[c_score >= c_cutoff]
 
@@ -330,13 +329,13 @@ def get_focus_points_partial(im, scale, min_n_markers, log=None, p_sat = 99.9):
         dist = np.delete(dist,[prev2,prev1], 1)
         _markers = np.delete(_markers,[prev2,prev1])
         for i in range(2,n_markers):
-          dist2 = np.array([dist[prev2,:],dist[prev1,:]])
-          ind = np.argmax(np.sum(dist2,axis=0))
-          ord_points[i] = _markers[ind]
-          dist = np.delete(dist,ind,1)
-          _markers = np.delete(_markers,ind)
-          prev2 = prev1
-          prev1 = ind
+            dist2 = np.array([dist[prev2,:],dist[prev1,:]])
+            ind = np.argmax(np.sum(dist2,axis=0))
+            ord_points[i] = _markers[ind]
+            dist = np.delete(dist,ind,1)
+            _markers = np.delete(_markers,ind)
+            prev2 = prev1
+            prev1 = ind
     else:
         ord_points = c_markers
 
@@ -394,11 +393,11 @@ def compute_background(image_path=None, common_name = '', max_px = 4095):
 
             mean = int(im.im.sel(channel = ch).mean().values.round())
             std = int(np.array(std_).mean())
-            print('Channel', ch,':: Average background', mean)
+            print('Channel', ch, ':: Average background', mean)
             bg_dict['background'][ch] = mean
-            print('Channel', ch,':: Background standard deviation', std)
+            print('Channel', ch, ':: Background standard deviation', std)
             bg_dict['std'][ch] = std
-            print('Channel', ch,':: Sensor Minimum ',*min_)
+            print('Channel', ch, ':: Sensor Minimum ', *min_)
             bg_dict['dark group'][ch] = min_
 
         if userYN('Save new background data for '+im.machine):
@@ -419,13 +418,14 @@ def compute_background(image_path=None, common_name = '', max_px = 4095):
 def get_HiSeqImages(image_path=None, common_name='', logger = None):
 
 
-    ims = HiSeqImages(image_path, common_name, logger)
+    ims = HiSeqImages(image_path=image_path, common_name=common_name, logger=logger)
     ims_ = [im for im in ims.im if im is not None]
     n_images = len(ims_)
     if n_images > 1:
         return [HiSeqImages(im=i) for i in ims_]
     elif n_images == 1:
         ims.im = ims_[0]
+        ims.name = ims.im.name
         return ims
     else:
         return None
@@ -469,7 +469,7 @@ def get_machine_config(machine = None, extra_config_path = ''):
             break
 
     if config_path is None:
-        print(f'Config not found')
+        print('Config not found')
         config_path = Path(config_paths[0] + '.yaml')
         config = None
     else:
@@ -584,7 +584,7 @@ def detect_channel_shift(image_path, common_name = '', ref_ch = 610):
     # Show resulting shift with original image
     shifted = xr.concat(ch_list, dim='channel')
     both = xr.concat([im.sel(row=slice(s[0],s[1]),col=slice(s[2],s[3])), shifted], dim='shifted')
-    both = ia.HiSeqImages(im = both)
+    both = HiSeqImages(im = both)
     both.show()
 
     # save shift
@@ -652,11 +652,13 @@ class HiSeqImages():
         if im is None:
 
             if image_path is None:
-                image_path = getcwd()
+                image_path = Path(getcwd())
+            if isinstance(image_path, str):
+                image_path = Path(image_path)
 
             # Get machine config
-            name_path = path.join(image_path,'machine_name.txt')
-            if path.exists(name_path):
+            name_path = image_path / 'machine_name.txt'
+            if name_path.exists():
                 with open(name_path,'r') as f:
                     self.machine = f.readline().strip()
                 self.config, self.config_path = get_machine_config(self.machine)
@@ -671,7 +673,7 @@ class HiSeqImages():
             section_names = []
 
             # Open zarr
-            if image_path[-4:] == 'zarr':
+            if image_path.suffix == '.zarr':
                 self.filenames = [image_path]
                 section_names = self.open_zarr()
 
@@ -682,20 +684,20 @@ class HiSeqImages():
 
             elif RoughScan:
                 # RoughScans
-                filenames = glob.glob(path.join(image_path,'*RoughScan*.tiff'))
+                filenames = list(image_path.glob('*RoughScan*.tiff'))
                 if len(filenames) > 0:
                     self.filenames = filenames
                     n_tiles = self.open_RoughScan()
 
             else:
                 # Open tiffs
-                filenames = glob.glob(path.join(image_path, common_name+'*.tiff'))
+                filenames = list(image_path.glob(f'{common_name}*.tiff'))
                 if len(filenames) > 0:
                     self.filenames = filenames
                     section_names += self.open_tiffs()
 
                 # Open zarrs
-                filenames = glob.glob(path.join(image_path, common_name+'*.zarr'))
+                filenames = list(image_path.glob(f'{common_name}*.zarr'))
                 if len(filenames) > 0:
                     self.filenames = filenames
                     section_names += self.open_zarr()
@@ -743,7 +745,8 @@ class HiSeqImages():
 
     def correct_background(self):
         '''Rescale pixel values for each group to the average background.'''
-
+        
+        im_name = self.im.name
 
         new_min_dict = self.config.get('background')
         dark_dict = self.config.get('dark group')
@@ -777,7 +780,7 @@ class HiSeqImages():
             ch_list.append(corrected)
 
         self.im = xr.concat(ch_list, dim='channel')
-        self.im.name = self.name
+        self.im.name = im_name
 
         return self.im
 
@@ -822,6 +825,150 @@ class HiSeqImages():
             message(self.logger, 'Unknown machine')
 
         return img
+    
+    def apply_full(self, func, dim_depth = None, sel_dict = None, dim_stack = None, args = (), kwargs = {}):
+        '''Recursively loop over coordinates and apply function to 2D images.
+
+           Function should take 2D image as it's first argument and return only
+           a 2D xarray image with fully labeled coordinates.
+
+           Returns:
+           ND xr.DataArray with function applied to entire DataArray
+        '''
+
+        assert callable(func)
+
+        # assert that selecting all coords results in 2D image
+
+        dims = [d for d in self.im.dims if d in self.im.coords.keys()]
+        max_dim_depth = len(dims)
+
+        if dim_depth is None:
+            dim_depth = 0
+        if sel_dict is None:
+            sel_dict = dict()
+        if dim_stack is None:
+            dim_stack = dict.fromkeys(dims, [])
+
+
+        dim = dims[dim_depth]
+        dim_stack[dim] = []
+
+        # Loop over coords recursively
+        for value in self.im.coords[dim]:
+            sel_dict[dim] = value
+
+            if dim_depth < max_dim_depth-1:
+                self.apply_full(func, dim_depth + 1, sel_dict, dim_stack, args, kwargs)
+            else:
+                # apply function to
+                image = self.im.sel(sel_dict)
+                assert len(image.shape) == 2, 'More than 2 dimensions do not have coordinates'
+                image = func(image, *args, **kwargs)
+
+            # save plane in stack
+            if dim == dims[-1]:
+                dim_stack[dim].append(image)
+
+        # stack dimensions
+        if dim != dims[0]:
+            higher_dim = dims[dim_depth-1]
+            dim_stack[higher_dim].append(xr.concat(dim_stack[dim], dim))
+        else:
+            return xr.concat(dim_stack[dim], dim)
+
+    def register_and_crop(self, image, reg_dict, crop_bb):
+        '''Register images with affine transformation and crop with bounding box.
+
+            crop_bb = [top bottom left right] pixel bounding box
+
+            Parameters:
+            image: 2D image
+            reg_dict: Channels as keys and affine matrix as values
+            crop_bb: 1D array crop bounding box in pixel location
+
+            Returns:
+            2D image
+        '''
+
+        rows = len(image.row); cols = len(image.col)
+        ch = int(image.channel.values)
+
+        # Affine transformation
+        if ch in reg_dict.keys():
+            registered =  affine_transform(image.data, reg_dict[ch])
+            image = xr.DataArray(registered, name = image.name, dims = image.dims,
+                                 coords = image.coords, attrs = image.attrs)
+
+        cols_ = slice(crop_bb[2], cols-crop_bb[3])
+        rows_ = slice(crop_bb[0], rows-crop_bb[1])
+        if crop_bb[2] > 0 and crop_bb[3] == 0:
+            # Flip columns if left side of image cropped so irregular chunk is last
+            image = image.sel(col=slice(None,None,-1))
+            cols_ = slice(0, cols-crop_bb[2])
+        elif crop_bb[2] > 0 and crop_bb[3] > 0:
+            # Don't crop both left and right side, only right so only 1 irregular chunk and is last
+            cols_ = slice(0, cols-crop_bb[3])
+
+        # Crop image
+        return image.sel(row=rows_, col=cols_)
+
+    def get_registration_data(self, image=None, top=64, bottom=0, left=0, right=0):
+        """Get registration shift for each channel from config and crop bounding box"""
+
+        img = self.im
+
+        # Get registration data
+        reg_config = self.config.get('registration', None)
+        pre_msg = 'getRegistrationData ::'
+
+        reg_dict = {}
+        crop_bb = [top, bottom, left, right]
+
+        if reg_config is not None:
+            for ch, shift in reg_config.items():
+
+                assert len(shift) == 2
+                try:
+                    shift = [float(s) for s in shift]
+                except:
+                    logger.warning(f'{pre_msg} Registration shift {shift} for channel {ch} is invalid')
+
+                A = np.identity(3)
+                A[0,2] = -shift[0]
+                A[1,2] = -shift[1]
+                reg_dict[int(ch)]=A
+                crop_bb = self.update_crop_bb(crop_bb, shift)
+
+                self.logger.info(f'{pre_msg} Channel {ch} :: {shift}')
+
+            self.logger.info(f'{pre_msg} :: Crop bounding box :: {crop_bb} (top, bottom, left, right)')
+        else:
+            raise ValueError(f'Registration data for {self.machine} not found')
+
+        return reg_dict, crop_bb
+    
+    
+    def update_crop_bb(self, crop_bb, shift):
+
+        if shift[0] < 0:
+            crop_bb[1] = max(crop_bb[1], floor(-shift[0]))
+        else:
+            crop_bb[0] = max(crop_bb[0], ceil(shift[0]))
+
+        if shift[1] < 0:
+            crop_bb[2] = max(crop_bb[2], floor(-shift[1]))
+        else:
+            crop_bb[3] = max(crop_bb[3], ceil(shift[1]))
+
+        return crop_bb
+
+    def register_channels_affine(self):
+
+        reg_dict, crop_bb = self.get_registration_data()
+        self.im = self.apply_full(self.register_and_crop, args = (reg_dict, crop_bb))
+
+        return self.im
 
     def normalize(self, dims=['channel']):
         '''Normalize pixel values between 0 and 1.
@@ -830,7 +977,8 @@ class HiSeqImages():
            - keep_dims ([str]): list of dims to normalize over
 
         '''
-
+        
+        images = self.im.im
 
         # Check keep_dims exist and find dims to compute min/max over
         for d in images.dims:
@@ -844,7 +992,7 @@ class HiSeqImages():
         for ch in enumerate(channels):
             _min_px = min_px.sel(channel=ch).values
             _max_px = max_px.sel(channel=ch).values
-            message(logger, name_, 'Channel',ch, 'min px =', _min_px, 'max px =', _max_px)
+            message(self.logger, 'Channel',ch, 'min px =', _min_px, 'max px =', _max_px)
 
         self.im = (images-min_px)/(max_px-min_px)
 
@@ -887,81 +1035,75 @@ class HiSeqImages():
 
 
 
-    def quit(self):
-        if self.stop:
-            self.app.quit()
-            self.viewer.close()
-            self.viewer = None
 
-
-
-    def hs_napari(self, dataset):
-
-        with napari.gui_qt() as app:
-            viewer = napari.Viewer()
-            self.viewer = viewer
-            self.app = app
-
-            self.update_viewer(dataset)
-            start = time.time()
-
-            # timer for exiting napari
-            timer = QTimer()
-            timer.timeout.connect(self.quit)
-            timer.start(1000*1)
-
-            @viewer.bind_key('x')
-            def crop(viewer):
-                if 'Shapes' in viewer.layers:
-                    bound_box = np.array(viewer.layers['Shapes'].data).squeeze()
-                else:
-                    bound_box = np.array(False)
-
-                if bound_box.shape[0] == 4:
-
-                    #crop full dataset
-                    self.crop_section(bound_box)
-                    #save current selection
-                    selection = {}
-                    for d in self.im.dims:
-                        if d not in ['row', 'col']:
-                            if d in dataset.dims:
-                                selection[d] = dataset[d]
-                            else:
-                                selection[d] = dataset.coords[d].values
-                    # update viewer
-                    cropped = self.im.sel(selection)
-                    self.update_viewer(cropped)
-
-
-    def show(self, selection = {}, show_progress = True):
-        """Display a section from the dataset.
-
-           **Parameters:**
-            - selection (dict): Dimension and dimension coordinates to display
-
-        """
-
-        dataset  = self.im.sel(selection)
-
-        if show_progress:
-            with ProgressBar() as pbar:
-                self.hs_napari(dataset)
-        else:
-            self.hs_napari(dataset)
 
     def downscale(self, scale=None):
+        pre_msg = 'downscale'
         if scale is None:
-            size_Mb = self.im.size*16/8/(1e6)
-            scale = int(2**round(log2(size_Mb)-10))
+            size_MB = np.prod(self.im.shape, dtype=np.uint64)*16/8/(1e6)
+            self.logger.debug(f'{pre_msg} :: image size = {size_MB} MB')
+            scale = int(2**round(log2(size_MB)-10))
+            self.logger.debug(f'{pre_msg} :: downcaling by factor of {scale}')
 
         if scale > 256:
             scale = 256
 
         if scale > 0:
-            self.im = self.im.coarsen(row=scale, col=scale, boundary='trim').mean()
+            self.im = self.im.coarsen(row=scale, col=scale, boundary='trim').mean().astype('int16')
             old_scale = self.im.attrs['scale']
             self.im.attrs['scale']=scale*old_scale
+            
+    def preview_jpeg(self, image_path=None, cycle=None, downscale=4):
+        
+        if image_path is None:
+            image_path = getcwd()
+        image_path = Path(image_path)
+        
+        mid_log = log(0.5*255)
+        
+        im = self.im.sel(row=slice(64, len(self.im.row)))
+        if isinstance(cycle, int):
+            im = im.sel(cycle=cycle)
+            cycles_ = [cycle]
+        else:
+            cycles_ = im.cycle.values
+            
+        # zmax project
+        if 'obj_step' in im.dims:
+            im = im.max(dim='obj_step')
+        
+        for cy in cycles_:
+            for ch in im.channel:
+                if 'cycle' in im.dims:
+                    jpegim  = im.sel(cycle=cy, channel=ch)
+                else:
+                    jpegim = im.sel(channel=ch)
+                jpegim = jpegim.coarsen(row=downscale, col=downscale, boundary='trim').mean().astype('int16')
+
+                # compute background px value = mode + std
+                flat_ch = jpegim.data.flatten()
+                hist_counts = da.bincount(flat_ch).compute()
+                std = flat_ch.std().compute()
+                mode = hist_counts.argmax()
+                bg = std + mode
+
+                # compute max as 99.75% px value
+                max_px = da.percentile(flat_ch, 99.75).compute()
+
+                # Compute mean and gamma correction 
+                mean = flat_ch[flat_ch > bg].mean().compute()
+                gamma =  mid_log / log(mean)
+
+                # min / max normalize
+                jpegim = (jpegim - bg) / (max_px - bg)
+                jpegim = jpegim.clip(min = 0, max = 1)
+
+                # gamma correct
+                jpegim = (255 * (jpegim ** gamma)).astype('uint8')
+
+                # write image
+                imageio.imwrite(image_path / f'{im.name}_r{cy}_c{ch.values}.jpg', jpegim)
+                
 
 
     def crop_section(self, bound_box):
@@ -1084,13 +1226,13 @@ class HiSeqImages():
 
         im_names = []
         for fn in self.filenames:
-            im_name = path.basename(fn)[:-5]
+            im_name = fn.stem
             im = xr.open_zarr(fn).to_array()
             im = im.squeeze().drop_vars('variable').rename(im_name)
             im_names.append(im_name)
 
             # add attributes
-            attr_path = fn[:-5]+'.attrs'
+            attr_path = fn.with_suffix('.attrs')
 
             if path.exists(attr_path):
                 attrs = {}
@@ -1128,7 +1270,7 @@ class HiSeqImages():
         comp_sets = dict()
         for fn in filenames:
             # Break up filename into components
-            comp_ = path.basename(fn)[:-5].split("_")
+            comp_ = fn.stem.split("_")
             for i, comp in enumerate(comp_):
                 comp_sets.setdefault(i,set())
                 comp_sets[i].add(comp)
@@ -1205,7 +1347,7 @@ class HiSeqImages():
         section_meta = dict()
         for fn in filenames:
             # Break up filename into components
-            comp_ = path.basename(fn)[:-5].split("_")
+            comp_ = fn.stem.split("_")
             if len(comp_) >= 6:
                 section = comp_[2]
                 # Add new section

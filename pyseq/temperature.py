@@ -150,8 +150,8 @@ class Temperature():
                 response = r
 
         if self.logger is not None:
-            self.logger.info('ARM9CHEM::txmt::'+text)
-            self.logger.info('ARM9CHEM::rcvd::'+response)
+            self.logger.debug('ARM9CHEM::txmt::'+text)
+            self.logger.debug('ARM9CHEM::rcvd::'+response)
         else:
             print(response)
 

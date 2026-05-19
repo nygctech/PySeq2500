@@ -40,6 +40,8 @@ class Ystage():
 
     """
 
+    #TODO 
+    # make seperate command and query communication methods
 
     def __init__(self, com_port, baudrate = 9600, logger = None):
         """The constructor for the ystage.
@@ -81,8 +83,10 @@ class Ystage():
         self.mode = None
         self.velocity = None
         self.gains = None
-        self.configurations = {'imaging':{'g':'5,10,5,2,0'  ,'v':0.15400},
-                               'moving': {'g':'5,10,7,1.5,0','v':1}
+        self.configurations = {'imaging':{'g':'5,10,5,2,0', 'v':0.15400, 'vcheck':'*0.154\n',
+                                          'gcheck':'*GF5.00 GI10.00 GP5.00 GV2.00 FT0\n'},
+                               'moving': {'g':'5,10,7,1.5,0', 'v':1, 'vcheck':'*1.000\n',
+                                          'gcheck':'*GF5.00 GI10.00 GP7.00 GV1.50 FT0\n' }
                                }
         self.logger = logger
 
@@ -116,8 +120,8 @@ class Ystage():
         self.serial_port.flush()                                                # Flush serial port
         response = self.serial_port.readline()
         if self.logger is not None:
-            self.logger.info('Ystage::txmt::'+text)
-            self.logger.info('Ystage::rcvd::'+response)
+            self.logger.debug('Ystage::txmt::'+text)
+            self.logger.debug('Ystage::rcvd::'+response)
 
         return  response
 
@@ -154,7 +158,7 @@ class Ystage():
             - int: 1 if ystage is in position, 0 if it is not in position.
 
         """
-        
+
         try:
             ip = int(self.command('R(IP)')[1:])
         except:
@@ -179,12 +183,14 @@ class Ystage():
         mode_changed = True
         if self.mode != mode:
             if mode in self.configurations.keys():
+                message = f'Ystage::set to {mode} configuration'
+                self.logger.debug(message)
                 gains = str(self.configurations[mode]['g'])
                 _gains = [float(g) for g in gains.split(',')]
                 velocity = self.configurations[mode]['v']
                 all_true = False
                 while not all_true:
-                    self.command('GAINS('+gains+')')
+                    self.command(f'GAINS({gains})')
                     time.sleep(1)
                     try:
                         gains_ = self.command('GAINS').strip()[1:].split(' ')       # format reponse
@@ -193,7 +199,7 @@ class Ystage():
                         all_true = False
                 velocity_ = None
                 while velocity_ != float(velocity):
-                    self.command('V'+str(velocity))
+                    self.command(f'V{velocity}')
                     time.sleep(1)
                     try:
                         velocity_ = float(self.command('V').strip()[1:])
@@ -204,9 +210,9 @@ class Ystage():
                 self.gains = gains
             else:
                 mode_change = False
-                message = 'Ystage::ERROR::Invalid configuration::'+str(mode)
+                message = f'Ystage::ERROR::Invalid configuration::{mode}'
                 if self.logger is not None:
-                    self.logger.info(message)
+                    self.logger.warning(message)
                 else:
                     print(message)
 

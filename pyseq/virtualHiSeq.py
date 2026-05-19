@@ -1195,7 +1195,7 @@ class HiSeq():
 
 
 
-    def take_picture(self, n_frames, image_name = None):
+    def take_picture(self, n_frames=None, image_name=None, pos_dict=None):
         """Take a picture using all the cameras and save as a tiff.
 
            The section to be imaged should already be in position and
@@ -1228,10 +1228,18 @@ class HiSeq():
 
         if image_name is None:
             image_name = time.strftime('%Y%m%d_%H%M%S')
+            
+        
+        try: 
+            y_pos = pos_dict.get('y_initial', self.y.position)
+            if n_frames is None:
+                n_frames = pos_dict.get('n_frames', n_frames)
+        except:
+            self.logger.debug('Could not get y_initial from position dictionary')
+            y_pos = self.y.position
 
 
         #Make sure TDI is synced with Ystage
-        y_pos = y.position
         if abs(y_pos - f.read_position()) > 10:
             self.message(msg, 'Attempting to sync TDI and stage')
             f.write_position(y.position)
@@ -1339,12 +1347,13 @@ class HiSeq():
 
         # Reset gains & velocity for ystage
         y.set_mode('moving')
+        y.move(y_pos)
         # y.command('GAINS(5,10,7,1.5,0)')
         # y.command('V1')
 
         meta_f.close()
 
-        return image_complete == 2
+        return image_complete == 2, None
 
     def message(self, *args):
         """Print output text to logger or console"""
@@ -1402,7 +1411,7 @@ class HiSeq():
         return meta_f
 
 
-    def zstack(self, n_Zplanes, n_frames, image_name=None):
+    def zstack(self, n_Zplanes, n_frames=None, image_name=None, obj_direction=1, pos_dict=None, x_thread=None):
         """Take a zstack/tile of images.
 
            Takes images from all channels at incremental z planes at the same
@@ -1422,33 +1431,31 @@ class HiSeq():
         if image_name is None:
             image_name = time.strftime('%Y%m%d_%H%M%S')
 
-        y_pos = self.y.position
-        obj_pos = self.obj.position
-
+        
         start = time.time()
-
+        
+        # Thread to move y stage, created in take_picture()
+        y_thread = None 
+        
+        self.logger.debug(f'ZSTACK::obj_direction = {obj_direction}')
         for n in range(n_Zplanes):
-            im_name = image_name + '_o' + str(self.obj.position)
+            im_name = f'{image_name}_o{self.obj.position}'
             image_complete = False
-
+                
             while not image_complete:
-                image_complete = self.take_picture(n_frames, im_name)
-                if image_complete:
-                    self.obj.move(self.obj.position + self.nyquist_obj)
-                    self.y.move(y_pos)
-                else:
-                    warnings.warn('Image not taken')
-                    # Reset stage and FPGA
-                    self.reset_stage()
-                    self.y.move(y_pos)
-
-        self.obj.move(obj_pos)
+                image_complete, y_thread = self.take_picture(image_name=im_name, n_frames=n_frames, pos_dict=pos_dict)
+                self.logger.debug(f'ZSTACK::obj move = {self.obj.position + self.nyquist_obj*obj_direction}')
+                if image_complete and n < n_Zplanes-1:
+                    self.obj.move(self.obj.position + self.nyquist_obj*obj_direction)
+                elif not image_complete:
+                    self.logger.warning('HiSeq::ZStack::WARNING::Image not taken')
+                
         stop = time.time()
 
         return stop-start
 
 
-    def scan(self, n_tiles, n_Zplanes, n_frames, image_name=None, overlap=0):
+    def scan(self, n_Zplanes, n_frames=None, n_tiles=None, image_name=None, obj_direction = 1, pos_dict=None):
         """Image a volume.
 
            Images a zstack at incremental x positions.
@@ -1466,8 +1473,11 @@ class HiSeq():
            - int: Time it took to do scan in seconds.
 
         """
+        
+        if isinstance(pos_dict, dict) and n_tiles is None:
+            n_tiles = pos_dict.get('n_tiles', n_tiles)
 
-        dx = self.tile_width*1000-self.resolution*overlap                  # x stage delta in in microns
+        dx = self.tile_width*1000-self.resolution*self.overlap                  # x stage delta in in microns
         dx = round(dx*self.x.spum)
 
         if image_name is None:
@@ -1479,7 +1489,13 @@ class HiSeq():
         for tile in range(n_tiles):
             self.message('HiSeq::Scan::Tile '+str(tile+1)+'/'+str(n_tiles))
             im_name = image_name + '_x' + str(self.x.position)
-            stack_time = self.zstack(n_Zplanes, n_frames, im_name)              # Take a zstack
+            stack_time = self.zstack(n_Zplanes,
+                                     n_frames=n_frames,
+                                     image_name=im_name,
+                                     obj_direction=obj_direction,
+                                     pos_dict=pos_dict,
+                                     )    
+            obj_direction *= -1 
             self.x.move(self.x.position + dx)                                   # Move to next x position
 
         stop = time.time()

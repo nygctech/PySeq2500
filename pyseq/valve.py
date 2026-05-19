@@ -138,14 +138,14 @@ class Valve():
         response = self.serial_port.readline()
 
         if self.logger is not None:                                             # Log sent command
-            self.logger.info(self.name + '::txmt::'+text)
+            self.logger.debug(self.name + '::txmt::'+text)
         else:
             print(text)
 
         blank = response
         while blank is not '':                                                  # Log received commands
             if self.logger is not None:
-                self.logger.info(self.name + '::rcvd::'+blank)
+                self.logger.debug(self.name + '::rcvd::'+blank)
             else:
                 print(blank)
             blank = self.serial_port.readline()
