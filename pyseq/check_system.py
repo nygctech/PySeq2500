@@ -4,6 +4,7 @@ import time
 import os
 import sys
 from os.path import join
+from pathlib import Path
 from . import image_analysis as ia
 from . import methods
 from pathlib import Path
@@ -331,14 +332,14 @@ def test_cameras():
         hs.initializeCams()
 
         cam_pass = []
-        for i in hs.cams:
-            cam_pass.append(hs.cams[i].setAREA())
+        for cam in hs.cams.values():
+            cam_pass.append(cam.setAREA())
         if not all(cam_pass):
             error('Unable to set cameras to AREA mode')
 
         cam_pass = []
-        for i in hs.cams:
-            cam_pass.append(hs.cams[i].setTDI())
+        for cam in hs.cams.values():
+            cam_pass.append(cam.setTDI())
         if not all(cam_pass):
             error('Unable to set cameras to TDI mode')
 
@@ -361,7 +362,7 @@ def test_cameras():
 
 try:
     timestamp = time.strftime('%Y%m%d%H%M')
-    image_path = Path(os.getcwd()) / f'{timestamp}_HiSeqCheck'
+    image_path = Path(join(os.getcwd(),timestamp+'_HiSeqCheck'))
     os.mkdir(image_path)
     log_path = image_path / f'{timestamp}_HiSeqCheck.log'
     logger = setup_logger(log_path)

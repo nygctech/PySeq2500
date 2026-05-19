@@ -247,7 +247,9 @@ def get_machine_info(name=None, virtual=False):
         if name is None:
             name = config.get('name', None)
         model = config.get(name, {}).get('model', None)
-        focus_path = Path(config.get('focus path', None))
+        focus_path = config.get('focus path', None)
+        if focus_path is not None:
+            focus_path = Path(focus_path)
     else:
         model = None
         name = None
