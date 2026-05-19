@@ -20,6 +20,7 @@ from skimage.registration import phase_cross_correlation
 from pathlib import Path
 import yaml
 from math import log
+from dask_image.ndinterp import affine_transform
 
 try:
     import importlib.resources as pkg_resources
@@ -424,6 +425,7 @@ def get_HiSeqImages(image_path=None, common_name='', logger = None):
         return [HiSeqImages(im=i) for i in ims_]
     elif n_images == 1:
         ims.im = ims_[0]
+        ims.name = ims.im.name
         return ims
     else:
         return None
@@ -823,6 +825,150 @@ class HiSeqImages():
             message(self.logger, 'Unknown machine')
 
         return img
+    
+    def apply_full(self, func, dim_depth = None, sel_dict = None, dim_stack = None, args = (), kwargs = {}):
+        '''Recursively loop over coordinates and apply function to 2D images.
+
+           Function should take 2D image as it's first argument and return only
+           a 2D xarray image with fully labeled coordinates.
+
+           Returns:
+           ND xr.DataArray with function applied to entire DataArray
+        '''
+
+        assert callable(func)
+
+        # assert that selecting all coords results in 2D image
+
+        dims = [d for d in self.im.dims if d in self.im.coords.keys()]
+        max_dim_depth = len(dims)
+
+        if dim_depth is None:
+            dim_depth = 0
+        if sel_dict is None:
+            sel_dict = dict()
+        if dim_stack is None:
+            dim_stack = dict.fromkeys(dims, [])
+
+
+        dim = dims[dim_depth]
+        dim_stack[dim] = []
+
+        # Loop over coords recursively
+        for value in self.im.coords[dim]:
+            sel_dict[dim] = value
+
+            if dim_depth < max_dim_depth-1:
+                self.apply_full(func, dim_depth + 1, sel_dict, dim_stack, args, kwargs)
+            else:
+                # apply function to
+                image = self.im.sel(sel_dict)
+                assert len(image.shape) == 2, 'More than 2 dimensions do not have coordinates'
+                image = func(image, *args, **kwargs)
+
+            # save plane in stack
+            if dim == dims[-1]:
+                dim_stack[dim].append(image)
+
+        # stack dimensions
+        if dim != dims[0]:
+            higher_dim = dims[dim_depth-1]
+            dim_stack[higher_dim].append(xr.concat(dim_stack[dim], dim))
+        else:
+            return xr.concat(dim_stack[dim], dim)
+
+    def register_and_crop(self, image, reg_dict, crop_bb):
+        '''Register images with affine transformation and crop with bounding box.
+
+            crop_bb = [top bottom left right] pixel bounding box
+
+            Parameters:
+            image: 2D image
+            reg_dict: Channels as keys and affine matrix as values
+            crop_bb: 1D array crop bounding box in pixel location
+
+            Returns:
+            2D image
+        '''
+
+        rows = len(image.row); cols = len(image.col)
+        ch = int(image.channel.values)
+
+        # Affine transformation
+        if ch in reg_dict.keys():
+            registered =  affine_transform(image.data, reg_dict[ch])
+            image = xr.DataArray(registered, name = image.name, dims = image.dims,
+                                 coords = image.coords, attrs = image.attrs)
+
+        cols_ = slice(crop_bb[2], cols-crop_bb[3])
+        rows_ = slice(crop_bb[0], rows-crop_bb[1])
+        if crop_bb[2] > 0 and crop_bb[3] == 0:
+            # Flip columns if left side of image cropped so irregular chunk is last
+            image = image.sel(col=slice(None,None,-1))
+            cols_ = slice(0, cols-crop_bb[2])
+        elif crop_bb[2] > 0 and crop_bb[3] > 0:
+            # Don't crop both left and right side, only right so only 1 irregular chunk and is last
+            cols_ = slice(0, cols-crop_bb[3])
+
+        # Crop image
+        return image.sel(row=rows_, col=cols_)
+
+    def get_registration_data(self, image=None, top=64, bottom=0, left=0, right=0):
+        """Get registration shift for each channel from config and crop bounding box"""
+
+        img = self.im
+
+        # Get registration data
+        reg_config = self.config.get('registration', None)
+        pre_msg = 'getRegistrationData ::'
+
+        reg_dict = {}
+        crop_bb = [top, bottom, left, right]
+
+        if reg_config is not None:
+            for ch, shift in reg_config.items():
+
+                assert len(shift) == 2
+                try:
+                    shift = [float(s) for s in shift]
+                except:
+                    logger.warning(f'{pre_msg} Registration shift {shift} for channel {ch} is invalid')
+
+                A = np.identity(3)
+                A[0,2] = -shift[0]
+                A[1,2] = -shift[1]
+                reg_dict[int(ch)]=A
+                crop_bb = self.update_crop_bb(crop_bb, shift)
+
+                self.logger.info(f'{pre_msg} Channel {ch} :: {shift}')
+
+            self.logger.info(f'{pre_msg} :: Crop bounding box :: {crop_bb} (top, bottom, left, right)')
+        else:
+            raise ValueError(f'Registration data for {self.machine} not found')
+
+        return reg_dict, crop_bb
+    
+    
+    def update_crop_bb(self, crop_bb, shift):
+
+        if shift[0] < 0:
+            crop_bb[1] = max(crop_bb[1], floor(-shift[0]))
+        else:
+            crop_bb[0] = max(crop_bb[0], ceil(shift[0]))
+
+        if shift[1] < 0:
+            crop_bb[2] = max(crop_bb[2], floor(-shift[1]))
+        else:
+            crop_bb[3] = max(crop_bb[3], ceil(shift[1]))
+
+        return crop_bb
+
+    def register_channels_affine(self):
+
+        reg_dict, crop_bb = self.get_registration_data()
+        self.im = self.apply_full(self.register_and_crop, args = (reg_dict, crop_bb))
+
+        return self.im
 
     def normalize(self, dims=['channel']):
         '''Normalize pixel values between 0 and 1.
