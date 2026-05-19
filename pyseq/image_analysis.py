@@ -743,7 +743,8 @@ class HiSeqImages():
 
     def correct_background(self):
         '''Rescale pixel values for each group to the average background.'''
-
+        
+        im_name = self.im.name
 
         new_min_dict = self.config.get('background')
         dark_dict = self.config.get('dark group')
@@ -777,7 +778,7 @@ class HiSeqImages():
             ch_list.append(corrected)
 
         self.im = xr.concat(ch_list, dim='channel')
-        self.im.name = self.name
+        self.im.name = im_name
 
         return self.im
 
