@@ -1924,7 +1924,7 @@ def do_shutdown():
 
     # Move focus data to logs
     try:
-        if hs.focus_path != hs.log_path:
+        if hs.focus_path != hs.log_path and hs.focus_path != hs.image_path:
             shutil.move(hs.focus_path, hs.log_path)
     except:
         hs.message('PySeq::Could not transfer focus data to logs')
